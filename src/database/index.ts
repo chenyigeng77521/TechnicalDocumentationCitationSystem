@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from 'better-sqlite3';
+import { v4 as uuidv4 } from 'uuid';
 import { FileRecord, ChunkRecord } from '../types.js';
 
 export class DatabaseManager {
@@ -241,7 +242,7 @@ export class DatabaseManager {
   /**
    * 批量插入文档块
    */
-  insertChunks(chunks: Omit<ChunkRecord, 'id'>[]): string[] {
+  insertChunks(chunks: (Omit<ChunkRecord, 'id'> & { id?: string })[]): string[] {
     const ids: string[] = [];
     
     const stmt = this.db.prepare(`
@@ -251,7 +252,7 @@ export class DatabaseManager {
 
     const insert = this.db.transaction((chunkList: typeof chunks) => {
       for (const chunk of chunkList) {
-        const id = chunk.id;
+        const id = chunk.id || uuidv4();
         ids.push(id);
         
         stmt.run(
