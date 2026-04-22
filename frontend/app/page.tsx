@@ -144,8 +144,8 @@ export default function Home() {
       } else {
         setUploadMessage(`❌ ${data.message}`);
       }
-    } catch (error: Error) {
-      setUploadMessage(`❌ 上传失败: ${error.message}`);
+    } catch (error: unknown) {
+      setUploadMessage(`❌ 上传失败: ${(error as Error).message}`);
     } finally {
       setIsUploading(false);
       // 清空文件选择
@@ -507,7 +507,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    gap: '20px',
+    gap: '5px',
     padding: '16px 0 48px 0',
     color: 'var(--text)',
     marginLeft: '160px',

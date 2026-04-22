@@ -28,8 +28,8 @@ export default function FilesPage() {
     try {
       await api.deleteFile(filename);
       loadFiles();
-    } catch (error: Error) {
-      alert('删除失败：' + error.message);
+    } catch (error: unknown) {
+      alert('删除失败：' + (error as Error).message);
     }
   };
 

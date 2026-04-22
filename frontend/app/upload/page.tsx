@@ -163,7 +163,7 @@ export default function UploadPage() {
       setFiles([]);
       setCategory('');
       setTags('');
-    } catch (error: Error) {
+    } catch (error: any) {
       setError('上传失败：' + error.message);
     } finally {
       setUploading(false);
