@@ -1,20 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Trash2, Download, RefreshCw, Database } from 'lucide-react';
+import { FileText, Trash2 } from 'lucide-react';
 import { api, formatFileSize, formatTime } from '@/lib/api';
 import Link from 'next/link';
 
 export default function FilesPage() {
-  const [files, setFiles] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [indexing, setIndexing] = useState(false);
-
-  useEffect(() => {
-    loadFiles();
-    loadStats();
-  }, []);
+  const [files, setFiles] = useState<{name: string; size: number; mtime: string}[]>([]);
 
   const loadFiles = async () => {
     try {
@@ -25,24 +17,19 @@ export default function FilesPage() {
     }
   };
 
-  const loadStats = async () => {
-    try {
-      const data = await api.getStats();
-      setStats(data.stats);
-    } catch (error) {
-      console.error('加载统计信息失败:', error);
-    }
-  };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadFiles();
+  }, []);
 
-  const handleIndex = async () => {
-    setIndexing(true);
+  const handleDelete = async (filename: string) => {
+    if (!confirm(`确定要删除文件 "${filename}" 吗？`)) return;
+    
     try {
-      await api.triggerIndex();
-      alert('向量化索引完成');
-    } catch (error: any) {
-      alert('向量化失败：' + error.message);
-    } finally {
-      setIndexing(false);
+      await api.deleteFile(filename);
+      loadFiles();
+    } catch (error: Error) {
+      alert('删除失败：' + error.message);
     }
   };
 
@@ -76,49 +63,10 @@ export default function FilesPage() {
       {/* 主内容 */}
       <main className="max-w-6xl mx-auto px-6 py-12">
         {/* 页面标题 */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-800 mb-2">文件管理</h2>
-            <p className="text-slate-500">管理您的文档库</p>
-          </div>
-          <button
-            onClick={handleIndex}
-            disabled={indexing}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 text-white rounded-lg font-medium flex items-center gap-2 btn-transition"
-          >
-            <RefreshCw className={`w-4 h-4 ${indexing ? 'animate-spin' : ''}`} />
-            {indexing ? '索引中...' : '重新索引'}
-          </button>
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-slate-800 mb-2">文件管理</h2>
+          <p className="text-slate-500">管理您的文档库</p>
         </div>
-
-        {/* 统计卡片 */}
-        {stats && (
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <div className="flex items-center gap-3 mb-2">
-                <Database className="w-5 h-5 text-blue-500" />
-                <p className="text-sm text-slate-500">文档数量</p>
-              </div>
-              <p className="text-3xl font-semibold text-slate-800">{stats.fileCount}</p>
-            </div>
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <div className="flex items-center gap-3 mb-2">
-                <FileText className="w-5 h-5 text-green-500" />
-                <p className="text-sm text-slate-500">文档块数</p>
-              </div>
-              <p className="text-3xl font-semibold text-slate-800">{stats.chunkCount}</p>
-            </div>
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <div className="flex items-center gap-3 mb-2">
-                <RefreshCw className="w-5 h-5 text-purple-500" />
-                <p className="text-sm text-slate-500">索引状态</p>
-              </div>
-              <p className="text-3xl font-semibold text-green-600">
-                {stats.indexedCount === stats.chunkCount ? '100%' : `${stats.indexedCount}/${stats.chunkCount}`}
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* 文件列表 */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -139,8 +87,8 @@ export default function FilesPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {files.map((file) => (
-                <div key={file.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition">
+              {files.map((file, index) => (
+                <div key={index} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
                       <FileText className="w-5 h-5 text-blue-600" />
@@ -148,31 +96,22 @@ export default function FilesPage() {
                     <div>
                       <p className="font-medium text-slate-800">{file.name}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded uppercase">
-                          {file.format}
-                        </span>
                         <span className="text-xs text-slate-500">
                           {formatFileSize(file.size)}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {formatTime(file.uploadTime)}
+                          {formatTime(file.mtime)}
                         </span>
                       </div>
-                      {file.category && (
-                        <p className="text-xs text-slate-500 mt-1">
-                          分类：{file.category}
-                        </p>
-                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 hover:bg-slate-100 rounded-lg transition" title="下载">
-                      <Download className="w-4 h-4 text-slate-600" />
-                    </button>
-                    <button className="p-2 hover:bg-red-50 rounded-lg transition" title="删除">
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => handleDelete(file.name)}
+                    className="p-2 hover:bg-red-50 rounded-lg transition" 
+                    title="删除"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
                 </div>
               ))}
             </div>

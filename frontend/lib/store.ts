@@ -12,7 +12,7 @@ interface FileRecord {
 interface QuestionState {
   question: string;
   answer: string | null;
-  citations: any[];
+  citations: string[];
   loading: boolean;
   error: string | null;
 }
@@ -21,7 +21,7 @@ interface AppState {
   // 问答状态
   question: QuestionState;
   setQuestion: (q: string) => void;
-  setAnswer: (answer: string, citations: any[]) => void;
+  setAnswer: (answer: string, citations: string[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearAnswer: () => void;

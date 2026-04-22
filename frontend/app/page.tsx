@@ -8,19 +8,17 @@ interface Message {
   sources?: string[];
 }
 
-interface ApiResponse {
-  answer: string;
-  sources: string[];
-}
-
 export default function Home() {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const [docCount, setDocCount] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
   const resultRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 初始化时获取文档数量
   useEffect(() => {
@@ -75,6 +73,52 @@ export default function Home() {
     setMessages([]);
   };
 
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadMessage(`正在上传 ${files.length} 个文件...`);
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
+    try {
+      const response = await fetch('http://localhost:3002/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUploadMessage(`✅ ${data.message}`);
+        // 刷新文档数量
+        const statsRes = await fetch('http://localhost:3002/api/qa/stats');
+        const statsData = await statsRes.json();
+        setDocCount(statsData.totalFiles || 0);
+      } else {
+        setUploadMessage(`❌ ${data.message}`);
+      }
+    } catch (error: Error) {
+      setUploadMessage(`❌ 上传失败: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      // 清空文件选择
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      // 3秒后清除消息
+      setTimeout(() => setUploadMessage(''), 3000);
+    }
+  };
+
   const formatText = (text: string) => {
     return text
       .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
@@ -122,7 +166,7 @@ export default function Home() {
               const data = JSON.parse(line.slice(6));
               if (data.answer) answer += data.answer;
               if (data.sources) sources = data.sources;
-            } catch (e) {
+            } catch {
               // 忽略解析错误
             }
           }
@@ -156,17 +200,18 @@ export default function Home() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.logo}>
-          <div style={styles.logoIcon}>🧠</div>
-          <h1 style={styles.title}>智能知识库问答</h1>
+      <div style={styles.mainContent}>
+        {/* Header */}
+        <div style={styles.header}>
+          <div style={styles.logo}>
+            <div style={styles.logoIcon}>🧠</div>
+            <h1 style={styles.title}>智能知识库问答</h1>
+          </div>
+          <p style={styles.subtitle}>基于企业知识库的 AI 智能检索与问答系统</p>
         </div>
-        <p style={styles.subtitle}>基于企业知识库的 AI 智能检索与问答系统</p>
-      </div>
 
-      {/* Main card */}
-      <div style={styles.card}>
+        {/* Main card */}
+        <div style={styles.card}>
         {/* Result area */}
         <div 
           ref={resultRef} 
@@ -233,7 +278,7 @@ export default function Home() {
         {/* Input area */}
         <div style={styles.inputArea}>
           <div style={styles.inputRow}>
-            <div style={styles.textareaWrap}>
+            <div className="textarea-wrap" style={styles.textareaWrap}>
               <textarea
                 ref={textareaRef}
                 value={question}
@@ -252,7 +297,7 @@ export default function Home() {
               </div>
             </div>
             <button 
-              style={{...styles.sendBtn, ...(question.trim() ? styles.sendBtnActive : styles.sendBtnDisabled)}} 
+              style={styles.sendBtn} 
               onClick={handleSend}
               disabled={!question.trim() || isLoading}
             >
@@ -276,6 +321,82 @@ export default function Home() {
           <span>文档数：<b>{docCount.toLocaleString()}</b></span>
         </div>
       </div>
+      </div>
+
+      {/* 右侧边栏 */}
+      <div style={styles.sidebar}>
+        <div style={styles.btnRow}>
+          <button className="upload-btn" style={styles.uploadBtn} title="管理知识库">
+            <span style={styles.uploadIcon}>⚙️</span>
+            <span style={styles.uploadText}>知识库</span>
+          </button>
+          <button 
+            className="upload-btn" 
+            style={{...styles.uploadBtn, marginLeft: 'auto'}} 
+            title="上传知识库文档"
+            onClick={handleUploadClick}
+            disabled={isUploading}
+          >
+            <span style={styles.uploadIcon}>{isUploading ? '⏳' : '📁'}</span>
+            <span style={styles.uploadText}>{isUploading ? '上传中...' : '上传文档'}</span>
+          </button>
+        </div>
+        
+        {/* 隐藏的文件输入 */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".docx,.xlsx,.pptx,.pdf,.md"
+          multiple
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+        
+        {/* 上传状态提示 */}
+        {uploadMessage && (
+          <div style={styles.uploadStatus}>{uploadMessage}</div>
+        )}
+
+        {/* 上传文档要求 */}
+        <div style={styles.sourcePanel}>
+          <div style={styles.sourcePanelTitle}>📤 上传文档要求</div>
+          <div style={{ padding: '10px 12px', fontSize: '11px' }}>
+            <div style={styles.reqItem}>
+              <span style={styles.reqLabel}>文件数量：</span>
+              <span style={styles.reqValue}>最多 30 个</span>
+            </div>
+            <div style={styles.reqItem}>
+              <span style={styles.reqLabel}>单个大小：</span>
+              <span style={styles.reqValue}>最大 300MB</span>
+            </div>
+            <div style={styles.reqItem}>
+              <span style={styles.reqLabel}>文件格式：</span>
+            </div>
+            <div style={styles.formatTags}>
+              {['PDF', 'Word', 'Excel', 'PPT', 'TXT', 'MD', 'JSON', 'XML', 'SQL', '文本类'].map(fmt => (
+                <span key={fmt} style={styles.formatTag}>{fmt}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 来源显示区域 */}
+        <div style={styles.sourcePanel}>
+          <div style={styles.sourcePanelTitle}>📖 引用来源</div>
+          <div style={styles.sourcePanelList}>
+            {messages.length > 0 && messages[messages.length - 1].sources ? (
+              messages[messages.length - 1].sources?.map((source, idx) => (
+                <div key={idx} style={styles.sourcePanelItem}>
+                  <span style={styles.sourcePanelIcon}>📄</span>
+                  <span style={styles.sourcePanelText}>{source}</span>
+                </div>
+              ))
+            ) : (
+              <div style={styles.sourcePanelEmpty}>暂无引用来源</div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -283,18 +404,144 @@ export default function Home() {
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif',
-    background: '#f0f4ff',
+    background: 'var(--bg)',
     minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: '20px',
+    padding: '16px 0 48px 0',
+    color: 'var(--text)',
+  },
+  mainContent: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    paddingTop: '20px',
-    paddingBottom: '48px',
-    color: '#1a1f36',
+  },
+  uploadBtn: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    width: '72px',
+    height: '72px',
+    background: 'var(--surface)',
+    border: '1.5px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    cursor: 'pointer',
+    boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
+    transition: 'all 0.2s',
+    padding: '8px',
+  },
+  uploadIcon: {
+    fontSize: '24px',
+  },
+  uploadText: {
+    fontSize: '11px',
+    color: 'var(--text-sub)',
+    textAlign: 'center',
+  },
+  sidebar: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    paddingTop: '100px',
+    alignItems: 'flex-start',
+  },
+  reqItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginBottom: '6px',
+  },
+  reqLabel: {
+    color: 'var(--text-sub)',
+    flexShrink: 0,
+  },
+  reqValue: {
+    color: 'var(--primary)',
+    fontWeight: 600,
+  },
+  formatTags: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '4px',
+    marginTop: '4px',
+  },
+  formatTag: {
+    background: 'var(--primary-light)',
+    color: 'var(--primary)',
+    padding: '2px 8px',
+    borderRadius: '10px',
+    fontSize: '10px',
+    fontWeight: 500,
+  },
+  btnRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '12px',
+    width: '200px',
+  },
+  sourcePanel: {
+    width: '200px',
+    background: 'var(--surface)',
+    border: '1.5px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
+    overflow: 'hidden',
+  },
+  sourcePanelTitle: {
+    padding: '10px 12px',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: 'var(--text)',
+    borderBottom: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+  },
+  sourcePanelList: {
+    padding: '8px',
+    maxHeight: '200px',
+    overflowY: 'auto',
+  },
+  sourcePanelItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 8px',
+    fontSize: '11px',
+    color: 'var(--text-sub)',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'background 0.15s',
+  },
+  sourcePanelIcon: {
+    fontSize: '12px',
+  },
+  sourcePanelText: {
+    flex: 1,
+  },
+  sourcePanelEmpty: {
+    padding: '12px 8px',
+    fontSize: '11px',
+    color: 'var(--text-light)',
+    textAlign: 'center',
+  },
+  uploadStatus: {
+    width: '200px',
+    padding: '8px 12px',
+    fontSize: '11px',
+    color: 'var(--text)',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    textAlign: 'center',
+    marginTop: '8px',
   },
   header: {
     textAlign: 'center',
-    marginBottom: '18px',
+    marginBottom: '16px',
   },
   logo: {
     display: 'inline-flex',
@@ -305,7 +552,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   logoIcon: {
     width: '40px',
     height: '40px',
-    background: 'linear-gradient(135deg, #4f6ef7, #7c3aed)',
+    background: 'linear-gradient(135deg, var(--primary), var(--accent))',
     borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
@@ -315,7 +562,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   title: {
     fontSize: '22px',
     fontWeight: 700,
-    background: 'linear-gradient(135deg, #4f6ef7, #7c3aed)',
+    background: 'linear-gradient(135deg, var(--primary), var(--accent))',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     backgroundClip: 'text',
@@ -323,26 +570,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   subtitle: {
     fontSize: '13px',
-    color: '#6b7280',
+    color: 'var(--text-sub)',
     marginTop: '4px',
   },
   card: {
     width: '100%',
     maxWidth: '780px',
-    background: '#ffffff',
-    borderRadius: '16px',
-    boxShadow: '0 8px 40px rgba(79,110,247,0.14)',
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
   },
   resultArea: {
     padding: '24px 28px 20px',
-    minHeight: '360px',
+    minHeight: '260px',
     maxHeight: '520px',
     overflowY: 'auto',
-    background: '#f8faff',
-    borderBottom: '1px solid #e5e9f8',
+    background: 'var(--surface-2)',
+    borderBottom: '1px solid var(--border)',
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
@@ -353,14 +600,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#9ca3af',
+    color: 'var(--text-light)',
     gap: '12px',
     padding: '40px 0',
+    border: '1.5px dashed var(--border)',
+    borderRadius: 'var(--radius)',
+    background: 'var(--surface)',
   },
   emptyIcon: {
     width: '56px',
     height: '56px',
-    background: '#eef1fe',
+    background: 'var(--primary-light)',
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
@@ -387,7 +637,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 600,
   },
   avatarUser: {
-    background: 'linear-gradient(135deg, #4f6ef7, #7c3aed)',
+    background: 'linear-gradient(135deg, var(--primary), var(--accent))',
     color: '#fff',
   },
   avatarBot: {
@@ -402,7 +652,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   bubbleName: {
     fontSize: '11px',
-    color: '#9ca3af',
+    color: 'var(--text-light)',
     padding: '0 4px',
   },
   bubbleText: {
@@ -413,14 +663,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     wordBreak: 'break-word',
   },
   bubbleTextUser: {
-    background: 'linear-gradient(135deg, #4f6ef7, #7c3aed)',
+    background: 'linear-gradient(135deg, var(--primary), var(--accent))',
     color: '#fff',
     borderBottomRightRadius: '4px',
   },
   bubbleTextBot: {
-    background: '#ffffff',
-    border: '1px solid #e5e9f8',
-    color: '#1a1f36',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
     borderBottomLeftRadius: '4px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
   },
@@ -434,8 +684,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
-    background: '#eef1fe',
-    color: '#4f6ef7',
+    background: 'var(--primary-light)',
+    color: 'var(--primary)',
     borderRadius: '20px',
     padding: '3px 10px',
     fontSize: '11px',
@@ -446,15 +696,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '4px',
     padding: '12px 16px',
-    background: '#ffffff',
-    border: '1px solid #e5e9f8',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     borderRadius: '16px',
     borderBottomLeftRadius: '4px',
   },
   toolbar: {
     padding: '10px 20px',
-    background: '#ffffff',
-    borderBottom: '1px solid #e5e9f8',
+    background: 'var(--surface)',
+    borderBottom: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -462,12 +712,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   toolbarLabel: {
     fontSize: '12px',
-    color: '#6b7280',
+    color: 'var(--text-sub)',
     marginRight: '4px',
   },
   chip: {
-    background: '#eef1fe',
-    color: '#4f6ef7',
+    background: 'var(--primary-light)',
+    color: 'var(--primary)',
     border: 'none',
     borderRadius: '20px',
     padding: '4px 12px',
@@ -477,7 +727,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   inputArea: {
     padding: '20px 24px 24px',
-    background: '#ffffff',
+    background: 'var(--surface)',
   },
   inputRow: {
     display: 'flex',
@@ -486,11 +736,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   textareaWrap: {
     flex: 1,
-    border: '1.5px solid #e5e9f8',
-    borderRadius: '10px',
+    border: '1.5px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
     overflow: 'hidden',
     transition: 'border-color 0.2s, box-shadow 0.2s',
-    background: '#f8faff',
+    background: 'var(--surface-2)',
   },
   textarea: {
     width: '100%',
@@ -500,10 +750,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     resize: 'none',
     padding: '14px 16px 4px',
     fontSize: '14px',
-    color: '#1a1f36',
+    color: 'var(--text)',
     fontFamily: 'inherit',
     lineHeight: 1.6,
-    minHeight: '56px',
+    minHeight: '52px',
     maxHeight: '140px',
     overflowY: 'auto',
   },
@@ -515,7 +765,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   charCount: {
     fontSize: '11px',
-    color: '#9ca3af',
+    color: 'var(--text-light)',
   },
   inputActions: {
     display: 'flex',
@@ -525,7 +775,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    color: '#9ca3af',
+    color: 'var(--text-light)',
     fontSize: '16px',
     padding: '2px 4px',
     borderRadius: '6px',
@@ -534,30 +784,32 @@ const styles: { [key: string]: React.CSSProperties } = {
   sendBtn: {
     width: '52px',
     height: '52px',
+    background: 'linear-gradient(135deg, var(--primary), var(--accent))',
     border: 'none',
-    borderRadius: '10px',
+    borderRadius: 'var(--radius-sm)',
     cursor: 'pointer',
     color: '#fff',
     fontSize: '20px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
+    boxShadow: '0 4px 14px rgba(79,110,247,0.35)',
     transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.15s',
+    flexShrink: 0,
   },
   sendBtnActive: {
-    background: 'linear-gradient(135deg, #4f6ef7, #7c3aed)',
-    boxShadow: '0 4px 14px rgba(79,110,247,0.35)',
+    background: 'linear-gradient(135deg, var(--primary), var(--accent))',
   },
   sendBtnDisabled: {
-    background: '#e5e9f8',
-    color: '#9ca3af',
+    background: 'var(--primary-light)',
+    color: 'var(--text-light)',
     cursor: 'not-allowed',
     opacity: 0.5,
+    boxShadow: 'none',
   },
   hint: {
     fontSize: '12px',
-    color: '#9ca3af',
+    color: 'var(--text-light)',
     marginTop: '10px',
     textAlign: 'center',
   },
@@ -579,7 +831,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '6px',
     fontSize: '12px',
-    color: '#6b7280',
+    color: 'var(--text-sub)',
   },
   statDot: {
     width: '8px',
@@ -590,9 +842,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: '#10b981',
   },
   dotBlue: {
-    background: '#4f6ef7',
+    background: 'var(--primary)',
   },
   dotPurple: {
-    background: '#7c3aed',
+    background: 'var(--accent)',
   },
 };

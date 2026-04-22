@@ -2,8 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Upload, X, CheckCircle, AlertCircle, FileText } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
-import { api, formatFileSize, formatTime } from '@/lib/api';
+import { api, formatFileSize } from '@/lib/api';
 import Link from 'next/link';
 
 export default function UploadPage() {
@@ -12,24 +11,16 @@ export default function UploadPage() {
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<{message: string; files?: {originalName: string; status: string; error?: string}[]} | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 允许的文件类型
-  const allowedTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'text/plain',
-    'text/markdown',
-    'text/x-markdown'
-  ];
-
   // 文件扩展名映射
-  const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.md'];
+  const allowedExtensions = [
+    '.json', '.yaml', '.yml', '.cpp', '.java', '.py', '.xml', '.sql',
+    '.html', '.md', '.txt', '.ppt', '.pptx', '.xls', '.xlsx',
+    '.doc', '.docx', '.pdf'
+  ];
 
   // 验证文件格式
   const validateFile = (file: File): { valid: boolean; error?: string } => {
@@ -43,11 +34,11 @@ export default function UploadPage() {
       };
     }
     
-    // 检查文件大小（50MB）
-    if (file.size > 50 * 1024 * 1024) {
+    // 检查文件大小（300MB）
+    if (file.size > 300 * 1024 * 1024) {
       return {
         valid: false,
-        error: `文件过大：${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)。单个文件最大 50MB`
+        error: `文件过大：${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)。单个文件最大 300MB`
       };
     }
     
@@ -73,8 +64,8 @@ export default function UploadPage() {
     const droppedFiles = Array.from(e.dataTransfer.files);
     
     // 检查总数限制
-    if (files.length + droppedFiles.length > 10) {
-      setError(`文件数量超过限制。最多支持 10 个文件，当前已选择 ${files.length} 个，尝试添加 ${droppedFiles.length} 个`);
+    if (files.length + droppedFiles.length > 30) {
+      setError(`文件数量超过限制。最多支持 30 个文件，当前已选择 ${files.length} 个，尝试添加 ${droppedFiles.length} 个`);
       return;
     }
     
@@ -106,8 +97,8 @@ export default function UploadPage() {
       setError(null);
       
       // 检查总数限制
-      if (files.length + selectedFiles.length > 10) {
-        setError(`文件数量超过限制。最多支持 10 个文件，当前已选择 ${files.length} 个，尝试添加 ${selectedFiles.length} 个`);
+      if (files.length + selectedFiles.length > 30) {
+        setError(`文件数量超过限制。最多支持 30 个文件，当前已选择 ${files.length} 个，尝试添加 ${selectedFiles.length} 个`);
         return;
       }
       
@@ -144,8 +135,8 @@ export default function UploadPage() {
       return;
     }
     
-    if (files.length > 10) {
-      setError(`文件数量超过限制。最多支持 10 个文件，当前已选择 ${files.length} 个`);
+    if (files.length > 30) {
+      setError(`文件数量超过限制。最多支持 30 个文件，当前已选择 ${files.length} 个`);
       return;
     }
 
@@ -172,7 +163,7 @@ export default function UploadPage() {
       setFiles([]);
       setCategory('');
       setTags('');
-    } catch (error: any) {
+    } catch (error: Error) {
       setError('上传失败：' + error.message);
     } finally {
       setUploading(false);
@@ -226,7 +217,7 @@ export default function UploadPage() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.md"
+            accept=".json,.yaml,.yml,.cpp,.java,.py,.xml,.sql,.html,.md,.txt,.ppt,.pptx,.xls,.xlsx,.doc,.docx,.pdf"
             onChange={handleSelect}
             className="hidden"
           />
@@ -235,10 +226,10 @@ export default function UploadPage() {
             拖拽文件到此处，或点击选择
           </p>
           <p className="text-sm text-slate-500 mb-1">
-            支持 .pdf, .doc, .docx, .xls, .xlsx, .txt, .md 格式
+            支持代码、文档、表格、演示文稿等常见文件格式
           </p>
           <p className="text-xs text-slate-400 font-medium">
-            最多 10 个文件，单个文件最大 50MB
+            最多 30 个文件，单个文件最大 300MB
           </p>
         </div>
 
@@ -258,7 +249,7 @@ export default function UploadPage() {
           <div className="mt-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
               <p className="text-sm font-medium text-slate-700">
-                已选择 {files.length} / 10 个文件
+                已选择 {files.length} / 30 个文件
               </p>
               <button
                 onClick={() => {
@@ -327,7 +318,7 @@ export default function UploadPage() {
             disabled={files.length === 0 || uploading}
             className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium btn-transition"
           >
-            {uploading ? '上传中...' : `上传 ${files.length} 个文件${files.length >= 10 ? '（已达上限）' : ''}`}
+            {uploading ? '上传中...' : `上传 ${files.length} 个文件${files.length >= 30 ? '（已达上限）' : ''}`}
           </button>
         </div>
 
@@ -341,10 +332,10 @@ export default function UploadPage() {
             <div className="p-4">
               <p className="text-sm text-slate-600 mb-3">{result.message}</p>
               <p className="text-sm text-blue-600 mb-3">
-                📁 文件存储位置：<span className="font-mono bg-blue-50 px-2 py-1 rounded">./storage/files/</span>
+                📁 文件存储位置：<span className="font-mono bg-blue-50 px-2 py-1 rounded">./storage/raw/</span>
               </p>
               <div className="space-y-2">
-                {result.files?.map((file: any, idx: number) => (
+                {result.files?.map((file, idx: number) => (
                   <div key={idx} className="flex items-center gap-2 text-sm">
                     {file.status === 'completed' ? (
                       <CheckCircle className="w-4 h-4 text-green-500" />

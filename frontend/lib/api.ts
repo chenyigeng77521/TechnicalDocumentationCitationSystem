@@ -1,7 +1,9 @@
 import axios from 'axios';
-import { useAppStore } from '../lib/store';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+
+// axios 全局配置（10分钟超时）
+axios.defaults.timeout = 10 * 60 * 1000;
 
 export const api = {
   // 上传文件
@@ -13,25 +15,6 @@ export const api = {
 
     const response = await axios.post(`${API_BASE}/api/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return response.data;
-  },
-
-  // 回答问题
-  async askQuestion(question: string, topK = 5, strictMode = true) {
-    const response = await axios.post(`${API_BASE}/api/qa/ask`, {
-      question,
-      topK,
-      strictMode
-    });
-    return response.data;
-  },
-
-  // 检索
-  async search(query: string, topK = 5) {
-    const response = await axios.post(`${API_BASE}/api/qa/search`, {
-      query,
-      topK
     });
     return response.data;
   },
@@ -48,9 +31,9 @@ export const api = {
     return response.data;
   },
 
-  // 触发向量化
-  async triggerIndex() {
-    const response = await axios.post(`${API_BASE}/api/qa/index`);
+  // 删除文件
+  async deleteFile(filename: string) {
+    const response = await axios.delete(`${API_BASE}/api/qa/files/${filename}`);
     return response.data;
   }
 };

@@ -1,7 +1,7 @@
 declare global {
   interface AbortSignal {
     aborted: boolean;
-    reason: any;
+    reason: unknown;
     addEventListener(type: 'abort', listener: () => void): void;
     removeEventListener(type: 'abort', listener: () => void): void;
     throwIfAborted(): void;

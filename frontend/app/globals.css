@@ -3,35 +3,83 @@
 @tailwind utilities;
 
 :root {
-  /* WinClaw 主题色 - 紫色渐变 */
-  --primary: #8b5cf6;
-  --primary-hover: #7c3aed;
-  --primary-light: #a78bfa;
-  --secondary: #64748b;
-  
-  /* 渐变背景 */
-  --background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 50%, #f0f9ff 100%);
+  /* 参考文件样式变量 */
+  --bg: #f0f4ff;
   --surface: #ffffff;
-  --surface-glass: rgba(255, 255, 255, 0.9);
-  
-  --border: #ddd6fe;
-  --text-primary: #1e1b4b;
-  --text-secondary: #6b7280;
-  
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  
-  /* 玻璃态阴影 */
-  --glass-shadow: 0 8px 32px rgba(139, 92, 246, 0.1);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.3);
+  --surface-2: #f8faff;
+  --primary: #4f6ef7;
+  --primary-dark: #3a57e8;
+  --primary-light: #eef1fe;
+  --accent: #7c3aed;
+  --text: #1a1f36;
+  --text-sub: #6b7280;
+  --text-light: #9ca3af;
+  --border: #e5e9f8;
+  --shadow: 0 4px 24px rgba(79,110,247,0.08);
+  --shadow-lg: 0 8px 40px rgba(79,110,247,0.14);
+  --radius: 16px;
+  --radius-sm: 10px;
 }
 
 body {
-  background: var(--background);
-  color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
   min-height: 100vh;
+}
+
+/* 输入框聚焦样式 - 参考 knowledge-qa.html */
+.textarea-wrap:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,110,247,0.12);
+  background: #fff;
+}
+
+/* 发送按钮悬停样式 */
+.send-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(79,110,247,0.45);
+}
+
+/* 上传按钮悬停样式 */
+.upload-btn:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgba(79,110,247,0.2);
+  transform: translateY(-2px);
+}
+
+.send-btn:active {
+  transform: scale(0.96);
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Chip 悬停样式 */
+.chip:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* 动作按钮悬停样式 */
+.action-btn:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* 气泡动画 */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 打字指示器动画 */
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
 }
 
 /* 自定义滚动条 - WinClaw 风格 */
