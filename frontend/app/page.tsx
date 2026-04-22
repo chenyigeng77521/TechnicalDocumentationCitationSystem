@@ -16,6 +16,11 @@ export default function Home() {
   const [docCount, setDocCount] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
+  const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
+  const [rawFiles, setRawFiles] = useState<any[]>([]);
+  const [rawTotal, setRawTotal] = useState(0);
+  const [rawPage, setRawPage] = useState(1);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,6 +34,39 @@ export default function Home() {
       })
       .catch(() => setDocCount(0));
   }, []);
+
+  // 获取 raw 目录文档列表
+  const loadRawFiles = (page: number = 1) => {
+    setIsLoadingFiles(true);
+    fetch(`http://localhost:3002/api/upload/raw-files?page=${page}&limit=10`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setRawFiles(data.files);
+          setRawTotal(data.total);
+          setRawPage(data.page);
+        }
+      })
+      .catch(err => {
+        console.error('加载文档列表失败:', err);
+      })
+      .finally(() => setIsLoadingFiles(false));
+  };
+
+  // 点击知识库时加载文档列表
+  const handleKnowledgeBaseClick = () => {
+    setShowKnowledgeBase(!showKnowledgeBase);
+    if (!showKnowledgeBase) {
+      loadRawFiles(1);
+    }
+  };
+
+  // 翻页
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= Math.ceil(rawTotal / 10)) {
+      loadRawFiles(newPage);
+    }
+  };
 
   // 自动滚动到底部（仅在有消息时）
   useEffect(() => {
@@ -326,13 +364,69 @@ export default function Home() {
       {/* 右侧边栏 */}
       <div style={styles.sidebar}>
         <div style={styles.btnRow}>
-          <button className="upload-btn" style={styles.uploadBtn} title="管理知识库">
+          <button 
+            className="upload-btn" 
+            style={styles.uploadBtn} 
+            title="管理知识库"
+            onClick={handleKnowledgeBaseClick}
+          >
             <span style={styles.uploadIcon}>⚙️</span>
             <span style={styles.uploadText}>知识库</span>
           </button>
+          
+          {/* 知识库文档列表 - 显示在中间 */}
+          {showKnowledgeBase && (
+            <div style={styles.knowledgeBasePanel}>
+              <div style={styles.kbPanelTitle}>📚 知识库文档 ({rawTotal} 个)</div>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '0 10px 10px' }}>
+                {isLoadingFiles ? (
+                  <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                    加载中...
+                  </div>
+                ) : rawFiles.length === 0 ? (
+                  <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                    暂无文档
+                  </div>
+                ) : (
+                  rawFiles.map((file, idx) => (
+                    <div key={idx} style={styles.kbPanelItem}>
+                      <span style={styles.kbPanelIcon}>📄</span>
+                      <span style={styles.kbPanelText} title={file.name}>
+                        {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+                      </span>
+                      <span style={styles.kbPanelMeta}>{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* 分页 */}
+              {rawTotal > 10 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '6px 0' }}>
+                  <button 
+                    style={styles.pageBtn}
+                    onClick={() => handlePageChange(rawPage - 1)}
+                    disabled={rawPage <= 1}
+                  >
+                    上一页
+                  </button>
+                  <span style={{ fontSize: '10px', color: 'var(--text-sub)' }}>
+                    {rawPage}/{Math.ceil(rawTotal / 10)}
+                  </span>
+                  <button 
+                    style={styles.pageBtn}
+                    onClick={() => handlePageChange(rawPage + 1)}
+                    disabled={rawPage >= Math.ceil(rawTotal / 10)}
+                  >
+                    下一页
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
           <button 
             className="upload-btn" 
-            style={{...styles.uploadBtn, marginLeft: 'auto'}} 
+            style={styles.uploadBtn} 
             title="上传知识库文档"
             onClick={handleUploadClick}
             disabled={isUploading}
@@ -483,6 +577,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'row',
     gap: '12px',
     width: '200px',
+    justifyContent: 'space-between',
   },
   sourcePanel: {
     width: '200px',
@@ -527,6 +622,22 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '11px',
     color: 'var(--text-light)',
     textAlign: 'center',
+  },
+  sourcePanelMeta: {
+    fontSize: '10px',
+    color: 'var(--text-sub)',
+    marginLeft: 'auto',
+    flexShrink: 0,
+  },
+  pageBtn: {
+    background: 'var(--primary-light)',
+    color: 'var(--primary)',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '4px 10px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
   },
   uploadStatus: {
     width: '200px',

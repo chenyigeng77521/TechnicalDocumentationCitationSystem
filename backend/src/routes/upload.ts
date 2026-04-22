@@ -220,4 +220,62 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
   }
 });
 
+/**
+ * 获取 raw 目录下的文档列表
+ * GET /api/upload/raw-files?page=1&limit=10
+ */
+router.get('/raw-files', (req, res) => {
+  try {
+    const rawDir = path.resolve(config.upload.uploadDir);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!fs.existsSync(rawDir)) {
+      return res.json({
+        success: true,
+        files: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0
+      });
+    }
+
+    const files = fs.readdirSync(rawDir)
+      .filter(file => fs.statSync(path.join(rawDir, file)).isFile())
+      .map(file => {
+        const filePath = path.join(rawDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          path: filePath,
+          size: stats.size,
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime
+        };
+      })
+      .sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+
+    const total = files.length;
+    const paginatedFiles = files.slice(skip, skip + limit);
+
+    res.json({
+      success: true,
+      files: paginatedFiles,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+
+  } catch (error: any) {
+    console.error('❌ 获取文档列表失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取文档列表失败'
+    });
+  }
+});
+
 export default router;
