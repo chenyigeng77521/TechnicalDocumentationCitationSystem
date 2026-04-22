@@ -158,3 +158,18 @@ export interface ChunkRecord {
   original_lines: string;  // JSON 字符串
   vector: string;          // JSON 字符串
 }
+
+/**
+ * 插入 chunk 时使用的输入类型。
+ * 与 ChunkRecord 的区别：original_lines / vector 是运行时的数组，
+ * 由 DB 层在写入时 JSON.stringify。ChunkRecord 反映的是 DB 中存储的 JSON 字符串。
+ */
+export interface ChunkInsertInput {
+  id?: string;
+  file_id: string;
+  content: string;
+  start_line: number;
+  end_line: number;
+  original_lines: number[];
+  vector?: number[] | null;
+}

@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
-import { FileRecord, ChunkRecord } from '../types.js';
+import { FileRecord, ChunkRecord, ChunkInsertInput } from '../types.js';
 
 export class DatabaseManager {
   private db: Database.Database;
@@ -157,7 +157,7 @@ export class DatabaseManager {
   /**
    * 插入文档块
    */
-  insertChunk(chunk: Omit<ChunkRecord, 'id'> & { id?: string }): string {
+  insertChunk(chunk: ChunkInsertInput): string {
     const id = chunk.id || uuidv4();
     const originalLinesJson = JSON.stringify(chunk.original_lines);
     const vectorJson = chunk.vector ? JSON.stringify(chunk.vector) : null;
@@ -242,15 +242,15 @@ export class DatabaseManager {
   /**
    * 批量插入文档块
    */
-  insertChunks(chunks: (Omit<ChunkRecord, 'id'> & { id?: string })[]): string[] {
+  insertChunks(chunks: ChunkInsertInput[]): string[] {
     const ids: string[] = [];
-    
+
     const stmt = this.db.prepare(`
       INSERT INTO chunks (id, file_id, content, start_line, end_line, original_lines, vector)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const insert = this.db.transaction((chunkList: typeof chunks) => {
+    const insert = this.db.transaction((chunkList: ChunkInsertInput[]) => {
       for (const chunk of chunkList) {
         const id = chunk.id || uuidv4();
         ids.push(id);
