@@ -144,3 +144,32 @@ test('xlsx: prepended header does not count toward 20-row quota', () => {
   });
   assert.strictEqual(result.length, 1);
 });
+
+test('pdf: each page becomes its own chunk when short', () => {
+  const mdContent = '## 第 1 页\n\nPage one text.\n\n## 第 2 页\n\nPage two text.';
+  const result = chunkDocument({
+    fileId: 'f1', format: 'pdf', mdContent, lineMappings: []
+  });
+  assert.strictEqual(result.length, 2);
+  assert.ok(result[0].content.includes('Page one'));
+  assert.ok(result[0].content.startsWith('## 第 1 页'));
+  assert.ok(result[1].content.includes('Page two'));
+  assert.ok(result[1].content.startsWith('## 第 2 页'));
+});
+
+test('pdf: long page splits with sliding window and prepends page heading', () => {
+  // 生成一个带换行的 2000 字符 page body
+  const bodyChars: string[] = [];
+  for (let i = 0; i < 2000; i++) {
+    bodyChars.push(i > 0 && i % 80 === 0 ? '\n' : 'a');
+  }
+  const body = bodyChars.join('');
+  const mdContent = `## 第 1 页\n\n${body}`;
+  const result = chunkDocument({
+    fileId: 'f1', format: 'pdf', mdContent, lineMappings: []
+  });
+  assert.ok(result.length >= 4, `expected >=4 chunks for 2000-char body, got ${result.length}`);
+  for (const c of result) {
+    assert.ok(c.content.startsWith('## 第 1 页'), 'each chunk prepends page heading');
+  }
+});

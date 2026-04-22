@@ -281,10 +281,86 @@ function chunkXlsx(mdContent: string): RawChunk[] {
 }
 
 function chunkPdf(mdContent: string): RawChunk[] {
-  // TASK 6 会实现
-  return [{
-    content: mdContent,
-    startLine: 1,
-    endLine: mdContent.split('\n').length
-  }];
+  const WINDOW = 400;
+  const MIN_CUT = 300;
+  const MAX_CUT = 500;
+
+  const lines = mdContent.split('\n');
+  const chunks: RawChunk[] = [];
+
+  interface PageBlock {
+    heading: string;
+    body: string;
+    startLine: number;
+    endLine: number;
+  }
+
+  const pages: PageBlock[] = [];
+  let current: PageBlock | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNum = i + 1;
+    if (/^## 第 \d+ 页/.test(line)) {
+      if (current) {
+        current.endLine = lineNum - 1;
+        pages.push(current);
+      }
+      current = {
+        heading: line,
+        body: '',
+        startLine: lineNum,
+        endLine: lineNum
+      };
+    } else if (current) {
+      current.body += (current.body ? '\n' : '') + line;
+      current.endLine = lineNum;
+    }
+  }
+  if (current) pages.push(current);
+
+  for (const page of pages) {
+    const body = page.body.trim();
+    if (body === '') {
+      chunks.push({
+        content: page.heading,
+        startLine: page.startLine,
+        endLine: page.endLine
+      });
+      continue;
+    }
+
+    // 滑窗切分
+    let offset = 0;
+    while (offset < body.length) {
+      const remaining = body.length - offset;
+      let cut: number;
+
+      if (remaining <= MAX_CUT) {
+        cut = remaining;
+      } else {
+        // 在 [MIN_CUT, MAX_CUT] 窗口内找最近的 '\n'
+        const searchStart = offset + MIN_CUT;
+        const searchEnd = Math.min(offset + MAX_CUT, body.length);
+        const lastNewline = body.lastIndexOf('\n', searchEnd);
+        if (lastNewline >= searchStart) {
+          cut = lastNewline - offset;
+        } else {
+          cut = WINDOW;
+        }
+      }
+
+      const slice = body.slice(offset, offset + cut);
+      chunks.push({
+        content: `${page.heading}\n\n${slice}`,
+        startLine: page.startLine,
+        endLine: page.endLine
+      });
+      offset += cut;
+      // 跳过切点上的 '\n' 防止下一 chunk 以 '\n' 开头
+      while (offset < body.length && body[offset] === '\n') offset++;
+    }
+  }
+
+  return chunks;
 }
