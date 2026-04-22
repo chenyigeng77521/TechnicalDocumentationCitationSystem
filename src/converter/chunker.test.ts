@@ -31,3 +31,60 @@ test('different fileId yields different chunk IDs', () => {
   const b = chunkDocument({ ...base, fileId: 'f2' });
   assert.notStrictEqual(a[0].id, b[0].id);
 });
+
+test('md: short section becomes single chunk with prepended heading', () => {
+  const mdContent = '# Section A\n\nShort body.';
+  const result = chunkDocument({
+    fileId: 'f1', format: 'md', mdContent, lineMappings: []
+  });
+  assert.strictEqual(result.length, 1);
+  assert.ok(result[0].content.startsWith('# Section A'));
+  assert.ok(result[0].content.includes('Short body.'));
+});
+
+test('md: section >800 chars is split; each sub-chunk prepends heading', () => {
+  const para = 'x'.repeat(400);
+  const mdContent = `# Big\n\n${para}\n\n${para}\n\n${para}`;
+  const result = chunkDocument({
+    fileId: 'f1', format: 'md', mdContent, lineMappings: []
+  });
+  assert.ok(result.length >= 2, `expected >=2 chunks, got ${result.length}`);
+  for (const c of result) {
+    assert.ok(c.content.startsWith('# Big'), 'each chunk should prepend heading');
+  }
+});
+
+test('md: content before first heading is its own chunk without prepend', () => {
+  const mdContent = 'Intro text.\n\n# Later\n\nBody.';
+  const result = chunkDocument({
+    fileId: 'f1', format: 'md', mdContent, lineMappings: []
+  });
+  const intro = result.find(c => c.content.includes('Intro text.'));
+  assert.ok(intro, 'intro chunk should exist');
+  assert.ok(!intro!.content.startsWith('#'), 'intro chunk has empty section');
+});
+
+test('md: original_lines maps via lineMappings, not shifted by prepend', () => {
+  const mdContent = '# Title\n\nBody line.';
+  const lineMappings = [
+    { mdLine: 1, originalLine: 100, content: '# Title', context: '' },
+    { mdLine: 3, originalLine: 102, content: 'Body line.', context: '' }
+  ];
+  const result = chunkDocument({
+    fileId: 'f1', format: 'md', mdContent, lineMappings
+  });
+  assert.strictEqual(result.length, 1);
+  assert.strictEqual(result[0].start_line, 1);
+  assert.strictEqual(result[0].end_line, 3);
+  assert.deepStrictEqual(result[0].original_lines, [100, 102]);
+});
+
+test('md: multiple sections produce multiple chunks', () => {
+  const mdContent = '# A\n\nbody A\n\n# B\n\nbody B';
+  const result = chunkDocument({
+    fileId: 'f1', format: 'md', mdContent, lineMappings: []
+  });
+  assert.strictEqual(result.length, 2);
+  assert.ok(result[0].content.includes('body A'));
+  assert.ok(result[1].content.includes('body B'));
+});
