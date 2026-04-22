@@ -74,7 +74,7 @@ export class Retriever {
                 candidates = allChunks
                     .map(chunk => ({
                     ...chunk,
-                    score: this.cosineSimilarity(queryVector, chunk.vector)
+                    score: this.cosineSimilarity(queryVector, chunk.vector || [])
                 }))
                     .sort((a, b) => (b.score || 0) - (a.score || 0))
                     .slice(0, topK * 2); // 取更多候选用于重排序
@@ -90,8 +90,9 @@ export class Retriever {
             console.log(`🔍 关键词检索：${request.query}`);
             let chunks = this.db.searchChunks(request.query);
             // 应用过滤器
-            if (request.filters?.fileId) {
-                chunks = chunks.filter(c => c.file_id === request.filters.fileId);
+            const filters = request.filters || {};
+            if (filters.fileId) {
+                chunks = chunks.filter(c => c.file_id === filters.fileId);
             }
             // 简单评分：基于关键词匹配度
             candidates = chunks
@@ -180,10 +181,7 @@ export class Retriever {
             try {
                 const vector = await this.embed(chunk.content);
                 // 更新数据库
-                const stmt = this.db.db.prepare(`
-          UPDATE chunks SET vector = ? WHERE id = ?
-        `);
-                stmt.run(JSON.stringify(vector), chunk.id);
+                this.db.updateChunkVector(chunk.id, vector);
                 console.log(`✅ 向量化完成：${chunk.id}`);
             }
             catch (error) {

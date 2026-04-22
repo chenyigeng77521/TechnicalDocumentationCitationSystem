@@ -188,9 +188,9 @@ export class DatabaseManager {
     const result = stmt.get(chunkId) as ChunkRecord | null;
     
     if (result) {
-      result.original_lines = JSON.parse(result.original_lines);
+      (result as any).original_lines = JSON.parse(result.original_lines);
       if (result.vector) {
-        result.vector = JSON.parse(result.vector);
+        (result as any).vector = JSON.parse(result.vector);
       }
     }
     
@@ -269,6 +269,16 @@ export class DatabaseManager {
 
     insert(chunks);
     return ids;
+  }
+
+  /**
+   * 更新文档块向量
+   */
+  updateChunkVector(chunkId: string, vector: number[]): void {
+    const stmt = this.db.prepare(`
+      UPDATE chunks SET vector = ? WHERE id = ?
+    `);
+    stmt.run(JSON.stringify(vector), chunkId);
   }
 
   /**

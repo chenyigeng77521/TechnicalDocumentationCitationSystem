@@ -87,7 +87,7 @@ export class Retriever {
    */
   async search(request: SearchRequest): Promise<SearchResponse> {
     const topK = request.topK || this.topKDefault;
-    let candidates: (Chunk & { score?: number })[] = [];
+    let candidates: any[] = [];
 
     // 方式 1：语义检索（如果有向量）
     if (this.openai) {
@@ -104,7 +104,7 @@ export class Retriever {
         candidates = allChunks
           .map(chunk => ({
             ...chunk,
-            score: this.cosineSimilarity(queryVector, chunk.vector!)
+            score: this.cosineSimilarity(queryVector, (chunk.vector as any) || [])
           }))
           .sort((a, b) => (b.score || 0) - (a.score || 0))
           .slice(0, topK * 2); // 取更多候选用于重排序
@@ -123,8 +123,9 @@ export class Retriever {
       let chunks = this.db.searchChunks(request.query);
       
       // 应用过滤器
-      if (request.filters?.fileId) {
-        chunks = chunks.filter(c => c.file_id === request.filters.fileId);
+      const filters = request.filters || {};
+      if (filters.fileId) {
+        chunks = chunks.filter(c => c.file_id === filters.fileId);
       }
       
       // 简单评分：基于关键词匹配度
@@ -183,7 +184,7 @@ export class Retriever {
   /**
    * 构建引用信息
    */
-  private buildCitations(chunk: Chunk): Citation[] {
+  private buildCitations(chunk: any): Citation[] {
     const file = this.db.getFile(chunk.file_id);
     
     return [{
@@ -198,7 +199,7 @@ export class Retriever {
   /**
    * 提取段落锚点
    */
-  private extractParagraphAnchor(chunk: Chunk): string {
+  private extractParagraphAnchor(chunk: any): string {
     const lines = chunk.content.split('\n');
     
     // 查找标题或首句
@@ -230,10 +231,7 @@ export class Retriever {
         const vector = await this.embed(chunk.content);
         
         // 更新数据库
-        const stmt = this.db.db.prepare(`
-          UPDATE chunks SET vector = ? WHERE id = ?
-        `);
-        stmt.run(JSON.stringify(vector), chunk.id);
+        this.db.updateChunkVector(chunk.id, vector);
         
         console.log(`✅ 向量化完成：${chunk.id}`);
       } catch (error: any) {

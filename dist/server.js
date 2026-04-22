@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import * as path from 'path';
+import multer from 'multer';
 import uploadRoutes from './routes/upload.js';
 import qaRoutes from './routes/qa.js';
 // 加载环境变量
@@ -69,7 +70,8 @@ app.use((err, req, res, next) => {
     });
 });
 // 启动服务器
-app.listen(PORT, HOST, () => {
+const port = parseInt(PORT, 10);
+app.listen(port, HOST, () => {
     console.log('');
     console.log('╔══════════════════════════════════════════════════════════╗');
     console.log('║                                                          ║');

@@ -16,7 +16,7 @@ const router = Router();
 // Multer 配置
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'storage', 'temp');
+    const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'storage', 'files');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -126,6 +126,7 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
 
     db.close();
 
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.json({
       success: true,
       files: uploadedFiles,
@@ -134,6 +135,7 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
 
   } catch (error: any) {
     console.error('❌ 上传失败:', error);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.status(500).json({
       success: false,
       message: error.message || '上传失败'

@@ -18,7 +18,9 @@ export declare class DatabaseManager {
     /**
      * 插入文件记录
      */
-    insertFile(file: Omit<FileRecord, 'id'>): string;
+    insertFile(file: Omit<FileRecord, 'id'> & {
+        id?: string;
+    }): string;
     /**
      * 获取文件记录
      */
@@ -42,7 +44,9 @@ export declare class DatabaseManager {
     /**
      * 插入文档块
      */
-    insertChunk(chunk: Omit<ChunkRecord, 'id'>): string;
+    insertChunk(chunk: Omit<ChunkRecord, 'id'> & {
+        id?: string;
+    }): string;
     /**
      * 获取文档块
      */
@@ -58,7 +62,13 @@ export declare class DatabaseManager {
     /**
      * 批量插入文档块
      */
-    insertChunks(chunks: Omit<ChunkRecord, 'id'>[]): string[];
+    insertChunks(chunks: (Omit<ChunkRecord, 'id'> & {
+        id?: string;
+    })[]): string[];
+    /**
+     * 更新文档块向量
+     */
+    updateChunkVector(chunkId: string, vector: number[]): void;
     /**
      * 删除文件的所有文档块
      */

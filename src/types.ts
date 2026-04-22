@@ -155,6 +155,6 @@ export interface ChunkRecord {
   content: string;
   start_line: number;
   end_line: number;
-  original_lines: number[];
-  vector: number[];
+  original_lines: string;  // JSON 字符串
+  vector: string;          // JSON 字符串
 }

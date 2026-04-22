@@ -142,7 +142,7 @@ export interface ChunkRecord {
     content: string;
     start_line: number;
     end_line: number;
-    original_lines: number[];
-    vector: number[];
+    original_lines: string;
+    vector: string;
 }
 //# sourceMappingURL=types.d.ts.map

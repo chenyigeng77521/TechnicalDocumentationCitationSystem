@@ -5,6 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from 'better-sqlite3';
+import { v4 as uuidv4 } from 'uuid';
 export class DatabaseManager {
     db;
     dbPath;
@@ -67,7 +68,7 @@ export class DatabaseManager {
      * 插入文件记录
      */
     insertFile(file) {
-        const id = file.id;
+        const id = file.id || uuidv4();
         const tagsJson = file.tags ? JSON.stringify(file.tags) : null;
         const stmt = this.db.prepare(`
       INSERT INTO files (id, original_name, original_path, converted_path, format, size, upload_time, category, status, tags)
@@ -122,7 +123,7 @@ export class DatabaseManager {
      * 插入文档块
      */
     insertChunk(chunk) {
-        const id = chunk.id;
+        const id = chunk.id || uuidv4();
         const originalLinesJson = JSON.stringify(chunk.original_lines);
         const vectorJson = chunk.vector ? JSON.stringify(chunk.vector) : null;
         const stmt = this.db.prepare(`
@@ -187,13 +188,22 @@ export class DatabaseManager {
     `);
         const insert = this.db.transaction((chunkList) => {
             for (const chunk of chunkList) {
-                const id = chunk.id;
+                const id = chunk.id || uuidv4();
                 ids.push(id);
                 stmt.run(id, chunk.file_id, chunk.content, chunk.start_line, chunk.end_line, JSON.stringify(chunk.original_lines), chunk.vector ? JSON.stringify(chunk.vector) : null);
             }
         });
         insert(chunks);
         return ids;
+    }
+    /**
+     * 更新文档块向量
+     */
+    updateChunkVector(chunkId, vector) {
+        const stmt = this.db.prepare(`
+      UPDATE chunks SET vector = ? WHERE id = ?
+    `);
+        stmt.run(JSON.stringify(vector), chunkId);
     }
     /**
      * 删除文件的所有文档块

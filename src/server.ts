@@ -6,8 +6,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import * as path from 'path';
+import multer from 'multer';
 import uploadRoutes from './routes/upload.js';
 import qaRoutes from './routes/qa.js';
+import qaStreamRoutes from './routes/qa-stream.js';
 
 // 加载环境变量
 dotenv.config();
@@ -27,6 +29,7 @@ app.use('/storage', express.static(path.join(process.cwd(), 'storage')));
 // API 路由
 app.use('/api/upload', uploadRoutes);
 app.use('/api/qa', qaRoutes);
+app.use('/api/qa', qaStreamRoutes); // 流式问答
 
 // 健康检查
 app.get('/health', (req, res) => {
@@ -46,6 +49,7 @@ app.get('/', (req, res) => {
     endpoints: {
       upload: 'POST /api/upload',
       ask: 'POST /api/qa/ask',
+      askStream: 'POST /api/qa/ask-stream (流式)',
       search: 'POST /api/qa/search',
       files: 'GET /api/qa/files',
       stats: 'GET /api/qa/stats',
@@ -82,7 +86,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // 启动服务器
-app.listen(PORT, HOST, () => {
+const port = parseInt(PORT as string, 10);
+app.listen(port, HOST, () => {
   console.log('');
   console.log('╔══════════════════════════════════════════════════════════╗');
   console.log('║                                                          ║');
@@ -95,7 +100,8 @@ app.listen(PORT, HOST, () => {
   console.log('');
   console.log('📚 API 端点:');
   console.log('   POST   /api/upload          - 上传文件');
-  console.log('   POST   /api/qa/ask          - 回答问题');
+  console.log('   POST   /api/qa/ask          - 回答问题（普通）');
+  console.log('   POST   /api/qa/ask-stream   - 回答问题（流式）');
   console.log('   POST   /api/qa/search       - 检索文档');
   console.log('   GET    /api/qa/files        - 文件列表');
   console.log('   GET    /api/qa/stats        - 统计信息');
