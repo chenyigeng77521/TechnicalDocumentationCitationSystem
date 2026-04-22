@@ -129,6 +129,7 @@ function chunkMarkdown(mdContent: string): RawChunk[] {
   const MAX_SINGLE = 800;
   const TARGET_MIN = 300;
   const TARGET_MAX = 600;
+  const HARD_CAP = 2000;
 
   for (const sec of sections) {
     const bodyText = sec.bodyLines.join('\n').trim();
@@ -169,6 +170,20 @@ function chunkMarkdown(mdContent: string): RawChunk[] {
     for (const p of paragraphs) {
       if (bufLen + p.length > TARGET_MAX && bufLen >= TARGET_MIN) {
         flushBuf();
+      }
+      // 硬切超长段落，防止产生病态 chunk（spec §错误处理）
+      if (p.length > HARD_CAP) {
+        flushBuf();
+        for (let off = 0; off < p.length; off += HARD_CAP) {
+          const slice = p.slice(off, off + HARD_CAP);
+          const content = sec.heading ? `${sec.heading}\n\n${slice}` : slice;
+          chunks.push({
+            content,
+            startLine: sec.startLine,
+            endLine: sec.endLine
+          });
+        }
+        continue;
       }
       buf.push(p);
       bufLen += p.length + 2; // +2 for \n\n

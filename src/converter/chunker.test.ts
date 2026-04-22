@@ -48,7 +48,7 @@ test('md: section >800 chars is split; each sub-chunk prepends heading', () => {
   const result = chunkDocument({
     fileId: 'f1', format: 'md', mdContent, lineMappings: []
   });
-  assert.ok(result.length >= 2, `expected >=2 chunks, got ${result.length}`);
+  assert.strictEqual(result.length, 3, `expected 3 chunks for 3x 400-char paragraphs, got ${result.length}`);
   for (const c of result) {
     assert.ok(c.content.startsWith('# Big'), 'each chunk should prepend heading');
   }
@@ -87,4 +87,19 @@ test('md: multiple sections produce multiple chunks', () => {
   assert.strictEqual(result.length, 2);
   assert.ok(result[0].content.includes('body A'));
   assert.ok(result[1].content.includes('body B'));
+});
+
+test('md: single giant paragraph with no blank lines is force-split at 2000 chars', () => {
+  const giant = 'a'.repeat(5000);  // > 2000, no blank lines
+  const mdContent = `# Big\n\n${giant}`;
+  const result = chunkDocument({
+    fileId: 'f1', format: 'md', mdContent, lineMappings: []
+  });
+  // Expect 3 chunks (ceil(5000/2000) = 3), each prepending heading
+  assert.strictEqual(result.length, 3);
+  for (const c of result) {
+    assert.ok(c.content.startsWith('# Big'), 'each chunk should prepend heading');
+    // Content length = heading(5) + "\n\n"(2) + slice(≤2000) = ≤2007
+    assert.ok(c.content.length <= 2010, `chunk too long: ${c.content.length}`);
+  }
 });
