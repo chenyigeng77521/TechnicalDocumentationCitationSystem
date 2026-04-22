@@ -187,6 +187,17 @@ router.get('/stats', (req: Request, res: Response) => {
 router.post('/index', async (req: Request, res: Response) => {
   try {
     const db = new DatabaseManager();
+
+    // 守卫：无可索引 chunks 时直接返回 warning，避免误报成功
+    const stats = db.getStats();
+    if (stats.chunkCount === 0) {
+      db.close();
+      return res.json({
+        success: false,
+        warning: '数据库中无可索引的 chunks，请先上传并切分文档'
+      });
+    }
+
     const retriever = new Retriever(db, {
       llmApiKey: process.env.LLM_API_KEY,
       llmBaseUrl: process.env.LLM_BASE_URL
