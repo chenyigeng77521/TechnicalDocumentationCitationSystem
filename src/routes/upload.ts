@@ -108,7 +108,11 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
           // 4. 切分成功后标记 completed
           db.updateFileStatus(fileId, 'completed');
         } catch (chunkErr: any) {
-          db.updateFileStatus(fileId, 'failed');
+          try {
+            db.updateFileStatus(fileId, 'failed');
+          } catch (statusErr: any) {
+            console.error(`⚠️ 无法将 ${fileId} 标记为 failed:`, statusErr.message);
+          }
           throw chunkErr;
         }
 
