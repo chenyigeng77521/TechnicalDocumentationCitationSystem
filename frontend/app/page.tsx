@@ -13,14 +13,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [charCount, setCharCount] = useState(0);
-  // 从 localStorage 读取上次保存的状态，刷新时保持显示
-  const [docCount, setDocCount] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('kb_docCount');
-      return saved ? parseInt(saved, 10) : 0;
-    }
-    return 0;
-  });
+  const [docCount, setDocCount] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
