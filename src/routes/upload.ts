@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { DocumentConverter } from '../converter/index.js';
+import { chunkDocument } from '../converter/chunker.js';
 import { DatabaseManager } from '../database/index.js';
 import { FileFormat, FileStatus } from '../types.js';
 
@@ -72,13 +73,13 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
       try {
         const fileId = uuidv4();
         const format = converter.detectFormat(file.path);
-        
+
         console.log(`📤 开始处理文件：${file.originalname}`);
-        
+
         // 1. 转换文件
         const conversionResult = await converter.convert(file.path, file.originalname);
-        
-        // 2. 保存文件记录
+
+        // 2. 先写父表（status='converting'，防止出现 completed + chunks=0 灰态）
         const uploadTime = new Date().toISOString();
         db.insertFile({
           id: fileId,
@@ -89,10 +90,28 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
           size: file.size,
           upload_time: uploadTime,
           category: category || '',
-          status: 'completed',
+          status: 'converting',
           tags: tags ? (typeof tags === 'string' ? tags.split(',') : tags) : []
         });
-        
+
+        // 3. 切分并写子表
+        try {
+          const chunks = chunkDocument({
+            fileId,
+            format,
+            mdContent: conversionResult.mdContent,
+            lineMappings: conversionResult.lineMappings
+          });
+          db.insertChunks(chunks);
+          console.log(`✅ 切分完成：${chunks.length} 个 chunk`);
+
+          // 4. 切分成功后标记 completed
+          db.updateFileStatus(fileId, 'completed');
+        } catch (chunkErr: any) {
+          db.updateFileStatus(fileId, 'failed');
+          throw chunkErr;
+        }
+
         uploadedFiles.push({
           id: fileId,
           originalName: file.originalname,
@@ -105,12 +124,12 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
           category,
           tags
         });
-        
+
         console.log(`✅ 文件处理完成：${file.originalname}`);
-        
+
         // 删除临时文件
         fs.unlinkSync(file.path);
-        
+
       } catch (error: any) {
         console.error(`❌ 文件处理失败：${file.originalname}`, error.message);
         
