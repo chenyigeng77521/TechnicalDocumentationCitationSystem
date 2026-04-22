@@ -363,67 +363,8 @@ export default function Home() {
 
       {/* 右侧边栏 */}
       <div style={styles.sidebar}>
+        {/* 按钮行：上传按钮在左，知识库按钮和知识库列表在右 */}
         <div style={styles.btnRow}>
-          <button 
-            className="upload-btn" 
-            style={styles.uploadBtn} 
-            title="管理知识库"
-            onClick={handleKnowledgeBaseClick}
-          >
-            <span style={styles.uploadIcon}>⚙️</span>
-            <span style={styles.uploadText}>知识库</span>
-          </button>
-          
-          {/* 知识库文档列表 - 显示在中间 */}
-          {showKnowledgeBase && (
-            <div style={styles.knowledgeBasePanel}>
-              <div style={styles.kbPanelTitle}>📚 知识库文档 ({rawTotal} 个)</div>
-              <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '0 10px 10px' }}>
-                {isLoadingFiles ? (
-                  <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
-                    加载中...
-                  </div>
-                ) : rawFiles.length === 0 ? (
-                  <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
-                    暂无文档
-                  </div>
-                ) : (
-                  rawFiles.map((file, idx) => (
-                    <div key={idx} style={styles.kbPanelItem}>
-                      <span style={styles.kbPanelIcon}>📄</span>
-                      <span style={styles.kbPanelText} title={file.name}>
-                        {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
-                      </span>
-                      <span style={styles.kbPanelMeta}>{(file.size / 1024 / 1024).toFixed(1)}MB</span>
-                    </div>
-                  ))
-                )}
-              </div>
-              {/* 分页 */}
-              {rawTotal > 10 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '6px 0' }}>
-                  <button 
-                    style={styles.pageBtn}
-                    onClick={() => handlePageChange(rawPage - 1)}
-                    disabled={rawPage <= 1}
-                  >
-                    上一页
-                  </button>
-                  <span style={{ fontSize: '10px', color: 'var(--text-sub)' }}>
-                    {rawPage}/{Math.ceil(rawTotal / 10)}
-                  </span>
-                  <button 
-                    style={styles.pageBtn}
-                    onClick={() => handlePageChange(rawPage + 1)}
-                    disabled={rawPage >= Math.ceil(rawTotal / 10)}
-                  >
-                    下一页
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-          
           <button 
             className="upload-btn" 
             style={styles.uploadBtn} 
@@ -434,6 +375,68 @@ export default function Home() {
             <span style={styles.uploadIcon}>{isUploading ? '⏳' : '📁'}</span>
             <span style={styles.uploadText}>{isUploading ? '上传中...' : '上传文档'}</span>
           </button>
+          
+          <div style={styles.btnGroup}>
+            <button 
+              className="upload-btn" 
+              style={styles.uploadBtn} 
+              title="管理知识库"
+              onClick={handleKnowledgeBaseClick}
+            >
+              <span style={styles.uploadIcon}>⚙️</span>
+              <span style={styles.uploadText}>知识库</span>
+            </button>
+            
+            {/* 知识库文档列表 - 显示在知识库按钮右侧 */}
+            {showKnowledgeBase && (
+              <div style={styles.knowledgeBasePanel}>
+                <div style={styles.kbPanelTitle}>📚 知识库文档 ({rawTotal} 个)</div>
+                <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '0 10px 10px' }}>
+                  {isLoadingFiles ? (
+                    <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                      加载中...
+                    </div>
+                  ) : rawFiles.length === 0 ? (
+                    <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                      暂无文档
+                    </div>
+                  ) : (
+                    rawFiles.map((file, idx) => (
+                      <div key={idx} style={styles.kbPanelItem}>
+                        <span style={styles.kbPanelIcon}>📄</span>
+                        <span style={styles.kbPanelText} title={file.name}>
+                          {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+                        </span>
+                        <span style={styles.kbPanelMeta}>{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {/* 分页 */}
+                {rawTotal > 10 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '6px 0' }}>
+                    <button 
+                      style={styles.pageBtn}
+                      onClick={() => handlePageChange(rawPage - 1)}
+                      disabled={rawPage <= 1}
+                    >
+                      上一页
+                    </button>
+                    <span style={{ fontSize: '10px', color: 'var(--text-sub)' }}>
+                      {rawPage}/{Math.ceil(rawTotal / 10)}
+                    </span>
+                    <button 
+                      style={styles.pageBtn}
+                      onClick={() => handlePageChange(rawPage + 1)}
+                      disabled={rawPage >= Math.ceil(rawTotal / 10)}
+                    >
+                      下一页
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         
         {/* 隐藏的文件输入 */}
@@ -507,6 +510,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '20px',
     padding: '16px 0 48px 0',
     color: 'var(--text)',
+    marginLeft: '160px',
   },
   mainContent: {
     display: 'flex',
@@ -528,6 +532,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
     transition: 'all 0.2s',
     padding: '8px',
+    marginRight: '2px',
   },
   uploadIcon: {
     fontSize: '24px',
@@ -542,7 +547,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     gap: '12px',
     paddingTop: '100px',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
   },
   reqItem: {
     display: 'flex',
@@ -575,17 +580,72 @@ const styles: { [key: string]: React.CSSProperties } = {
   btnRow: {
     display: 'flex',
     flexDirection: 'row',
-    gap: '12px',
-    width: '200px',
-    justifyContent: 'space-between',
+    gap: '10px',
+    width: '180px',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
   },
-  sourcePanel: {
-    width: '200px',
+  btnGroup: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '12px',
+    alignItems: 'flex-start',
+    position: 'relative',
+  },
+  knowledgeBasePanel: {
+    width: '150px',
     background: 'var(--surface)',
     border: '1.5px solid var(--border)',
     borderRadius: 'var(--radius)',
     boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
     overflow: 'hidden',
+    flexShrink: 0,
+    position: 'absolute',
+    left: '78px',
+    top: 0,
+  },
+  kbPanelTitle: {
+    padding: '8px 10px',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: 'var(--text)',
+    borderBottom: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+  },
+  kbPanelItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 8px',
+    fontSize: '10px',
+    color: 'var(--text-sub)',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    transition: 'background 0.15s',
+  },
+  kbPanelIcon: {
+    fontSize: '11px',
+  },
+  kbPanelText: {
+    flex: 1,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  kbPanelMeta: {
+    fontSize: '9px',
+    color: 'var(--text-sub)',
+    marginLeft: 'auto',
+    flexShrink: 0,
+  },
+  sourcePanel: {
+    width: '160px',
+    background: 'var(--surface)',
+    border: '1.5px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
+    overflow: 'hidden',
+    alignSelf: 'flex-end',
   },
   sourcePanelTitle: {
     padding: '10px 12px',
@@ -623,19 +683,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'var(--text-light)',
     textAlign: 'center',
   },
-  sourcePanelMeta: {
-    fontSize: '10px',
-    color: 'var(--text-sub)',
-    marginLeft: 'auto',
-    flexShrink: 0,
-  },
   pageBtn: {
     background: 'var(--primary-light)',
     color: 'var(--primary)',
     border: 'none',
-    borderRadius: '6px',
-    padding: '4px 10px',
-    fontSize: '11px',
+    borderRadius: '4px',
+    padding: '2px 6px',
+    fontSize: '9px',
     cursor: 'pointer',
     transition: 'all 0.15s',
   },
