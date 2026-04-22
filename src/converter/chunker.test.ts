@@ -103,3 +103,44 @@ test('md: single giant paragraph with no blank lines is force-split at 2000 char
     assert.ok(c.content.length <= 2010, `chunk too long: ${c.content.length}`);
   }
 });
+
+test('xlsx: groups 20 data rows per chunk, prepends sheet + header', () => {
+  const rows = Array.from({ length: 25 }, (_, i) => `| v${i} | ${i} |`).join('\n');
+  const mdContent = `## Sheet1\n\n| 列 | 数据 |\n|----|------|\n${rows}\n`;
+  const result = chunkDocument({
+    fileId: 'f1', format: 'xlsx', mdContent, lineMappings: []
+  });
+  assert.strictEqual(result.length, 2, `expected 2 chunks for 25 rows, got ${result.length}`);
+  assert.ok(result[0].content.startsWith('## Sheet1'));
+  assert.ok(result[0].content.includes('| 列 | 数据 |'));
+  assert.strictEqual(
+    (result[0].content.match(/\| v\d+ \|/g) || []).length,
+    20,
+    'first chunk should have 20 data rows'
+  );
+  assert.strictEqual(
+    (result[1].content.match(/\| v\d+ \|/g) || []).length,
+    5,
+    'second chunk should have 5 data rows'
+  );
+});
+
+test('xlsx: multiple sheets produce separate chunks', () => {
+  const mdContent = `## Sheet1\n\n| 列 | 数据 |\n|----|------|\n| a | 1 |\n\n## Sheet2\n\n| 列 | 数据 |\n|----|------|\n| b | 2 |\n`;
+  const result = chunkDocument({
+    fileId: 'f1', format: 'xlsx', mdContent, lineMappings: []
+  });
+  assert.strictEqual(result.length, 2);
+  assert.ok(result[0].content.startsWith('## Sheet1'));
+  assert.ok(result[1].content.startsWith('## Sheet2'));
+});
+
+test('xlsx: prepended header does not count toward 20-row quota', () => {
+  // 精确 20 行数据 → 应该只产出 1 个 chunk（不是 2 个）
+  const rows = Array.from({ length: 20 }, (_, i) => `| v${i} | ${i} |`).join('\n');
+  const mdContent = `## Sheet1\n\n| 列 | 数据 |\n|----|------|\n${rows}\n`;
+  const result = chunkDocument({
+    fileId: 'f1', format: 'xlsx', mdContent, lineMappings: []
+  });
+  assert.strictEqual(result.length, 1);
+});

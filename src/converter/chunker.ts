@@ -195,12 +195,89 @@ function chunkMarkdown(mdContent: string): RawChunk[] {
 }
 
 function chunkXlsx(mdContent: string): RawChunk[] {
-  // TASK 5 会实现
-  return [{
-    content: mdContent,
-    startLine: 1,
-    endLine: mdContent.split('\n').length
-  }];
+  const ROWS_PER_CHUNK = 20;
+  const lines = mdContent.split('\n');
+  const chunks: RawChunk[] = [];
+
+  interface SheetBlock {
+    heading: string;       // 如 "## Sheet1"
+    headerLines: string[]; // 通常 2 行: "| 列 | 数据 |" 和 "|----|------|"
+    dataRows: { line: string; mdLine: number }[];
+    startLine: number;     // heading 所在的 1-indexed 行
+  }
+
+  const sheets: SheetBlock[] = [];
+  let current: SheetBlock | null = null;
+  let state: 'heading-seek' | 'header-seek' | 'data' = 'heading-seek';
+  let pendingHeaderLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNum = i + 1;
+
+    if (line.startsWith('## ')) {
+      if (current) sheets.push(current);
+      current = {
+        heading: line,
+        headerLines: [],
+        dataRows: [],
+        startLine: lineNum
+      };
+      state = 'header-seek';
+      pendingHeaderLines = [];
+      continue;
+    }
+
+    if (!current) continue;
+
+    if (state === 'header-seek') {
+      // 收集前两行非空的表格行作为表头
+      if (line.trim().startsWith('|')) {
+        pendingHeaderLines.push(line);
+        if (pendingHeaderLines.length === 2) {
+          current.headerLines = pendingHeaderLines;
+          state = 'data';
+        }
+      }
+      continue;
+    }
+
+    if (state === 'data') {
+      if (line.trim().startsWith('|')) {
+        current.dataRows.push({ line, mdLine: lineNum });
+      }
+      // 非表格行（如空行或 ---）忽略
+    }
+  }
+  if (current) sheets.push(current);
+
+  // 每个 sheet 按 20 行数据分组
+  for (const sheet of sheets) {
+    if (sheet.dataRows.length === 0) {
+      chunks.push({
+        content: [sheet.heading, '', ...sheet.headerLines].join('\n'),
+        startLine: sheet.startLine,
+        endLine: sheet.startLine + 1 + sheet.headerLines.length
+      });
+      continue;
+    }
+    for (let i = 0; i < sheet.dataRows.length; i += ROWS_PER_CHUNK) {
+      const group = sheet.dataRows.slice(i, i + ROWS_PER_CHUNK);
+      const content = [
+        sheet.heading,
+        '',
+        ...sheet.headerLines,
+        ...group.map(r => r.line)
+      ].join('\n');
+      chunks.push({
+        content,
+        startLine: group[0].mdLine,
+        endLine: group[group.length - 1].mdLine
+      });
+    }
+  }
+
+  return chunks;
 }
 
 function chunkPdf(mdContent: string): RawChunk[] {
