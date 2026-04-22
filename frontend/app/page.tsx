@@ -13,7 +13,14 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [charCount, setCharCount] = useState(0);
-  const [docCount, setDocCount] = useState(0);
+  // 从 localStorage 读取上次保存的状态，刷新时保持显示
+  const [docCount, setDocCount] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('kb_docCount');
+      return saved ? parseInt(saved, 10) : 0;
+    }
+    return 0;
+  });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
@@ -21,18 +28,31 @@ export default function Home() {
   const [rawTotal, setRawTotal] = useState(0);
   const [rawPage, setRawPage] = useState(1);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [isServerConnected, setIsServerConnected] = useState(true);
+  const [hasMounted, setHasMounted] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 初始化时获取文档数量
   useEffect(() => {
-    fetch('http://localhost:3002/api/qa/stats')
-      .then(res => res.json())
-      .then(data => {
-        setDocCount(data.totalFiles || 0);
-      })
-      .catch(() => setDocCount(0));
+    setHasMounted(true);
+    const checkConnection = async () => {
+      try {
+        const res = await fetch('http://localhost:3002/api/qa/stats');
+        const data = await res.json();
+        const count = data.totalFiles || 0;
+        setIsServerConnected(true);
+        setDocCount(count);
+        localStorage.setItem('kb_connected', 'true');
+        localStorage.setItem('kb_docCount', count.toString());
+      } catch {
+        setIsServerConnected(false);
+        localStorage.setItem('kb_connected', 'false');
+      }
+    };
+    
+    checkConnection();
   }, []);
 
   // 获取 raw 目录文档列表
@@ -351,11 +371,11 @@ export default function Home() {
       {/* Stats */}
       <div style={styles.stats}>
         <div style={styles.statItem}>
-          <span style={{...styles.statDot, ...styles.dotGreen}}></span>
-          <span>知识库已连接</span>
+          <span style={{...styles.statDot, ...(hasMounted && isServerConnected ? styles.dotGreen : styles.dotGray)}}></span>
+          <span>{hasMounted && isServerConnected ? '知识库已连接' : '知识库未连接'}</span>
         </div>
         <div style={styles.statItem}>
-          <span style={{...styles.statDot, ...styles.dotBlue}}></span>
+          <span style={{...styles.statDot, ...(hasMounted && docCount > 0 ? styles.dotBlue : styles.dotGray)}}></span>
           <span>文档数：<b>{docCount.toLocaleString()}</b></span>
         </div>
       </div>
@@ -694,7 +714,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.15s',
   },
   uploadStatus: {
-    width: '200px',
+    width: '140px',
     padding: '8px 12px',
     fontSize: '11px',
     color: 'var(--text)',
@@ -921,6 +941,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     minHeight: '52px',
     maxHeight: '140px',
     overflowY: 'auto',
+    height: 'auto',
   },
   inputFooter: {
     display: 'flex',
@@ -1008,6 +1029,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   dotBlue: {
     background: 'var(--primary)',
+  },
+  dotGray: {
+    background: '#9ca3af',
   },
   dotPurple: {
     background: 'var(--accent)',
