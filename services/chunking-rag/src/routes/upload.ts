@@ -13,6 +13,7 @@ import { DatabaseManager } from '../database/index.js';
 import { FileFormat, FileStatus } from '../types.js';
 import * as dotenv from 'dotenv';
 dotenv.config();
+import { safeFilename, fixEncoding } from './filename-utils.js';
 
 const router = Router();
 
@@ -27,9 +28,10 @@ const storage = multer.diskStorage({
     cb(null, resolvedDir);
   },
   filename: (req, file, cb) => {
-    // 文件名策略在 Task 4 处理；此步仍用 UUID 作为过渡
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
+    const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), '..', '..', 'storage', 'raw');
+    const resolvedDir = path.resolve(uploadDir);
+    const safeName = safeFilename(file.originalname, resolvedDir);
+    cb(null, safeName);
   }
 });
 
@@ -87,7 +89,7 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
         const uploadTime = new Date().toISOString();
         db.insertFile({
           id: fileId,
-          original_name: file.originalname,
+          original_name: path.basename(file.path),  // 已被 multer 保存为 sanitize + 冲突后的最终文件名
           original_path: conversionResult.originalPath,
           converted_path: conversionResult.convertedPath,
           format,
@@ -122,7 +124,7 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
 
         uploadedFiles.push({
           id: fileId,
-          originalName: file.originalname,
+          originalName: path.basename(file.path),
           originalPath: conversionResult.originalPath,
           convertedPath: conversionResult.convertedPath,
           format,
