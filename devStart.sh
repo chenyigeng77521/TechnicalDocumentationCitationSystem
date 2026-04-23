@@ -8,7 +8,8 @@ echo "  知识问答系统启动脚本"
 echo "========================================"
 echo ""
 
-
+current_path=$(pwd)
+echo $current_path
 # 检查并启动后端
 echo ""
 echo "1️⃣ 检查后端服务状态..."
@@ -16,8 +17,8 @@ if lsof -i:3002 | grep -q LISTEN; then
     echo "   ✅ 后端已运行 (3002)"
 else
     echo "   🔄 启动后端服务..."
-    cd "./backend"
-    npx tsx src/server.ts > ../logs/backend.log 2>&1 &
+    cd "$current_path/backend/entrance"
+    npm run dev > "$current_path/logs/backend.log" 2>&1 &
     sleep 3
     echo "   ✅ 后端已启动 (3002)"
 fi
@@ -29,8 +30,8 @@ if lsof -i:3000 | grep -q LISTEN; then
     echo "   ✅ 前端已运行 (3000)"
 else
     echo "   🔄 启动前端服务..."
-    cd "./frontend"
-    npm run dev > ../logs/frontend.log 2>&1 &
+    cd "$current_path/frontend"
+    npm run dev > "$current_path/logs/frontend.log" 2>&1 &
     sleep 5
     echo "   ✅ 前端已启动 (3000)"
 fi
