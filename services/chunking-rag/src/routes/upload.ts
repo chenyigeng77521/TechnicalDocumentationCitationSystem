@@ -180,4 +180,70 @@ router.post('/url', async (req: Request, res: Response) => {
   });
 });
 
+/**
+ * GET /api/upload/raw-files?page=N&limit=M
+ * 列出共享 /storage/raw/ 下的文件（分页）
+ * 契约：与同事 backend 的同名端点完全一致
+ */
+router.get('/raw-files', (req: Request, res: Response) => {
+  try {
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), '..', '..', 'storage', 'raw'));
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!fs.existsSync(uploadDir)) {
+      return res.json({
+        success: true,
+        files: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0
+      });
+    }
+
+    const files = fs.readdirSync(uploadDir)
+      .filter(file => {
+        if (file === '.gitkeep') return false;  // 跳过 git 占位符
+        const p = path.join(uploadDir, file);
+        try {
+          return fs.statSync(p).isFile();
+        } catch {
+          return false;
+        }
+      })
+      .map(file => {
+        const filePath = path.join(uploadDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          path: filePath,
+          size: stats.size,
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime
+        };
+      })
+      .sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+
+    const total = files.length;
+    const paginatedFiles = files.slice(skip, skip + limit);
+
+    res.json({
+      success: true,
+      files: paginatedFiles,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error: any) {
+    console.error('❌ 获取 raw 文件列表失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 export default router;
