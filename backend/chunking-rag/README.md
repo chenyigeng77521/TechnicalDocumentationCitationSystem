@@ -10,7 +10,7 @@
 项目根/
 ├── backend/                            ← 同事的文件管理 demo（端口 3002）
 ├── frontend/                           ← 硬编码连 localhost:3002
-└── services-tuyh/chunking-rag/         ← 本服务（端口 3002，完整 RAG）
+└── backend/chunking-rag/         ← 本服务（端口 3002，完整 RAG）
     └── storage/                        ← 服务自包含存储
         ├── raw/                        上传文件
         ├── converted/                  转换后 markdown
@@ -18,7 +18,7 @@
         └── knowledge.db                SQLite
 ```
 
-**团队约定**：每人独立目录，互不依赖对方代码。本服务所有状态（上传文件 + DB + 转换产物）都在 `services-tuyh/chunking-rag/storage/` 里自包含；同事 backend 用自己的 `backend/storage/raw/`。两套数据池互相不可见。
+**团队约定**：每人独立目录，互不依赖对方代码。本服务所有状态（上传文件 + DB + 转换产物）都在 `backend/chunking-rag/storage/` 里自包含；同事 backend 用自己的 `backend/storage/raw/`。两套数据池互相不可见。
 
 **端口冲突**：`backend/` 和本服务都绑 3002，同一时刻只能一个在跑。约定为"谁演示谁启动"。
 
@@ -28,7 +28,7 @@
 # 先确保 3002 没被占
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 cp .env.example .env     # 首次；配 LLM_API_KEY 可选
 npm install              # 首次
 npm run dev              # tsx hot reload

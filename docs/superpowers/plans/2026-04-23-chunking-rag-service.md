@@ -2,15 +2,15 @@
 
 > ⚠️ **2026-04-23 晚更新**：Plan 全部 12 个 task 已实施并 push 到 main。后续因团队约定
 > "每人独立目录"调整，Task 10（改 backend/src/config.ts）已 revert，服务目录从
-> `services/chunking-rag/` 改名为 `services-tuyh/chunking-rag/`，存储改为服务自包含
+> `services/chunking-rag/` 改名为 `backend/chunking-rag/`，存储改为服务自包含
 > （`UPLOAD_DIR=./storage/raw`）。详见对应 spec 顶部的更新说明。
 > Plan 正文仅保留作实施记录。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 v1 `feature/chunking-mvp` 分支的完整 RAG 链路（converter + chunker + SQLite + retriever + LLM + 三阶段 upload 状态机）打包成独立服务 `services-tuyh/chunking-rag/`，监听 port 3002，让前端 `frontend/app/page.tsx`（硬编码连 `localhost:3002`）零修改即可使用上传 + 切分 + 问答 + 删除全功能。
+**Goal:** 把 v1 `feature/chunking-mvp` 分支的完整 RAG 链路（converter + chunker + SQLite + retriever + LLM + 三阶段 upload 状态机）打包成独立服务 `backend/chunking-rag/`，监听 port 3002，让前端 `frontend/app/page.tsx`（硬编码连 `localhost:3002`）零修改即可使用上传 + 切分 + 问答 + 删除全功能。
 
-**Architecture:** 目录平级架构——`backend/`（同事的文件管理 demo，RAG 链路已砍）、`services-tuyh/chunking-rag/`（我们的完整 RAG 服务）、`frontend/`（共用）。`/storage/raw/` 在项目根作为**跨服务共享**上传文件池；各服务内部 `storage/` 是私有状态（DB、converted、mappings）。3002 端口两服务二选一启动。
+**Architecture:** 目录平级架构——`backend/`（同事的文件管理 demo，RAG 链路已砍）、`backend/chunking-rag/`（我们的完整 RAG 服务）、`frontend/`（共用）。`/storage/raw/` 在项目根作为**跨服务共享**上传文件池；各服务内部 `storage/` 是私有状态（DB、converted、mappings）。3002 端口两服务二选一启动。
 
 **Tech Stack:** TypeScript ESM, Node 20 (via nvm), Express, multer, better-sqlite3, openai SDK, mammoth/xlsx/pdf-parse, tsx, node:test。直接复用 v1 的依赖集。
 
@@ -27,23 +27,23 @@
 
 | 路径 | 操作 | 职责 |
 |---|---|---|
-| `services-tuyh/chunking-rag/package.json` | 创建 | 独立依赖声明（express, multer, better-sqlite3, openai, mammoth, xlsx, pdf-parse, uuid, cors, dotenv + dev: tsx, typescript） |
-| `services-tuyh/chunking-rag/tsconfig.json` | 创建 | ES2022 + ESM + outDir `./dist` |
-| `services-tuyh/chunking-rag/.env.example` | 创建 | `PORT=3002`, `UPLOAD_DIR=../../storage/raw`, `DB_PATH=./storage/knowledge.db`, LLM 配置 |
-| `services-tuyh/chunking-rag/.gitignore` | 创建 | `node_modules/`, `dist/`, `storage/` |
-| `services-tuyh/chunking-rag/README.md` | 创建 | 启动方式、同事 backend 共存说明 |
-| `services-tuyh/chunking-rag/src/server.ts` | 复制改 | v1 server.ts，监听 3002，加载 .env |
-| `services-tuyh/chunking-rag/src/types.ts` | 复制 | v1 完整类型（含 ChunkInsertInput） |
-| `services-tuyh/chunking-rag/src/converter/index.ts` | 复制改 | v1 + 去掉 `original/` 目录写入逻辑 |
-| `services-tuyh/chunking-rag/src/converter/chunker.ts` | 复制 | v1 chunker（md/docx/xlsx/pdf + 2000-char 硬切） |
-| `services-tuyh/chunking-rag/src/converter/chunker.test.ts` | 复制 | v1 的 14 个测试 |
-| `services-tuyh/chunking-rag/src/database/index.ts` | 复制 | v1 DatabaseManager |
-| `services-tuyh/chunking-rag/src/retriever/index.ts` | 复制 | v1 Retriever |
-| `services-tuyh/chunking-rag/src/qa/index.ts` | 复制 | v1 QAAgent |
-| `services-tuyh/chunking-rag/src/llm/index.ts` | 复制 | v1 LLM streaming |
-| `services-tuyh/chunking-rag/src/routes/upload.ts` | 复制改 | v1 + multer 落 raw/ + safeFilename + 新增 /raw-files 子路由 |
-| `services-tuyh/chunking-rag/src/routes/qa.ts` | 复制改 | v1 + /stats 加 totalFiles + /files 字段对齐 + DELETE /files/:name |
-| `services-tuyh/chunking-rag/src/routes/qa-stream.ts` | 复制改 | v1 + SSE 协议简化为 {answer} / {sources} |
+| `backend/chunking-rag/package.json` | 创建 | 独立依赖声明（express, multer, better-sqlite3, openai, mammoth, xlsx, pdf-parse, uuid, cors, dotenv + dev: tsx, typescript） |
+| `backend/chunking-rag/tsconfig.json` | 创建 | ES2022 + ESM + outDir `./dist` |
+| `backend/chunking-rag/.env.example` | 创建 | `PORT=3002`, `UPLOAD_DIR=../../storage/raw`, `DB_PATH=./storage/knowledge.db`, LLM 配置 |
+| `backend/chunking-rag/.gitignore` | 创建 | `node_modules/`, `dist/`, `storage/` |
+| `backend/chunking-rag/README.md` | 创建 | 启动方式、同事 backend 共存说明 |
+| `backend/chunking-rag/src/server.ts` | 复制改 | v1 server.ts，监听 3002，加载 .env |
+| `backend/chunking-rag/src/types.ts` | 复制 | v1 完整类型（含 ChunkInsertInput） |
+| `backend/chunking-rag/src/converter/index.ts` | 复制改 | v1 + 去掉 `original/` 目录写入逻辑 |
+| `backend/chunking-rag/src/converter/chunker.ts` | 复制 | v1 chunker（md/docx/xlsx/pdf + 2000-char 硬切） |
+| `backend/chunking-rag/src/converter/chunker.test.ts` | 复制 | v1 的 14 个测试 |
+| `backend/chunking-rag/src/database/index.ts` | 复制 | v1 DatabaseManager |
+| `backend/chunking-rag/src/retriever/index.ts` | 复制 | v1 Retriever |
+| `backend/chunking-rag/src/qa/index.ts` | 复制 | v1 QAAgent |
+| `backend/chunking-rag/src/llm/index.ts` | 复制 | v1 LLM streaming |
+| `backend/chunking-rag/src/routes/upload.ts` | 复制改 | v1 + multer 落 raw/ + safeFilename + 新增 /raw-files 子路由 |
+| `backend/chunking-rag/src/routes/qa.ts` | 复制改 | v1 + /stats 加 totalFiles + /files 字段对齐 + DELETE /files/:name |
+| `backend/chunking-rag/src/routes/qa-stream.ts` | 复制改 | v1 + SSE 协议简化为 {answer} / {sources} |
 | `storage/raw/.gitkeep` | 创建 | 项目根共享上传目录占位 |
 | `backend/src/config.ts` | 修改 | `uploadDir: './storage/raw'` → `'../storage/raw'`（让同事也用共享目录） |
 
@@ -52,25 +52,25 @@
 ## Task 1: 初始化服务目录骨架
 
 **Files:**
-- Create: `services-tuyh/chunking-rag/package.json`
-- Create: `services-tuyh/chunking-rag/tsconfig.json`
-- Create: `services-tuyh/chunking-rag/.gitignore`
-- Create: `services-tuyh/chunking-rag/.env.example`
+- Create: `backend/chunking-rag/package.json`
+- Create: `backend/chunking-rag/tsconfig.json`
+- Create: `backend/chunking-rag/.gitignore`
+- Create: `backend/chunking-rag/.env.example`
 - Create: `storage/raw/.gitkeep`
 
-- [ ] **Step 1: 创建 services-tuyh/chunking-rag/ 目录结构**
+- [ ] **Step 1: 创建 backend/chunking-rag/ 目录结构**
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-mkdir -p services-tuyh/chunking-rag/src/{converter,database,retriever,qa,llm,routes}
-mkdir -p services-tuyh/chunking-rag/storage/{converted,mappings}
+mkdir -p backend/chunking-rag/src/{converter,database,retriever,qa,llm,routes}
+mkdir -p backend/chunking-rag/storage/{converted,mappings}
 mkdir -p storage/raw
 touch storage/raw/.gitkeep
 ```
 
 - [ ] **Step 2: 创建 package.json**
 
-写入 `services-tuyh/chunking-rag/package.json`：
+写入 `backend/chunking-rag/package.json`：
 
 ```json
 {
@@ -112,7 +112,7 @@ touch storage/raw/.gitkeep
 
 - [ ] **Step 3: 创建 tsconfig.json**
 
-写入 `services-tuyh/chunking-rag/tsconfig.json`：
+写入 `backend/chunking-rag/tsconfig.json`：
 
 ```json
 {
@@ -139,7 +139,7 @@ touch storage/raw/.gitkeep
 
 - [ ] **Step 4: 创建 .gitignore**
 
-写入 `services-tuyh/chunking-rag/.gitignore`：
+写入 `backend/chunking-rag/.gitignore`：
 
 ```
 node_modules/
@@ -150,7 +150,7 @@ storage/
 
 - [ ] **Step 5: 创建 .env.example**
 
-写入 `services-tuyh/chunking-rag/.env.example`：
+写入 `backend/chunking-rag/.env.example`：
 
 ```
 # ==================== 服务器配置 ====================
@@ -158,7 +158,7 @@ PORT=3002
 HOST=0.0.0.0
 
 # ==================== 存储配置 ====================
-# 共享上传目录（项目根级 /storage/raw），路径相对 services-tuyh/chunking-rag/ cwd
+# 共享上传目录（项目根级 /storage/raw），路径相对 backend/chunking-rag/ cwd
 UPLOAD_DIR=../../storage/raw
 
 # 服务私有 SQLite 存储
@@ -181,7 +181,7 @@ STRICT_MODE=true
 - [ ] **Step 6: 安装依赖**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm install
 ```
 
@@ -189,14 +189,14 @@ Expected: 安装成功，生成 `node_modules/`，无 error 级别输出。
 
 - [ ] **Step 7: 验证目录结构**
 
-Run: `ls services-tuyh/chunking-rag/`
+Run: `ls backend/chunking-rag/`
 Expected: 看到 `package.json`, `tsconfig.json`, `.gitignore`, `.env.example`, `node_modules/`, `src/`, `storage/`
 
 - [ ] **Step 8: Commit**
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/package.json services-tuyh/chunking-rag/tsconfig.json services-tuyh/chunking-rag/.gitignore services-tuyh/chunking-rag/.env.example storage/raw/.gitkeep
+git add backend/chunking-rag/package.json backend/chunking-rag/tsconfig.json backend/chunking-rag/.gitignore backend/chunking-rag/.env.example storage/raw/.gitkeep
 git commit -m "feat(chunking-rag): scaffold service directory and config files"
 # controller 会在 review 通过后 push
 ```
@@ -207,18 +207,18 @@ git commit -m "feat(chunking-rag): scaffold service directory and config files"
 ## Task 2: 从 feature/chunking-mvp 搬 v1 全部代码
 
 **Files:**
-- Create: `services-tuyh/chunking-rag/src/server.ts`
-- Create: `services-tuyh/chunking-rag/src/types.ts`
-- Create: `services-tuyh/chunking-rag/src/converter/index.ts`
-- Create: `services-tuyh/chunking-rag/src/converter/chunker.ts`
-- Create: `services-tuyh/chunking-rag/src/converter/chunker.test.ts`
-- Create: `services-tuyh/chunking-rag/src/database/index.ts`
-- Create: `services-tuyh/chunking-rag/src/retriever/index.ts`
-- Create: `services-tuyh/chunking-rag/src/qa/index.ts`
-- Create: `services-tuyh/chunking-rag/src/llm/index.ts`
-- Create: `services-tuyh/chunking-rag/src/routes/upload.ts`
-- Create: `services-tuyh/chunking-rag/src/routes/qa.ts`
-- Create: `services-tuyh/chunking-rag/src/routes/qa-stream.ts`
+- Create: `backend/chunking-rag/src/server.ts`
+- Create: `backend/chunking-rag/src/types.ts`
+- Create: `backend/chunking-rag/src/converter/index.ts`
+- Create: `backend/chunking-rag/src/converter/chunker.ts`
+- Create: `backend/chunking-rag/src/converter/chunker.test.ts`
+- Create: `backend/chunking-rag/src/database/index.ts`
+- Create: `backend/chunking-rag/src/retriever/index.ts`
+- Create: `backend/chunking-rag/src/qa/index.ts`
+- Create: `backend/chunking-rag/src/llm/index.ts`
+- Create: `backend/chunking-rag/src/routes/upload.ts`
+- Create: `backend/chunking-rag/src/routes/qa.ts`
+- Create: `backend/chunking-rag/src/routes/qa-stream.ts`
 
 - [ ] **Step 1: 从 feature/chunking-mvp 分支提取所有 src 文件**
 
@@ -226,24 +226,24 @@ git commit -m "feat(chunking-rag): scaffold service directory and config files"
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
 
 # 从 feature/chunking-mvp 分支一次性 checkout src/ 到服务目录
-git show feature/chunking-mvp:src/types.ts > services-tuyh/chunking-rag/src/types.ts
-git show feature/chunking-mvp:src/server.ts > services-tuyh/chunking-rag/src/server.ts
-git show feature/chunking-mvp:src/converter/index.ts > services-tuyh/chunking-rag/src/converter/index.ts
-git show feature/chunking-mvp:src/converter/chunker.ts > services-tuyh/chunking-rag/src/converter/chunker.ts
-git show feature/chunking-mvp:src/converter/chunker.test.ts > services-tuyh/chunking-rag/src/converter/chunker.test.ts
-git show feature/chunking-mvp:src/database/index.ts > services-tuyh/chunking-rag/src/database/index.ts
-git show feature/chunking-mvp:src/retriever/index.ts > services-tuyh/chunking-rag/src/retriever/index.ts
-git show feature/chunking-mvp:src/qa/index.ts > services-tuyh/chunking-rag/src/qa/index.ts
-git show feature/chunking-mvp:src/llm/index.ts > services-tuyh/chunking-rag/src/llm/index.ts
-git show feature/chunking-mvp:src/routes/upload.ts > services-tuyh/chunking-rag/src/routes/upload.ts
-git show feature/chunking-mvp:src/routes/qa.ts > services-tuyh/chunking-rag/src/routes/qa.ts
-git show feature/chunking-mvp:src/routes/qa-stream.ts > services-tuyh/chunking-rag/src/routes/qa-stream.ts
+git show feature/chunking-mvp:src/types.ts > backend/chunking-rag/src/types.ts
+git show feature/chunking-mvp:src/server.ts > backend/chunking-rag/src/server.ts
+git show feature/chunking-mvp:src/converter/index.ts > backend/chunking-rag/src/converter/index.ts
+git show feature/chunking-mvp:src/converter/chunker.ts > backend/chunking-rag/src/converter/chunker.ts
+git show feature/chunking-mvp:src/converter/chunker.test.ts > backend/chunking-rag/src/converter/chunker.test.ts
+git show feature/chunking-mvp:src/database/index.ts > backend/chunking-rag/src/database/index.ts
+git show feature/chunking-mvp:src/retriever/index.ts > backend/chunking-rag/src/retriever/index.ts
+git show feature/chunking-mvp:src/qa/index.ts > backend/chunking-rag/src/qa/index.ts
+git show feature/chunking-mvp:src/llm/index.ts > backend/chunking-rag/src/llm/index.ts
+git show feature/chunking-mvp:src/routes/upload.ts > backend/chunking-rag/src/routes/upload.ts
+git show feature/chunking-mvp:src/routes/qa.ts > backend/chunking-rag/src/routes/qa.ts
+git show feature/chunking-mvp:src/routes/qa-stream.ts > backend/chunking-rag/src/routes/qa-stream.ts
 ```
 
 - [ ] **Step 2: 编译验证（应出现 2 个 pre-existing TS 错误，不允许更多）**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | tee /tmp/ts-errors.txt
 wc -l /tmp/ts-errors.txt
 ```
@@ -260,7 +260,7 @@ src/llm/index.ts(2,10): error TS2305: Module '"../types"' has no exported member
 - [ ] **Step 3: 运行 v1 单元测试验证（14 个全绿）**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm test 2>&1 | tail -10
 ```
 
@@ -270,7 +270,7 @@ Expected: `# pass 14 / # fail 0`
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/
+git add backend/chunking-rag/src/
 git commit -m "feat(chunking-rag): import v1 RAG pipeline from feature/chunking-mvp"
 # controller 会在 review 通过后 push
 ```
@@ -280,12 +280,12 @@ git commit -m "feat(chunking-rag): import v1 RAG pipeline from feature/chunking-
 ## Task 3: 改造 multer 落点到共享 /storage/raw/，砍掉 original/ 冗余
 
 **Files:**
-- Modify: `services-tuyh/chunking-rag/src/routes/upload.ts` — multer dest 用 env var
-- Modify: `services-tuyh/chunking-rag/src/converter/index.ts` — 去掉 `original/` 目录写入
+- Modify: `backend/chunking-rag/src/routes/upload.ts` — multer dest 用 env var
+- Modify: `backend/chunking-rag/src/converter/index.ts` — 去掉 `original/` 目录写入
 
 - [ ] **Step 1: 修改 upload.ts multer destination**
 
-在 `services-tuyh/chunking-rag/src/routes/upload.ts` 顶部 import 后加：
+在 `backend/chunking-rag/src/routes/upload.ts` 顶部 import 后加：
 
 ```typescript
 import * as dotenv from 'dotenv';
@@ -356,7 +356,7 @@ return {
 - [ ] **Step 3: 编译 + 测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm test 2>&1 | tail -5
 ```
@@ -370,7 +370,7 @@ Expected:
 - [ ] **Step 4: 手工启动服务验证上传落点**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 cp .env.example .env
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev > /tmp/task3-server.log 2>&1 &
@@ -394,7 +394,7 @@ Expected: `/storage/raw/` 里出现一个 UUID 命名的 .md 文件（`.gitkeep`
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/routes/upload.ts services-tuyh/chunking-rag/src/converter/index.ts
+git add backend/chunking-rag/src/routes/upload.ts backend/chunking-rag/src/converter/index.ts
 git commit -m "feat(chunking-rag): upload to shared /storage/raw, drop original/ duplication"
 # controller 会在 review 通过后 push
 ```
@@ -404,12 +404,12 @@ git commit -m "feat(chunking-rag): upload to shared /storage/raw, drop original/
 ## Task 4: multer 文件名策略 safeFilename + DB original_name 对齐
 
 **Files:**
-- Create: `services-tuyh/chunking-rag/src/routes/filename-utils.ts`
-- Modify: `services-tuyh/chunking-rag/src/routes/upload.ts`
+- Create: `backend/chunking-rag/src/routes/filename-utils.ts`
+- Modify: `backend/chunking-rag/src/routes/upload.ts`
 
 - [ ] **Step 1: 从同事 backend 抄 fixEncoding + sanitizeFileName 实现**
 
-创建 `services-tuyh/chunking-rag/src/routes/filename-utils.ts`：
+创建 `backend/chunking-rag/src/routes/filename-utils.ts`：
 
 ```typescript
 /**
@@ -468,7 +468,7 @@ export function safeFilename(originalname: string, uploadDir: string): string {
 
 - [ ] **Step 2: 修改 upload.ts multer filename + insertFile**
 
-在 `services-tuyh/chunking-rag/src/routes/upload.ts` 顶部加 import：
+在 `backend/chunking-rag/src/routes/upload.ts` 顶部加 import：
 
 ```typescript
 import { safeFilename, fixEncoding } from './filename-utils.js';
@@ -501,7 +501,7 @@ db.insertFile({
 - [ ] **Step 3: 编译 + 测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm test 2>&1 | tail -3
 ```
@@ -511,7 +511,7 @@ Expected: `       1`（仍只有 llm/index.ts:2 那个）+ `# pass 14`
 - [ ] **Step 4: 手工集成测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 rm -f storage/knowledge.db
 rm -f ../../storage/raw/*.md ../../storage/raw/*.txt 2>/dev/null
 lsof -ti:3002 | xargs kill -9 2>/dev/null
@@ -546,7 +546,7 @@ Expected:
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/routes/filename-utils.ts services-tuyh/chunking-rag/src/routes/upload.ts
+git add backend/chunking-rag/src/routes/filename-utils.ts backend/chunking-rag/src/routes/upload.ts
 git commit -m "feat(chunking-rag): sanitize filename and align DB original_name to disk name"
 # controller 会在 review 通过后 push
 ```
@@ -556,11 +556,11 @@ git commit -m "feat(chunking-rag): sanitize filename and align DB original_name 
 ## Task 5: GET /api/qa/files 字段对齐前端契约
 
 **Files:**
-- Modify: `services-tuyh/chunking-rag/src/routes/qa.ts` — `/files` 路由返回字段
+- Modify: `backend/chunking-rag/src/routes/qa.ts` — `/files` 路由返回字段
 
 - [ ] **Step 1: 修改 /files 路由返回结构**
 
-在 `services-tuyh/chunking-rag/src/routes/qa.ts` 找到 `router.get('/files', ...)`，把 `files.map(...)` 的转换修改为：
+在 `backend/chunking-rag/src/routes/qa.ts` 找到 `router.get('/files', ...)`，把 `files.map(...)` 的转换修改为：
 
 ```typescript
 router.get('/files', (req: Request, res: Response) => {
@@ -622,7 +622,7 @@ import * as path from 'path';
 - [ ] **Step 2: 编译**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l
 ```
 
@@ -631,7 +631,7 @@ Expected: `       1`
 - [ ] **Step 3: 集成测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 # 假设上一 task 留下了数据
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev > /tmp/task5-server.log 2>&1 &
@@ -649,7 +649,7 @@ Expected: 返回结构里每个 file 对象同时包含 `name`, `size`, `mtime`,
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/routes/qa.ts
+git add backend/chunking-rag/src/routes/qa.ts
 git commit -m "feat(chunking-rag): align /api/qa/files response to frontend contract (name/size/mtime)"
 # controller 会在 review 通过后 push
 ```
@@ -659,11 +659,11 @@ git commit -m "feat(chunking-rag): align /api/qa/files response to frontend cont
 ## Task 6: GET /api/upload/raw-files 新端点（分页）
 
 **Files:**
-- Modify: `services-tuyh/chunking-rag/src/routes/upload.ts` — 在文件末尾 `export default router` 前加新路由
+- Modify: `backend/chunking-rag/src/routes/upload.ts` — 在文件末尾 `export default router` 前加新路由
 
 - [ ] **Step 1: 添加 /raw-files 路由**
 
-在 `services-tuyh/chunking-rag/src/routes/upload.ts` 的 `export default router;` 之前，添加：
+在 `backend/chunking-rag/src/routes/upload.ts` 的 `export default router;` 之前，添加：
 
 ```typescript
 /**
@@ -736,7 +736,7 @@ router.get('/raw-files', (req: Request, res: Response) => {
 - [ ] **Step 2: 编译**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l
 ```
 
@@ -745,7 +745,7 @@ Expected: `       1`
 - [ ] **Step 3: 集成测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev > /tmp/task6-server.log 2>&1 &
 SERVER_PID=$!
@@ -762,7 +762,7 @@ Expected: 响应含 `files`, `total`, `page`, `limit`, `totalPages` 字段；`fi
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/routes/upload.ts
+git add backend/chunking-rag/src/routes/upload.ts
 git commit -m "feat(chunking-rag): add GET /api/upload/raw-files paginated endpoint"
 # controller 会在 review 通过后 push
 ```
@@ -772,7 +772,7 @@ git commit -m "feat(chunking-rag): add GET /api/upload/raw-files paginated endpo
 ## Task 7: GET /api/qa/stats 加 totalFiles 字段
 
 **Files:**
-- Modify: `services-tuyh/chunking-rag/src/routes/qa.ts` — `/stats` 路由响应
+- Modify: `backend/chunking-rag/src/routes/qa.ts` — `/stats` 路由响应
 
 - [ ] **Step 1: 修改 /stats 路由响应 JSON**
 
@@ -810,7 +810,7 @@ router.get('/stats', (req: Request, res: Response) => {
 - [ ] **Step 2: 编译 + 测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l
 ```
 
@@ -819,7 +819,7 @@ Expected: `       1`
 - [ ] **Step 3: 集成测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev > /tmp/task7-server.log 2>&1 &
 SERVER_PID=$!
@@ -836,7 +836,7 @@ Expected: 响应含 `totalFiles`（顶层）+ `stats.fileCount` + `stats.chunkCo
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/routes/qa.ts
+git add backend/chunking-rag/src/routes/qa.ts
 git commit -m "feat(chunking-rag): add totalFiles field to /api/qa/stats response"
 # controller 会在 review 通过后 push
 ```
@@ -846,11 +846,11 @@ git commit -m "feat(chunking-rag): add totalFiles field to /api/qa/stats respons
 ## Task 8: DELETE /api/qa/files/:filename 新端点
 
 **Files:**
-- Modify: `services-tuyh/chunking-rag/src/routes/qa.ts`
+- Modify: `backend/chunking-rag/src/routes/qa.ts`
 
 - [ ] **Step 1: 添加 DELETE 路由**
 
-在 `services-tuyh/chunking-rag/src/routes/qa.ts` 的 `export default router;` 之前，添加：
+在 `backend/chunking-rag/src/routes/qa.ts` 的 `export default router;` 之前，添加：
 
 ```typescript
 /**
@@ -939,7 +939,7 @@ router.delete('/files/:filename', (req: Request, res: Response) => {
 - [ ] **Step 2: 编译 + 测试**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l
 ```
 
@@ -948,7 +948,7 @@ Expected: `       1`
 - [ ] **Step 3: 集成测试 — 正常删除**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 rm -f storage/knowledge.db
 rm -f ../../storage/raw/*.md ../../storage/raw/*.txt 2>/dev/null
 lsof -ti:3002 | xargs kill -9 2>/dev/null
@@ -989,7 +989,7 @@ Expected:
 - [ ] **Step 4: 集成测试 — 不存在的文件**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev > /tmp/task8b-server.log 2>&1 &
 SERVER_PID=$!
 sleep 5
@@ -1005,7 +1005,7 @@ Expected: `HTTP 404` + `{"success":false,"message":"文件不存在"}`
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/routes/qa.ts
+git add backend/chunking-rag/src/routes/qa.ts
 git commit -m "feat(chunking-rag): add DELETE /api/qa/files/:filename with cascade cleanup"
 # controller 会在 review 通过后 push
 ```
@@ -1015,7 +1015,7 @@ git commit -m "feat(chunking-rag): add DELETE /api/qa/files/:filename with casca
 ## Task 9: POST /api/qa/ask-stream SSE 协议简化
 
 **Files:**
-- Modify: `services-tuyh/chunking-rag/src/routes/qa-stream.ts`
+- Modify: `backend/chunking-rag/src/routes/qa-stream.ts`
 
 - [ ] **Step 1: 改写 sendEvent 发送格式**
 
@@ -1102,7 +1102,7 @@ ${contextText}
 - [ ] **Step 2: 编译**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l
 ```
 
@@ -1111,7 +1111,7 @@ Expected: `       1`
 - [ ] **Step 3: 集成测试 — 无 LLM Key 的拒答路径**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 rm -f storage/knowledge.db
 rm -f ../../storage/raw/*.md 2>/dev/null
 lsof -ti:3002 | xargs kill -9 2>/dev/null
@@ -1136,7 +1136,7 @@ Expected:
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/src/routes/qa-stream.ts
+git add backend/chunking-rag/src/routes/qa-stream.ts
 git commit -m "feat(chunking-rag): simplify SSE protocol to {answer}/{sources} for frontend compat"
 # controller 会在 review 通过后 push
 ```
@@ -1179,7 +1179,7 @@ git commit -m "$(cat <<'EOF'
 chore(backend): point uploadDir to shared /storage/raw
 
 同事 backend 的 config 路径从 ./storage/raw 改到 ../storage/raw，
-让 backend 和 services-tuyh/chunking-rag 共享同一个上传文件池。
+让 backend 和 backend/chunking-rag 共享同一个上传文件池。
 
 这是 2026-04-23 chunking-rag service 集成方案（docs/superpowers/specs/）
 要求的唯一对 backend 的改动。详见 D2 节。
@@ -1198,8 +1198,8 @@ EOF
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-rm -f services-tuyh/chunking-rag/storage/knowledge.db
-rm -rf services-tuyh/chunking-rag/storage/converted services-tuyh/chunking-rag/storage/mappings
+rm -f backend/chunking-rag/storage/knowledge.db
+rm -rf backend/chunking-rag/storage/converted backend/chunking-rag/storage/mappings
 rm -f storage/raw/*.md storage/raw/*.txt storage/raw/*.pdf 2>/dev/null
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 ```
@@ -1207,7 +1207,7 @@ lsof -ti:3002 | xargs kill -9 2>/dev/null
 - [ ] **Step 2: 启动 chunking-rag 服务**
 
 ```bash
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 cp .env.example .env
 PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev > /tmp/e2e-rag-server.log 2>&1 &
 RAG_PID=$!
@@ -1327,11 +1327,11 @@ git commit -m "docs: record chunking-rag service e2e integration test results"
 ## Task 12: README + 最终扫尾
 
 **Files:**
-- Create: `services-tuyh/chunking-rag/README.md`
+- Create: `backend/chunking-rag/README.md`
 
 - [ ] **Step 1: 写 README**
 
-创建 `services-tuyh/chunking-rag/README.md`：
+创建 `backend/chunking-rag/README.md`：
 
 ```markdown
 # chunking-rag Service
@@ -1347,7 +1347,7 @@ git commit -m "docs: record chunking-rag service e2e integration test results"
 ├── storage/raw/          ← 跨服务共享上传文件池
 ├── backend/              ← 同事的文件管理 demo（端口 3002，功能子集）
 ├── frontend/             ← 硬编码连 localhost:3002
-└── services-tuyh/chunking-rag/  ← 本服务（端口 3002，完整 RAG）
+└── backend/chunking-rag/  ← 本服务（端口 3002，完整 RAG）
 ```
 
 **端口冲突**：`backend/` 和本服务都绑 3002，同一时刻只能一个在跑。
@@ -1358,7 +1358,7 @@ git commit -m "docs: record chunking-rag service e2e integration test results"
 # 先确保 3002 没被占
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 
-cd services-tuyh/chunking-rag
+cd backend/chunking-rag
 cp .env.example .env   # 首次
 npm install
 npm run dev            # tsx hot reload
@@ -1403,7 +1403,7 @@ npm run dev            # port 3000
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag/README.md
+git add backend/chunking-rag/README.md
 git commit -m "docs(chunking-rag): add service README with architecture and runbook"
 # controller 会在 review 通过后 push
 ```
@@ -1412,9 +1412,9 @@ git commit -m "docs(chunking-rag): add service README with architecture and runb
 
 ## 完成标志
 
-- [ ] `services-tuyh/chunking-rag/` 目录完整：config + src + storage 骨架 + README
-- [ ] `cd services-tuyh/chunking-rag && npm run build` 编译产出仅 1 个 pre-existing TS error（`llm/index.ts:2` RetrievedChunk）
-- [ ] `cd services-tuyh/chunking-rag && npm test` → `# pass 14 / # fail 0`
+- [ ] `backend/chunking-rag/` 目录完整：config + src + storage 骨架 + README
+- [ ] `cd backend/chunking-rag && npm run build` 编译产出仅 1 个 pre-existing TS error（`llm/index.ts:2` RetrievedChunk）
+- [ ] `cd backend/chunking-rag && npm test` → `# pass 14 / # fail 0`
 - [ ] 启动服务 + 前端，执行上传 → 问答 → 删除全流程，API 断言全绿
 - [ ] `backend/src/config.ts` 已更新为共享 `/storage/raw/`
 - [ ] main 分支每个 task 独立 commit，push 到 origin/main

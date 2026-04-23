@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 `services-tuyh/chunking-rag-py/` 交付一个 FastAPI 实现的 Python 版 chunking-rag 服务，前端 0 修改完整接入，eval target 72–80（TS baseline 40）。
+**Goal:** 在 `backend/chunking-rag-py/` 交付一个 FastAPI 实现的 Python 版 chunking-rag 服务，前端 0 修改完整接入，eval target 72–80（TS baseline 40）。
 
 **Architecture:** 单进程 FastAPI + lifespan 常驻 bge-m3/reranker 模型 + 每请求独立 SQLite 连接（WAL）+ sync/async 执行纪律（模型/DB 调用在 `async` 路由里走 `anyio.to_thread.run_sync`）+ 召回链路 dense + BM25 → RRF → FlagReranker → 硬阈值。
 
@@ -36,7 +36,7 @@ T22 README + 最终冷启动验证
 ## 目录结构（一次性建立，参考 spec §3.1）
 
 ```
-services-tuyh/chunking-rag-py/
+backend/chunking-rag-py/
 ├── requirements.txt
 ├── pyproject.toml
 ├── .env.example
@@ -110,25 +110,25 @@ services-tuyh/chunking-rag-py/
 ## Task 1: Project skeleton + 冷启动验证（spec §附录 A/B/C）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/requirements.txt`
-- Create: `services-tuyh/chunking-rag-py/pyproject.toml`
-- Create: `services-tuyh/chunking-rag-py/.env.example`
-- Create: `services-tuyh/chunking-rag-py/storage/.gitkeep`
-- Create: `services-tuyh/chunking-rag-py/app/__init__.py` (空)
-- Create: `services-tuyh/chunking-rag-py/app/main.py` (仅 `/health`)
+- Create: `backend/chunking-rag-py/requirements.txt`
+- Create: `backend/chunking-rag-py/pyproject.toml`
+- Create: `backend/chunking-rag-py/.env.example`
+- Create: `backend/chunking-rag-py/storage/.gitkeep`
+- Create: `backend/chunking-rag-py/app/__init__.py` (空)
+- Create: `backend/chunking-rag-py/app/main.py` (仅 `/health`)
 - Create 空 `__init__.py`: `app/routes/`, `app/converter/`, `app/embedder/`, `app/retriever/`, `app/qa/`, `app/llm/`, `app/database/`
-- Create: `services-tuyh/chunking-rag-py/tests/__init__.py` (空)
-- Create: `services-tuyh/chunking-rag-py/tests/conftest.py`
+- Create: `backend/chunking-rag-py/tests/__init__.py` (空)
+- Create: `backend/chunking-rag-py/tests/conftest.py`
 
 - [ ] **Step 1: 建目录树**
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-mkdir -p services-tuyh/chunking-rag-py/{app/{routes,converter,embedder,retriever,qa,llm,database},tests/fixtures/ts_responses,scripts,storage}
-touch services-tuyh/chunking-rag-py/storage/.gitkeep
-touch services-tuyh/chunking-rag-py/app/__init__.py
-touch services-tuyh/chunking-rag-py/app/{routes,converter,embedder,retriever,qa,llm,database}/__init__.py
-touch services-tuyh/chunking-rag-py/tests/__init__.py
+mkdir -p backend/chunking-rag-py/{app/{routes,converter,embedder,retriever,qa,llm,database},tests/fixtures/ts_responses,scripts,storage}
+touch backend/chunking-rag-py/storage/.gitkeep
+touch backend/chunking-rag-py/app/__init__.py
+touch backend/chunking-rag-py/app/{routes,converter,embedder,retriever,qa,llm,database}/__init__.py
+touch backend/chunking-rag-py/tests/__init__.py
 ```
 
 - [ ] **Step 2: 写 requirements.txt（精确 pin，spec §附录 A）**
@@ -223,7 +223,7 @@ sys.path.insert(0, str(SERVICE_ROOT))
 - [ ] **Step 7: 冷启动验证（spec §附录 C）**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 conda activate sqllineage
 python --version                                # 期望 Python 3.12.4
 pip install -r requirements.txt                 # 期望零冲突
@@ -244,7 +244,7 @@ kill %1
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag-py/
+git add backend/chunking-rag-py/
 git commit -m "feat(chunking-rag-py): project skeleton + cold-start verified"
 ```
 
@@ -253,8 +253,8 @@ git commit -m "feat(chunking-rag-py): project skeleton + cold-start verified"
 ## Task 2: Settings + SERVICE_ROOT 路径解析（spec §附录 B, §5 D4）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/config.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_config.py`
+- Create: `backend/chunking-rag-py/app/config.py`
+- Create: `backend/chunking-rag-py/tests/test_config.py`
 
 - [ ] **Step 1: 写失败测试 tests/test_config.py**
 
@@ -289,7 +289,7 @@ def test_defaults_match_env_example():
 - [ ] **Step 2: 运行测试确认 fail**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 pytest tests/test_config.py -v
 # 期望: ImportError (app.config 不存在)
 ```
@@ -348,7 +348,7 @@ pytest tests/test_config.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/config.py services-tuyh/chunking-rag-py/tests/test_config.py
+git add backend/chunking-rag-py/app/config.py backend/chunking-rag-py/tests/test_config.py
 git commit -m "feat(chunking-rag-py): Settings with SERVICE_ROOT-anchored path resolution"
 ```
 
@@ -357,10 +357,10 @@ git commit -m "feat(chunking-rag-py): Settings with SERVICE_ROOT-anchored path r
 ## Task 3: filename_utils（spec §5 D8）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/filename_utils.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_filename_utils.py`
+- Create: `backend/chunking-rag-py/app/filename_utils.py`
+- Create: `backend/chunking-rag-py/tests/test_filename_utils.py`
 
-TS 参考：`services-tuyh/chunking-rag/src/routes/filename-utils.ts`。
+TS 参考：`backend/chunking-rag/src/routes/filename-utils.ts`。
 
 - [ ] **Step 1: 写失败测试 tests/test_filename_utils.py（7 用例，spec §9.2.1）**
 
@@ -503,7 +503,7 @@ pytest tests/test_filename_utils.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/filename_utils.py services-tuyh/chunking-rag-py/tests/test_filename_utils.py
+git add backend/chunking-rag-py/app/filename_utils.py backend/chunking-rag-py/tests/test_filename_utils.py
 git commit -m "feat(chunking-rag-py): filename utils (sanitize + O_EXCL atomic dedupe)"
 ```
 
@@ -512,8 +512,8 @@ git commit -m "feat(chunking-rag-py): filename utils (sanitize + O_EXCL atomic d
 ## Task 4: database schema + write_tx + Db CRUD（spec §5 D4/D9, §7）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/database/sqlite.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_sqlite.py`
+- Create: `backend/chunking-rag-py/app/database/sqlite.py`
+- Create: `backend/chunking-rag-py/tests/test_sqlite.py`
 
 - [ ] **Step 1: 写失败测试 tests/test_sqlite.py**
 
@@ -831,7 +831,7 @@ pytest tests/test_sqlite.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/database/ services-tuyh/chunking-rag-py/tests/test_sqlite.py
+git add backend/chunking-rag-py/app/database/ backend/chunking-rag-py/tests/test_sqlite.py
 git commit -m "feat(chunking-rag-py): SQLite schema + write_tx + Db CRUD"
 ```
 
@@ -840,14 +840,14 @@ git commit -m "feat(chunking-rag-py): SQLite schema + write_tx + Db CRUD"
 ## Task 5: converter/parser.py — 5 种格式（spec §3.1, §6.1）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/converter/parser.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_parser.py`
-- Create: `services-tuyh/chunking-rag-py/tests/fixtures/` 下 sample.md/docx/xlsx/pptx/pdf
+- Create: `backend/chunking-rag-py/app/converter/parser.py`
+- Create: `backend/chunking-rag-py/tests/test_parser.py`
+- Create: `backend/chunking-rag-py/tests/fixtures/` 下 sample.md/docx/xlsx/pptx/pdf
 
 - [ ] **Step 1: 准备测试 fixtures**
 
 ```bash
-cd services-tuyh/chunking-rag-py/tests/fixtures
+cd backend/chunking-rag-py/tests/fixtures
 
 # sample.md
 cat > sample.md <<'EOF'
@@ -1057,7 +1057,7 @@ pytest tests/test_parser.py -v
 - [ ] **Step 6: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/converter/parser.py services-tuyh/chunking-rag-py/tests/test_parser.py services-tuyh/chunking-rag-py/tests/fixtures/sample.*
+git add backend/chunking-rag-py/app/converter/parser.py backend/chunking-rag-py/tests/test_parser.py backend/chunking-rag-py/tests/fixtures/sample.*
 git commit -m "feat(chunking-rag-py): parser (pdf/docx/pptx/xlsx/md → markdown)"
 ```
 
@@ -1066,8 +1066,8 @@ git commit -m "feat(chunking-rag-py): parser (pdf/docx/pptx/xlsx/md → markdown
 ## Task 6: converter/chunker.py — 14 测试（spec §5 D5, §9.2.1）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/converter/chunker.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_chunker.py`
+- Create: `backend/chunking-rag-py/app/converter/chunker.py`
+- Create: `backend/chunking-rag-py/tests/test_chunker.py`
 
 - [ ] **Step 1: 写失败测试 tests/test_chunker.py（14 用例）**
 
@@ -1326,7 +1326,7 @@ pytest tests/test_chunker.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/converter/chunker.py services-tuyh/chunking-rag-py/tests/test_chunker.py
+git add backend/chunking-rag-py/app/converter/chunker.py backend/chunking-rag-py/tests/test_chunker.py
 git commit -m "feat(chunking-rag-py): markdown chunker (14 unit tests)"
 ```
 
@@ -1335,8 +1335,8 @@ git commit -m "feat(chunking-rag-py): markdown chunker (14 unit tests)"
 ## Task 7: embedder/bge_m3.py（spec §8, R7）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/embedder/bge_m3.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_embedder.py`
+- Create: `backend/chunking-rag-py/app/embedder/bge_m3.py`
+- Create: `backend/chunking-rag-py/tests/test_embedder.py`
 
 > 真实模型加载慢且吃资源。**单测用 mock** 验证接口契约；真实加载在冷启动验证（Task 1 Step 7）和 e2e 集中验证。
 
@@ -1443,7 +1443,7 @@ pytest tests/test_embedder.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/embedder/ services-tuyh/chunking-rag-py/tests/test_embedder.py
+git add backend/chunking-rag-py/app/embedder/ backend/chunking-rag-py/tests/test_embedder.py
 git commit -m "feat(chunking-rag-py): BgeM3Embedder (dense-only, lock-wrapped)"
 ```
 
@@ -1452,8 +1452,8 @@ git commit -m "feat(chunking-rag-py): BgeM3Embedder (dense-only, lock-wrapped)"
 ## Task 8: retriever/bm25.py（spec §5 D6, §9.2.1）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/retriever/bm25.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_bm25.py`
+- Create: `backend/chunking-rag-py/app/retriever/bm25.py`
+- Create: `backend/chunking-rag-py/tests/test_bm25.py`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -1520,7 +1520,7 @@ pytest tests/test_bm25.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/retriever/bm25.py services-tuyh/chunking-rag-py/tests/test_bm25.py
+git add backend/chunking-rag-py/app/retriever/bm25.py backend/chunking-rag-py/tests/test_bm25.py
 git commit -m "feat(chunking-rag-py): BM25 retriever with jieba tokenization"
 ```
 
@@ -1529,8 +1529,8 @@ git commit -m "feat(chunking-rag-py): BM25 retriever with jieba tokenization"
 ## Task 9: retriever/rrf.py（spec §5 D6）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/retriever/rrf.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_rrf.py`
+- Create: `backend/chunking-rag-py/app/retriever/rrf.py`
+- Create: `backend/chunking-rag-py/tests/test_rrf.py`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -1592,7 +1592,7 @@ pytest tests/test_rrf.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/retriever/rrf.py services-tuyh/chunking-rag-py/tests/test_rrf.py
+git add backend/chunking-rag-py/app/retriever/rrf.py backend/chunking-rag-py/tests/test_rrf.py
 git commit -m "feat(chunking-rag-py): RRF fusion"
 ```
 
@@ -1601,8 +1601,8 @@ git commit -m "feat(chunking-rag-py): RRF fusion"
 ## Task 10: retriever/dense.py（spec §5 D6）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/retriever/dense.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_dense.py`
+- Create: `backend/chunking-rag-py/app/retriever/dense.py`
+- Create: `backend/chunking-rag-py/tests/test_dense.py`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -1675,7 +1675,7 @@ pytest tests/test_dense.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/retriever/dense.py services-tuyh/chunking-rag-py/tests/test_dense.py
+git add backend/chunking-rag-py/app/retriever/dense.py backend/chunking-rag-py/tests/test_dense.py
 git commit -m "feat(chunking-rag-py): dense cosine retriever"
 ```
 
@@ -1684,8 +1684,8 @@ git commit -m "feat(chunking-rag-py): dense cosine retriever"
 ## Task 11: retriever/reranker.py（spec §8, R7）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/retriever/reranker.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_reranker.py`
+- Create: `backend/chunking-rag-py/app/retriever/reranker.py`
+- Create: `backend/chunking-rag-py/tests/test_reranker.py`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -1760,7 +1760,7 @@ pytest tests/test_reranker.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/retriever/reranker.py services-tuyh/chunking-rag-py/tests/test_reranker.py
+git add backend/chunking-rag-py/app/retriever/reranker.py backend/chunking-rag-py/tests/test_reranker.py
 git commit -m "feat(chunking-rag-py): BgeReranker (normalize=True, lock-wrapped)"
 ```
 
@@ -1769,9 +1769,9 @@ git commit -m "feat(chunking-rag-py): BgeReranker (normalize=True, lock-wrapped)
 ## Task 12: qa/prompt.py + qa/orchestrator.py（spec §5 D6/D7, §6.2）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/qa/prompt.py`
-- Create: `services-tuyh/chunking-rag-py/app/qa/orchestrator.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_orchestrator.py`
+- Create: `backend/chunking-rag-py/app/qa/prompt.py`
+- Create: `backend/chunking-rag-py/app/qa/orchestrator.py`
+- Create: `backend/chunking-rag-py/tests/test_orchestrator.py`
 
 - [ ] **Step 1: 写失败测试 tests/test_orchestrator.py**
 
@@ -1917,7 +1917,7 @@ pytest tests/test_orchestrator.py -v
 - [ ] **Step 6: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/qa/ services-tuyh/chunking-rag-py/tests/test_orchestrator.py
+git add backend/chunking-rag-py/app/qa/ backend/chunking-rag-py/tests/test_orchestrator.py
 git commit -m "feat(chunking-rag-py): qa orchestrator (RRF + rerank + threshold)"
 ```
 
@@ -1926,8 +1926,8 @@ git commit -m "feat(chunking-rag-py): qa orchestrator (RRF + rerank + threshold)
 ## Task 13: llm/client.py（spec §8）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/llm/client.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_llm_client.py`
+- Create: `backend/chunking-rag-py/app/llm/client.py`
+- Create: `backend/chunking-rag-py/tests/test_llm_client.py`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -2019,7 +2019,7 @@ pytest tests/test_llm_client.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/llm/ services-tuyh/chunking-rag-py/tests/test_llm_client.py
+git add backend/chunking-rag-py/app/llm/ backend/chunking-rag-py/tests/test_llm_client.py
 git commit -m "feat(chunking-rag-py): LlmClient (openai async stream)"
 ```
 
@@ -2028,8 +2028,8 @@ git commit -m "feat(chunking-rag-py): LlmClient (openai async stream)"
 ## Task 14: sse.py helper（spec §4）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/sse.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_sse.py`
+- Create: `backend/chunking-rag-py/app/sse.py`
+- Create: `backend/chunking-rag-py/tests/test_sse.py`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -2073,7 +2073,7 @@ pytest tests/test_sse.py -v
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/sse.py services-tuyh/chunking-rag-py/tests/test_sse.py
+git add backend/chunking-rag-py/app/sse.py backend/chunking-rag-py/tests/test_sse.py
 git commit -m "feat(chunking-rag-py): SSE event formatter"
 ```
 
@@ -2082,7 +2082,7 @@ git commit -m "feat(chunking-rag-py): SSE event formatter"
 ## Task 15: deps.py — Depends 工厂（spec §5 D4, §8）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/deps.py`
+- Create: `backend/chunking-rag-py/app/deps.py`
 
 > 此 task **不写独立 tests**——deps 只是工厂，由 e2e 和 route 测试覆盖。
 
@@ -2140,7 +2140,7 @@ def get_llm(request: Request) -> LlmClient:
 - [ ] **Step 2: 导入烟测（确保无循环 import）**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 python -c "from app.deps import get_settings, get_db, get_embedder, get_reranker, get_llm, get_model_lock; print('OK')"
 # 期望: OK
 ```
@@ -2148,7 +2148,7 @@ python -c "from app.deps import get_settings, get_db, get_embedder, get_reranker
 - [ ] **Step 3: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/deps.py
+git add backend/chunking-rag-py/app/deps.py
 git commit -m "feat(chunking-rag-py): Depends factories (db/embedder/reranker/llm)"
 ```
 
@@ -2157,7 +2157,7 @@ git commit -m "feat(chunking-rag-py): Depends factories (db/embedder/reranker/ll
 ## Task 16: main.py — lifespan + CORS + router 占位（spec §5 D4）
 
 **Files:**
-- Modify: `services-tuyh/chunking-rag-py/app/main.py`
+- Modify: `backend/chunking-rag-py/app/main.py`
 
 > 此 task 暂不挂 upload/qa/qa_stream 路由（那是 T17-T19），只搭好 lifespan 和 CORS，为后续 task 奠基。
 
@@ -2219,7 +2219,7 @@ app = create_app()
 - [ ] **Step 2: 烟测 /health**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 # 模型加载首次 ~2 分钟；已 cache 可 30 秒
 uvicorn app.main:app --port 3002 &
 sleep 120  # 充裕等待模型加载
@@ -2231,7 +2231,7 @@ pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null |
 - [ ] **Step 3: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/main.py
+git add backend/chunking-rag-py/app/main.py
 git commit -m "feat(chunking-rag-py): main.py lifespan (load models) + CORS allow-all"
 ```
 
@@ -2240,8 +2240,8 @@ git commit -m "feat(chunking-rag-py): main.py lifespan (load models) + CORS allo
 ## Task 17: routes/upload.py — POST /api/upload + GET /api/upload/raw-files（spec §4, §6.1）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/routes/upload.py`
-- Modify: `services-tuyh/chunking-rag-py/app/main.py`（挂路由）
+- Create: `backend/chunking-rag-py/app/routes/upload.py`
+- Modify: `backend/chunking-rag-py/app/main.py`（挂路由）
 
 > 测试挪到 Task 20-21（契约 / 鲁棒性套件），本 task 只做实现 + 冒烟。
 
@@ -2409,7 +2409,7 @@ def list_raw_files(
 
 - [ ] **Step 2: 挂路由到 main.py**
 
-在 `services-tuyh/chunking-rag-py/app/main.py` 的 `create_app()` 返回前加：
+在 `backend/chunking-rag-py/app/main.py` 的 `create_app()` 返回前加：
 
 ```python
     from app.routes import upload as upload_route
@@ -2419,7 +2419,7 @@ def list_raw_files(
 - [ ] **Step 3: 烟测 upload + raw-files**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 uvicorn app.main:app --port 3002 &
 sleep 120
 curl -s -F "files=@tests/fixtures/sample.md" http://localhost:3002/api/upload | head -c 500
@@ -2432,7 +2432,7 @@ pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null |
 - [ ] **Step 4: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/routes/upload.py services-tuyh/chunking-rag-py/app/main.py
+git add backend/chunking-rag-py/app/routes/upload.py backend/chunking-rag-py/app/main.py
 git commit -m "feat(chunking-rag-py): upload route (limits + converting→completed/failed)"
 ```
 
@@ -2441,8 +2441,8 @@ git commit -m "feat(chunking-rag-py): upload route (limits + converting→comple
 ## Task 18: routes/qa.py — files / stats / DELETE（spec §4, §6.3）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/routes/qa.py`
-- Modify: `services-tuyh/chunking-rag-py/app/main.py`（挂路由）
+- Create: `backend/chunking-rag-py/app/routes/qa.py`
+- Modify: `backend/chunking-rag-py/app/main.py`（挂路由）
 
 - [ ] **Step 1: 实现 app/routes/qa.py**
 
@@ -2543,7 +2543,7 @@ def delete_file(
 - [ ] **Step 3: 烟测**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 uvicorn app.main:app --port 3002 &
 sleep 120
 curl -s http://localhost:3002/api/qa/stats
@@ -2558,7 +2558,7 @@ pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null |
 - [ ] **Step 4: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/routes/qa.py services-tuyh/chunking-rag-py/app/main.py
+git add backend/chunking-rag-py/app/routes/qa.py backend/chunking-rag-py/app/main.py
 git commit -m "feat(chunking-rag-py): qa route (files/stats/delete cascade)"
 ```
 
@@ -2567,8 +2567,8 @@ git commit -m "feat(chunking-rag-py): qa route (files/stats/delete cascade)"
 ## Task 19: routes/qa_stream.py — POST /api/qa/ask-stream（spec §4 SSE, §6.2）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/app/routes/qa_stream.py`
-- Modify: `services-tuyh/chunking-rag-py/app/main.py`（挂路由）
+- Create: `backend/chunking-rag-py/app/routes/qa_stream.py`
+- Modify: `backend/chunking-rag-py/app/main.py`（挂路由）
 
 - [ ] **Step 1: 实现 app/routes/qa_stream.py**
 
@@ -2655,7 +2655,7 @@ async def ask_stream(
 - [ ] **Step 3: 烟测 SSE**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 uvicorn app.main:app --port 3002 &
 sleep 120
 curl -s -N -H "Content-Type: application/json" -d '{"question":"什么是标题一？"}' http://localhost:3002/api/qa/ask-stream | head -c 2000
@@ -2667,7 +2667,7 @@ pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null |
 - [ ] **Step 4: Commit**
 
 ```bash
-git add services-tuyh/chunking-rag-py/app/routes/qa_stream.py services-tuyh/chunking-rag-py/app/main.py
+git add backend/chunking-rag-py/app/routes/qa_stream.py backend/chunking-rag-py/app/main.py
 git commit -m "feat(chunking-rag-py): qa_stream route (SSE + to_thread retrieval)"
 ```
 
@@ -2676,10 +2676,10 @@ git commit -m "feat(chunking-rag-py): qa_stream route (SSE + to_thread retrieval
 ## Task 20: TS 响应 snapshot 抓取（spec §9.2.2）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/scripts/capture_ts_snapshots.py`
-- Create: `services-tuyh/chunking-rag-py/tests/fixtures/ts_responses/{stats,files,raw-files,upload,ask-stream,delete}.json`
+- Create: `backend/chunking-rag-py/scripts/capture_ts_snapshots.py`
+- Create: `backend/chunking-rag-py/tests/fixtures/ts_responses/{stats,files,raw-files,upload,ask-stream,delete}.json`
 
-> 运行前先启 TS 版（`services-tuyh/chunking-rag/`）在 3002。抓完停 TS 版，把 fixture 提交进仓。
+> 运行前先启 TS 版（`backend/chunking-rag/`）在 3002。抓完停 TS 版，把 fixture 提交进仓。
 
 - [ ] **Step 1: 写 scripts/capture_ts_snapshots.py**
 
@@ -2688,9 +2688,9 @@ git commit -m "feat(chunking-rag-py): qa_stream route (SSE + to_thread retrieval
 
 前置：停所有 3002 服务，然后启 TS 版：
   pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null || true
-  cd services-tuyh/chunking-rag && npm run dev &
+  cd backend/chunking-rag && npm run dev &
   sleep 10
-  python services-tuyh/chunking-rag-py/scripts/capture_ts_snapshots.py
+  python backend/chunking-rag-py/scripts/capture_ts_snapshots.py
 """
 import json
 from pathlib import Path
@@ -2741,7 +2741,7 @@ cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationS
 pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null || true
 
 # 启 TS 版
-cd services-tuyh/chunking-rag && PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev &
+cd backend/chunking-rag && PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run dev &
 sleep 15
 
 cd ../chunking-rag-py
@@ -2755,7 +2755,7 @@ pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null |
 - [ ] **Step 3: 确认 fixtures 产生**
 
 ```bash
-ls services-tuyh/chunking-rag-py/tests/fixtures/ts_responses/
+ls backend/chunking-rag-py/tests/fixtures/ts_responses/
 # 期望: upload.json stats.json files.json raw-files.json ask-stream.txt delete.json
 ```
 
@@ -2763,7 +2763,7 @@ ls services-tuyh/chunking-rag-py/tests/fixtures/ts_responses/
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag-py/scripts/capture_ts_snapshots.py services-tuyh/chunking-rag-py/tests/fixtures/ts_responses/
+git add backend/chunking-rag-py/scripts/capture_ts_snapshots.py backend/chunking-rag-py/tests/fixtures/ts_responses/
 git commit -m "test(chunking-rag-py): capture TS baseline responses as contract fixtures"
 ```
 
@@ -2772,15 +2772,15 @@ git commit -m "test(chunking-rag-py): capture TS baseline responses as contract 
 ## Task 21: 契约 + 鲁棒性测试集合（spec §9.2.2）
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/tests/conftest.py`（扩充）
-- Create: `services-tuyh/chunking-rag-py/tests/test_contract_snapshot.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_cors.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_upload_limits.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_upload_failure.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_concurrent_upload.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_qa_empty_db.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_sse_framing.py`
-- Create: `services-tuyh/chunking-rag-py/tests/test_upload_qa_e2e.py`
+- Create: `backend/chunking-rag-py/tests/conftest.py`（扩充）
+- Create: `backend/chunking-rag-py/tests/test_contract_snapshot.py`
+- Create: `backend/chunking-rag-py/tests/test_cors.py`
+- Create: `backend/chunking-rag-py/tests/test_upload_limits.py`
+- Create: `backend/chunking-rag-py/tests/test_upload_failure.py`
+- Create: `backend/chunking-rag-py/tests/test_concurrent_upload.py`
+- Create: `backend/chunking-rag-py/tests/test_qa_empty_db.py`
+- Create: `backend/chunking-rag-py/tests/test_sse_framing.py`
+- Create: `backend/chunking-rag-py/tests/test_upload_qa_e2e.py`
 
 > 全部用 TestClient + mock 的 embedder/reranker/llm（避免真实模型）。单 task 完成全部测试可能体量大——执行时分 2-3 个子 commit（contract + limits+failure, concurrent+qa+sse+e2e）。
 
@@ -3156,7 +3156,7 @@ def test_e2e_upload_then_ask_finds_chunk(client, fake_reranker):
 - [ ] **Step 10: 运行全部测试**
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 pytest -v tests/
 # 期望: 全部 PASS（已实现的 unit + 本 task 新增的 contract/robustness/e2e）
 ```
@@ -3165,18 +3165,18 @@ pytest -v tests/
 
 ```bash
 # 提交 1: 契约 + CORS + limits + failure
-git add services-tuyh/chunking-rag-py/tests/conftest.py \
-        services-tuyh/chunking-rag-py/tests/test_contract_snapshot.py \
-        services-tuyh/chunking-rag-py/tests/test_cors.py \
-        services-tuyh/chunking-rag-py/tests/test_upload_limits.py \
-        services-tuyh/chunking-rag-py/tests/test_upload_failure.py
+git add backend/chunking-rag-py/tests/conftest.py \
+        backend/chunking-rag-py/tests/test_contract_snapshot.py \
+        backend/chunking-rag-py/tests/test_cors.py \
+        backend/chunking-rag-py/tests/test_upload_limits.py \
+        backend/chunking-rag-py/tests/test_upload_failure.py
 git commit -m "test(chunking-rag-py): contract snapshot + CORS + upload limits/failure"
 
 # 提交 2: concurrency + qa + sse + e2e
-git add services-tuyh/chunking-rag-py/tests/test_concurrent_upload.py \
-        services-tuyh/chunking-rag-py/tests/test_qa_empty_db.py \
-        services-tuyh/chunking-rag-py/tests/test_sse_framing.py \
-        services-tuyh/chunking-rag-py/tests/test_upload_qa_e2e.py
+git add backend/chunking-rag-py/tests/test_concurrent_upload.py \
+        backend/chunking-rag-py/tests/test_qa_empty_db.py \
+        backend/chunking-rag-py/tests/test_sse_framing.py \
+        backend/chunking-rag-py/tests/test_upload_qa_e2e.py
 git commit -m "test(chunking-rag-py): concurrent upload + qa empty + SSE + e2e"
 ```
 
@@ -3185,8 +3185,8 @@ git commit -m "test(chunking-rag-py): concurrent upload + qa empty + SSE + e2e"
 ## Task 22: README + 最终冷启动 + .gitignore
 
 **Files:**
-- Create: `services-tuyh/chunking-rag-py/README.md`
-- Create: `services-tuyh/chunking-rag-py/.gitignore`
+- Create: `backend/chunking-rag-py/README.md`
+- Create: `backend/chunking-rag-py/.gitignore`
 
 - [ ] **Step 1: 写 .gitignore**
 
@@ -3211,7 +3211,7 @@ storage/*.db-wal
 ```markdown
 # chunking-rag-py
 
-Python 重写的 chunking-rag 服务（α 路线 / B 范围 MVP），与 `services-tuyh/chunking-rag/` (TS 版) 平级，**二选一占 3002 端口**。
+Python 重写的 chunking-rag 服务（α 路线 / B 范围 MVP），与 `backend/chunking-rag/` (TS 版) 平级，**二选一占 3002 端口**。
 
 规范：[docs/superpowers/specs/2026-04-23-chunking-rag-py-design.md](../../docs/superpowers/specs/2026-04-23-chunking-rag-py-design.md)
 
@@ -3221,7 +3221,7 @@ Python 重写的 chunking-rag 服务（α 路线 / B 范围 MVP），与 `servic
 # 清空 3002 端口（POSIX 可移植）
 pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null || true
 
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 conda activate sqllineage
 pip install -r requirements.txt
 cp .env.example .env           # 首次：填入亚信网关 key / base_url / model
@@ -3233,7 +3233,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 3002
 ## 测试
 
 ```bash
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 pytest -v tests/
 ```
 
@@ -3253,7 +3253,7 @@ pytest -v tests/
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
 pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null || true
 
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 conda activate sqllineage
 uvicorn app.main:app --port 3002 &
 sleep 120
@@ -3273,7 +3273,7 @@ pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null |
 
 ```bash
 # 再启 Python 版
-cd services-tuyh/chunking-rag-py && uvicorn app.main:app --port 3002 &
+cd backend/chunking-rag-py && uvicorn app.main:app --port 3002 &
 sleep 120
 
 # 启前端
@@ -3296,7 +3296,7 @@ pids=$(lsof -ti:3000 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null |
 
 ```bash
 cd /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem
-git add services-tuyh/chunking-rag-py/README.md services-tuyh/chunking-rag-py/.gitignore
+git add backend/chunking-rag-py/README.md backend/chunking-rag-py/.gitignore
 git commit -m "docs(chunking-rag-py): README + .gitignore; feature complete"
 ```
 
