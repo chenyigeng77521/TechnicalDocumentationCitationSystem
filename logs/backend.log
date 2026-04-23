@@ -18,5 +18,3 @@
    GET    /api/qa/stats         - 统计信息
    DELETE /api/qa/files/:name  - 删除文件
 
-📤 上传文件：MONGODB-集成报告.md
-✅ 上传完成：MONGODB-集成报告.md
