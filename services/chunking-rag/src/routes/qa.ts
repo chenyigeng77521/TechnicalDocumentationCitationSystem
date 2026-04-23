@@ -175,24 +175,27 @@ router.get('/files', (req: Request, res: Response) => {
 
 /**
  * GET /api/qa/stats
- * 获取系统统计信息
+ * 前端契约：顶层 totalFiles 字段（frontend page.tsx 读 data.totalFiles）
+ * 兼容字段：stats.fileCount/chunkCount/indexedCount（v1 API）
  */
 router.get('/stats', (req: Request, res: Response) => {
   try {
     const db = new DatabaseManager();
     const stats = db.getStats();
-    
+
     db.close();
 
     res.json({
       success: true,
+      // 前端 page.tsx 期望的字段
+      totalFiles: stats.fileCount,
+      // 兼容 v1 老字段
       stats: {
         fileCount: stats.fileCount,
         chunkCount: stats.chunkCount,
-        indexedCount: stats.chunkCount // TODO: 实际应统计带向量的块数
+        indexedCount: stats.chunkCount
       }
     });
-
   } catch (error: any) {
     console.error('❌ 获取统计信息失败:', error);
     res.status(500).json({
