@@ -21,26 +21,26 @@ def test_health_ok(client):
 
 
 def test_stats_shape(client):
-    data = client.get("/api/qa/stats").json()
+    data = client.get("/qa/stats").json()
     assert set(data) >= {"success", "totalFiles", "stats"}
     assert isinstance(data["totalFiles"], int)
     assert set(data["stats"]) >= {"fileCount", "chunkCount", "indexedCount"}
 
 
 def test_raw_files_shape_empty(client):
-    data = client.get("/api/upload/raw-files?page=1&limit=10").json()
+    data = client.get("/upload/raw-files?page=1&limit=10").json()
     assert {"success", "files", "total", "page", "limit", "totalPages"} <= set(data)
     assert data["total"] == 0
 
 
 def test_files_shape_empty(client):
-    data = client.get("/api/qa/files").json()
+    data = client.get("/qa/files").json()
     assert {"success", "files", "total"} <= set(data)
     assert data["total"] == 0
 
 
 def test_upload_happy_path(client):
-    r = client.post("/api/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
+    r = client.post("/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
     assert r.status_code == 200
     data = r.json()
     assert data["success"] is True
@@ -51,8 +51,8 @@ def test_upload_happy_path(client):
 
 
 def test_files_list_after_upload(client):
-    client.post("/api/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
-    data = client.get("/api/qa/files").json()
+    client.post("/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
+    data = client.get("/qa/files").json()
     assert data["total"] == 1
     f = data["files"][0]
     assert {"name", "size", "mtime", "id", "format", "uploadTime", "category"} <= set(f)
@@ -60,8 +60,8 @@ def test_files_list_after_upload(client):
 
 
 def test_raw_files_after_upload(client):
-    client.post("/api/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
-    data = client.get("/api/upload/raw-files").json()
+    client.post("/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
+    data = client.get("/upload/raw-files").json()
     assert data["total"] == 1
     entry = data["files"][0]
     assert {"name", "path", "size", "createdAt", "modifiedAt"} <= set(entry)
@@ -82,8 +82,8 @@ def _collect_sse_events(body: str) -> list[dict]:
 
 
 def test_ask_stream_with_chunks(client):
-    client.post("/api/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
-    with client.stream("POST", "/api/qa/ask-stream", json={"question": "content"}) as r:
+    client.post("/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
+    with client.stream("POST", "/qa/ask-stream", json={"question": "content"}) as r:
         body = "".join(r.iter_text())
     events = _collect_sse_events(body)
     answers = [e["answer"] for e in events if "answer" in e]
@@ -93,7 +93,7 @@ def test_ask_stream_with_chunks(client):
 
 
 def test_ask_stream_empty_db_refusal(client):
-    with client.stream("POST", "/api/qa/ask-stream", json={"question": "any"}) as r:
+    with client.stream("POST", "/qa/ask-stream", json={"question": "any"}) as r:
         body = "".join(r.iter_text())
     events = _collect_sse_events(body)
     assert any("未找到" in e.get("answer", "") for e in events)
@@ -101,14 +101,14 @@ def test_ask_stream_empty_db_refusal(client):
 
 
 def test_ask_stream_empty_question(client):
-    with client.stream("POST", "/api/qa/ask-stream", json={"question": ""}) as r:
+    with client.stream("POST", "/qa/ask-stream", json={"question": ""}) as r:
         body = "".join(r.iter_text())
     events = _collect_sse_events(body)
     assert any("不能为空" in e.get("answer", "") for e in events)
 
 
 def test_empty_db_does_not_call_reranker(client, fake_reranker):
-    with client.stream("POST", "/api/qa/ask-stream", json={"question": "q"}) as r:
+    with client.stream("POST", "/qa/ask-stream", json={"question": "q"}) as r:
         _ = "".join(r.iter_text())
     fake_reranker.score.assert_not_called()
 
@@ -116,22 +116,22 @@ def test_empty_db_does_not_call_reranker(client, fake_reranker):
 # ===== DELETE =====
 
 def test_delete_cascade(client, tmp_settings):
-    client.post("/api/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
-    assert client.get("/api/qa/files").json()["total"] == 1
+    client.post("/upload", files={"files": ("sample.md", SAMPLE_MD_BYTES, "text/markdown")})
+    assert client.get("/qa/files").json()["total"] == 1
 
-    r = client.delete("/api/qa/files/sample.md")
+    r = client.delete("/qa/files/sample.md")
     assert r.status_code == 200 and r.json()["success"] is True
-    assert client.get("/api/qa/files").json()["total"] == 0
+    assert client.get("/qa/files").json()["total"] == 0
     assert not (tmp_settings.resolve_path(tmp_settings.raw_dir) / "sample.md").exists()
 
 
 def test_delete_path_traversal_rejected(client):
-    r = client.delete("/api/qa/files/..%2Fetc%2Fpasswd")
+    r = client.delete("/qa/files/..%2Fetc%2Fpasswd")
     assert r.status_code in (400, 404)
 
 
 def test_delete_nonexistent_returns_404(client):
-    r = client.delete("/api/qa/files/no_such_file.md")
+    r = client.delete("/qa/files/no_such_file.md")
     assert r.status_code == 404
 
 
@@ -139,12 +139,12 @@ def test_delete_nonexistent_returns_404(client):
 
 def test_upload_rejects_more_than_10_files(client):
     files = [("files", (f"a{i}.md", b"x", "text/markdown")) for i in range(11)]
-    r = client.post("/api/upload", files=files)
+    r = client.post("/upload", files=files)
     assert r.status_code == 413
 
 
 def test_upload_unsupported_ext_returns_failed_entry(client):
-    r = client.post("/api/upload", files={"files": ("a.xyz", b"data", "application/octet-stream")})
+    r = client.post("/upload", files={"files": ("a.xyz", b"data", "application/octet-stream")})
     data = r.json()
     assert data["success"] is True
     assert data["files"][0]["status"] == "failed"
@@ -153,7 +153,7 @@ def test_upload_unsupported_ext_returns_failed_entry(client):
 
 def test_upload_rejects_over_50mb(client):
     big = b"x" * (50 * 1024 * 1024 + 1)
-    r = client.post("/api/upload", files={"files": ("big.md", big, "text/markdown")})
+    r = client.post("/upload", files={"files": ("big.md", big, "text/markdown")})
     assert r.status_code == 413
 
 
@@ -166,7 +166,7 @@ def test_parser_failure_leaves_status_failed(client, tmp_settings, monkeypatch):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(upload_mod, "parse", boom)
-    r = client.post("/api/upload", files={"files": ("a.md", SAMPLE_MD_BYTES, "text/markdown")})
+    r = client.post("/upload", files={"files": ("a.md", SAMPLE_MD_BYTES, "text/markdown")})
     data = r.json()
     assert data["files"][0]["status"] == "failed"
     assert "boom" in data["files"][0]["error"]
@@ -183,7 +183,7 @@ def test_parser_failure_leaves_status_failed(client, tmp_settings, monkeypatch):
 
 def test_embedder_failure_leaves_failed(client, fake_embedder):
     fake_embedder.encode.side_effect = RuntimeError("cuda oom")
-    r = client.post("/api/upload", files={"files": ("a.md", SAMPLE_MD_BYTES, "text/markdown")})
+    r = client.post("/upload", files={"files": ("a.md", SAMPLE_MD_BYTES, "text/markdown")})
     data = r.json()
     assert data["files"][0]["status"] == "failed"
 
@@ -195,7 +195,7 @@ def test_concurrent_same_name_upload_produces_dedupe_suffixes(client):
     lock = threading.Lock()
 
     def upload():
-        r = client.post("/api/upload", files={"files": ("same.md", SAMPLE_MD_BYTES, "text/markdown")})
+        r = client.post("/upload", files={"files": ("same.md", SAMPLE_MD_BYTES, "text/markdown")})
         with lock:
             results.append(r.json()["files"][0]["originalName"])
 
@@ -211,7 +211,7 @@ def test_concurrent_same_name_upload_produces_dedupe_suffixes(client):
 # ===== CORS =====
 
 def test_cors_preflight_allows_origin(client):
-    r = client.options("/api/qa/stats", headers={
+    r = client.options("/qa/stats", headers={
         "Origin": "http://any.example.com",
         "Access-Control-Request-Method": "GET",
     })
@@ -222,5 +222,5 @@ def test_cors_preflight_allows_origin(client):
 
 
 def test_cors_get_with_origin_succeeds(client):
-    r = client.get("/api/qa/stats", headers={"Origin": "http://anywhere"})
+    r = client.get("/qa/stats", headers={"Origin": "http://anywhere"})
     assert r.status_code == 200

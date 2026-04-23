@@ -20,7 +20,7 @@ REFUSAL = (
 )
 
 
-@router.post("/api/qa/ask-stream")
+@router.post("/qa/ask-stream")
 async def ask_stream(
     payload: dict = Body(...),
     db: Db = Depends(get_db),

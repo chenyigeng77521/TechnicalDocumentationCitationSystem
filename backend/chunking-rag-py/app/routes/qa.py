@@ -10,7 +10,7 @@ from app.deps import get_db, get_settings
 router = APIRouter()
 
 
-@router.get("/api/qa/files")
+@router.get("/qa/files")
 def list_files(db: Db = Depends(get_db), settings: Settings = Depends(get_settings)):
     raw_dir = settings.resolve_path(settings.raw_dir)
     files = db.list_completed_files()
@@ -32,7 +32,7 @@ def list_files(db: Db = Depends(get_db), settings: Settings = Depends(get_settin
     return {"success": True, "files": out, "total": len(out)}
 
 
-@router.get("/api/qa/stats")
+@router.get("/qa/stats")
 def stats(db: Db = Depends(get_db)):
     s = db.get_stats()
     return {
@@ -46,7 +46,7 @@ def stats(db: Db = Depends(get_db)):
     }
 
 
-@router.delete("/api/qa/files/{filename}")
+@router.delete("/qa/files/{filename}")
 def delete_file(
     filename: str,
     db: Db = Depends(get_db),

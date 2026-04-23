@@ -22,7 +22,7 @@ READ_CHUNK = 64 * 1024
 SUPPORTED_EXTS = {".pdf", ".docx", ".pptx", ".xlsx", ".md"}
 
 
-@router.post("/api/upload")
+@router.post("/upload")
 def upload(
     files: list[UploadFile] = File(...),
     db: Db = Depends(get_db),
@@ -135,7 +135,7 @@ def upload(
     }
 
 
-@router.get("/api/upload/raw-files")
+@router.get("/upload/raw-files")
 def list_raw_files(
     page: int = 1, limit: int = 10,
     settings: Settings = Depends(get_settings),

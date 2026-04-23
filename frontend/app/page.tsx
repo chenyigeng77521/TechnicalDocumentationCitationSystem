@@ -37,14 +37,9 @@ export default function Home() {
     const baseUrl = getApiBaseUrl();
     // 确保路径以 / 开头
     const apiPath = path.startsWith('/') ? path : `/${path}`;
-    // 如果是相对路径（以 / 开头）
-    if (baseUrl.startsWith('/')) {
-      // 直接拼接，去除重复的 /
-      const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      return cleanBase + apiPath;
-    }
-    // 如果是完整 URL，确保以 / 结尾后拼接
-    return baseUrl.endsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/${path}`;
+    // 无论 baseUrl 是相对还是绝对，都去掉尾斜杠后拼，避免双斜杠
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    return cleanBase + apiPath;
   };
 
   // 初始化时获取文档数量
