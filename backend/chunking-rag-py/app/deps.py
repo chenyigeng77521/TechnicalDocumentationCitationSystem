@@ -18,9 +18,13 @@ def get_settings() -> Settings:
 
 
 def get_db(settings: Settings = Depends(get_settings)) -> Iterator[Db]:
+    # check_same_thread=False 是必要的：FastAPI 把 sync 端点放 threadpool，
+    # async 端点内部又通过 anyio.to_thread.run_sync 再切线程（spec D4）；
+    # 互斥靠 SQLite BEGIN IMMEDIATE 文件锁，非 Python GIL。
     conn = sqlite3.connect(
         settings.resolve_path(settings.db_path),
         isolation_level=None,
+        check_same_thread=False,
     )
     conn.execute("PRAGMA busy_timeout=10000;")
     conn.execute("PRAGMA foreign_keys=ON;")
