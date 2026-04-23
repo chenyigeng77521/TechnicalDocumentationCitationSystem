@@ -232,16 +232,38 @@ if not str(safe).startswith(str(pathlib.Path(raw_dir).resolve()) + os.sep):
 - FastAPI **不默认串行**：`async def` 路由共享事件循环，sync `def` 路由走 AnyIO threadpool（默认 40 worker）。请求天然可并发。
 - `sqlite3.connect(check_same_thread=False)` **只关闭线程检查断言，不提供互斥**。单连接被多线程并发写会破坏内部游标/事务状态。
 
-**DB 连接策略**：每请求一个连接（FastAPI `Depends` 工厂 + `yield` 关闭）
+**sync/async 执行纪律**（避免 threading.Lock + torch 推理阻塞事件循环）：
+- **上传端点**：`POST /api/upload` 声明为 `def`（非 `async def`）——自动落 threadpool，内部直接 `with model_lock: embedder.encode(...)` 是 worker 线程级阻塞，不影响其他请求
+- **问答 SSE 端点**：`async def` 无法避免（`StreamingResponse` + openai 异步 stream）。规则：
+  - **任何**同步模型推理（embedder / reranker）或 `threading.Lock` 获取，必须通过 `await anyio.to_thread.run_sync(...)` 卸载到 threadpool，**严禁**在 async 路由/生成器里直接调
+  - `orchestrator.retrieve_and_rerank(question)` 是纯同步函数；`qa_stream.py` 里这样调：
+    ```python
+    chunks = await anyio.to_thread.run_sync(
+        orchestrator.retrieve_and_rerank, question, embedder, reranker, db
+    )
+    ```
+  - LLM 流式本身走 `openai` SDK 的 `async for`，不需要卸载
+- **DB 操作**：同步端点直接 execute；async 端点内的 DB 操作也卸载到 threadpool（`await anyio.to_thread.run_sync(db.get_file, id)`）
+- 违反此纪律的代码 = 单个慢请求让整个服务卡死的高风险 bug；plan 阶段在 e2e 测试里加并发读 + 并发问答验证
+
+**DB 连接策略**：WAL 在 app startup 一次性开启（**数据库级持久设置**，写入 DB 文件头）；每请求一个连接只设**连接级**设置
+
 ```python
+# app/main.py lifespan 里（仅执行一次）
+def init_db(db_path: Path):
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL;")   # 持久化到 DB 文件，后续连接自动 WAL
+    conn.executescript(SCHEMA_SQL)              # CREATE TABLE / INDEX (见 §7)
+    conn.close()
+
+# app/deps.py — 每请求调一次
 def get_db(settings: Settings = Depends(get_settings)):
     conn = sqlite3.connect(
         settings.resolve_path(settings.db_path),
         isolation_level=None,      # autocommit；事务由 write_tx() 显式管理
     )
-    conn.execute("PRAGMA journal_mode=WAL;")       # 允许并发读 + 单写
-    conn.execute("PRAGMA busy_timeout=10000;")     # 10s 文件锁超时
-    conn.execute("PRAGMA foreign_keys=ON;")
+    conn.execute("PRAGMA busy_timeout=10000;")  # 10s 文件锁超时（连接级）
+    conn.execute("PRAGMA foreign_keys=ON;")     # 连接级
     try:
         yield Db(conn)
     finally:
@@ -268,7 +290,7 @@ def write_tx(conn: sqlite3.Connection):
 
 所有多语句写操作必须 `with write_tx(conn):` 包住（如 §6.1 三阶段状态机里"INSERT chunks × N + UPDATE files status"那一步、`DELETE /files/:name` 的"DELETE chunks + DELETE files"）。单条 INSERT/UPDATE 可直接 execute（autocommit 自己就是一个事务）。
 
-- WAL 模式：多个读请求并发无阻塞；写事务走 `BEGIN IMMEDIATE` 拿 RESERVED 锁，串行化靠 SQLite 文件锁（非 Python GIL、非 threading.Lock）
+- WAL 模式（startup 一次性写入 DB 文件头，不每连接执行）：多个读请求并发无阻塞；写事务走 `BEGIN IMMEDIATE` 拿 RESERVED 锁，串行化靠 SQLite 文件锁（非 Python GIL、非 threading.Lock）
 - 连接开销：sqlite3 本地文件 ~1ms 级，MVP 负载可接受
 
 **单请求内串行**：`POST /api/upload` 一次最多 10 个文件，在**同一个请求的同一个线程**里顺序 parse/chunk/embed/write——不起 `asyncio.gather` 并发（GIL + GPU 串行化 + DB 写锁下并发无实际收益且复杂度陡增）。
@@ -358,6 +380,28 @@ uvicorn app.main:app --host 0.0.0.0 --port 3002
 ### 6.1 上传（`POST /api/upload`）
 
 对标 TS 版 [upload.ts:88-123](../../../services-tuyh/chunking-rag/src/routes/upload.ts) 的 `converting → completed / failed` 状态机（TS 版注释原话："防止出现 completed + chunks=0 灰态"）。失败时 DB 必须留下 `status='failed'` 记录，不能产生"raw 有文件但 DB 无记录"的孤儿态。
+
+**限额实现**（FastAPI/python-multipart 不会自动套用 multer 的 `limits`，必须显式写）：
+- **文件数 ≤ 10**：`files: list[UploadFile] = File(...)` 解析完 `len(files)` 检查，>10 直接 413 + `{success:false, message:"最多 10 个文件"}`
+- **单文件 ≤ 50MB**：**不能**依赖 `file.size`（UploadFile 在 streaming 流式下可能为 None 或不准）。必须**流式写 + 累计字节**：
+
+  ```python
+  MAX_BYTES = 50 * 1024 * 1024
+  fd = os.open(raw_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+  written = 0
+  try:
+      while chunk := await upload.read(64 * 1024):
+          written += len(chunk)
+          if written > MAX_BYTES:
+              os.close(fd); os.unlink(raw_path)
+              raise HTTPException(413, detail=f"{upload.filename} 超过 50MB")
+          os.write(fd, chunk)
+  finally:
+      try: os.close(fd)
+      except OSError: pass
+  ```
+- **非法 multipart**（解析失败）：FastAPI 自己返回 422；不覆盖此行为
+- **顺序**：limits 检查在 INSERT files(status='converting') **之前**——限额失败不留 DB 记录
 
 每个上传文件逐个处理（单请求内**顺序**，不并行——见 D4）：
 
@@ -613,11 +657,11 @@ CREATE INDEX IF NOT EXISTS idx_files_category ON files(category);
 
 ### R3. 并发写 SQLite（D4 方案的剩余风险）
 
-- D4 方案：每请求独立连接 + WAL + `BEGIN IMMEDIATE`。正常并发下 SQLite 文件锁串行化写入
-- **剩余风险 1**：多人同时上传同名文件，两个请求在文件系统层 `dedupe_filename` 通过（time-of-check to time-of-use），两个都拿到 `foo.md` 最终 collision
-  - 缓解：`dedupe_filename` 用 `os.open(path, O_CREAT|O_EXCL)` 做原子创建探测，失败则加 `_N` 后缀重试
-- **剩余风险 2**：WAL 文件锁超时（`sqlite3.OperationalError: database is locked`，默认 5s 超时）
-  - 缓解：`PRAGMA busy_timeout=10000;`（10s）覆盖默认值；若仍超时说明并发异常，让 500 抛出由前端重试
+- D4 方案：每请求独立连接 + WAL + `BEGIN IMMEDIATE` + `busy_timeout=10000`
+- **同名上传竞态**：D8 用 `O_CREAT|O_EXCL` 原子创建消除——**不再是剩余风险**
+- **剩余风险**：WAL 文件锁超时（`sqlite3.OperationalError: database is locked`，10s 超时仍失败）
+  - 触发场景：极端并发（上传 + 大批量 DELETE 同时跑）或磁盘异常
+  - 处理：让 500 抛出，由前端重试
 
 ### R4. eval 集达不到 72 分
 
@@ -628,7 +672,7 @@ CREATE INDEX IF NOT EXISTS idx_files_category ON files(category);
 ### R5. 二选一端口占用导致演示事故
 
 - 演示时 TS 版和 Python 版都不能同时跑
-- **缓解**：README 写 `pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null || true`（`-r` 防止空输入报错）作为启动前置步骤
+- **缓解**：README 写 `pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null || true`（POSIX 可移植，BSD/GNU xargs 差异无关，无进程时静默退出）作为启动前置步骤
 - **剩余风险**：演示现场端口抢占看现场纪律
 
 ### R6. 团队 main 分支与个人 owner 分支漂移
@@ -692,6 +736,7 @@ Python **3.12.4**（conda env `sqllineage`）。依赖管理 `pip install -r req
 写任何业务代码之前，先在干净 env 里跑通依赖解析 + 模型首次加载。任一失败就更新 `requirements.txt` 的对应 pin：
 
 ```bash
+cd services-tuyh/chunking-rag-py                # 所有后续命令都在 service root
 conda activate sqllineage
 python --version                                # 必须 3.12.4
 pip install -r requirements.txt                 # 必须零冲突
