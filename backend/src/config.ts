@@ -5,7 +5,7 @@
 export const config = {
   // 上传配置
   upload: {
-    uploadDir: './storage/raw',  // 上传文件存储目录
+    uploadDir: '../storage/raw',  // 项目根共享目录（相对 backend/ cwd），与 services/chunking-rag 同一份
     maxFileSize: 300,            // 单个文件最大大小（MB）
     allowedFormats: [
       '.json', '.yaml', '.yml', '.cpp', '.java', '.py', '.xml', '.sql',
