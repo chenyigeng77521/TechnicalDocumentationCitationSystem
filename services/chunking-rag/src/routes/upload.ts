@@ -135,9 +135,6 @@ router.post('/', upload.array('files', 10), async (req: Request, res: Response) 
 
         console.log(`✅ 文件处理完成：${file.originalname}`);
 
-        // 删除临时文件
-        fs.unlinkSync(file.path);
-
       } catch (error: any) {
         console.error(`❌ 文件处理失败：${file.originalname}`, error.message);
         
