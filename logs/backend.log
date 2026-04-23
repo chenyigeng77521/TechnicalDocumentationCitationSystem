@@ -1,0 +1,20 @@
+
+> knowledge-qa-system@1.0.0 start
+> node dist/server.js
+
+
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║     📁 文件上传服务 已启动                               ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+
+📡 服务器地址：http://0.0.0.0:3002
+📊 健康检查：http://0.0.0.0:3002/health
+
+📚 API 端点:
+   POST   /api/upload          - 上传文件
+   GET    /api/qa/files         - 文件列表
+   GET    /api/qa/stats         - 统计信息
+   DELETE /api/qa/files/:name  - 删除文件
+

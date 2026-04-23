@@ -15,7 +15,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST||'0.0.0.0' ;
 
 // 请求超时配置（20分钟）
 app.use((req, res, next) => {
