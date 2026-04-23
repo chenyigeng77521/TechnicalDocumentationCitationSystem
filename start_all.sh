@@ -26,7 +26,7 @@ if lsof -i:3002 | grep -q LISTEN; then
     echo "   ✅ 后端已运行 (3002)"
 else
     echo "   🔄 启动后端服务..."
-    cd "/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/knowledge-qa-system/backend"
+    cd "./backend"
     npm start > ../logs/backend.log 2>&1 &
     sleep 3
     echo "   ✅ 后端已启动 (3002)"
@@ -39,7 +39,7 @@ if lsof -i:3000 | grep -q LISTEN; then
     echo "   ✅ 前端已运行 (3000)"
 else
     echo "   🔄 启动前端服务..."
-    cd "/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/knowledge-qa-system/frontend"
+    cd "./frontend"
     npm start > ../logs/frontend.log 2>&1 &
     sleep 5
     echo "   ✅ 前端已启动 (3000)"
