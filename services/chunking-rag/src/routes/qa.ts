@@ -259,7 +259,24 @@ router.delete('/files/:filename', (req: Request, res: Response) => {
   const convertedDir = './storage/converted';
   const mappingsDir = './storage/mappings';
 
+  // 防路径穿越：:filename 必须是单一文件名，不能含路径分隔符或 ..
+  if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+    db.close();
+    return res.status(400).json({
+      success: false,
+      message: '文件名非法'
+    });
+  }
+
   const rawPath = path.join(uploadDir, filename);
+  // 双重保护：resolve 后必须仍在 uploadDir 里
+  if (!path.resolve(rawPath).startsWith(uploadDir + path.sep) && path.resolve(rawPath) !== uploadDir) {
+    db.close();
+    return res.status(400).json({
+      success: false,
+      message: '文件名非法'
+    });
+  }
   const rawExists = fs.existsSync(rawPath);
 
   // 1. 查 DB：同名 original_name 的记录（理论上 0 或 1 条）
