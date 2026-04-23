@@ -1,9 +1,4 @@
-node_modules/
-dist/
-storage/
-.env
 .idea/
-dev.sh
 
 # 评测运行产物（动态生成，不提交）
 eval/report.md
