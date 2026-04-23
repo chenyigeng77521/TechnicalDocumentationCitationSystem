@@ -3,6 +3,8 @@
  */
 
 import { Router, Request, Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import { DatabaseManager } from '../database/index.js';
 import { Retriever } from '../retriever/index.js';
 import { QAAgent } from '../qa/index.js';
@@ -120,28 +122,48 @@ router.post('/search', async (req: Request, res: Response) => {
 
 /**
  * GET /api/qa/files
- * 获取可用文件列表
+ * 前端契约：{name, size, mtime} + 兼容字段 {id, format, uploadTime, category}
+ * mtime 从磁盘 raw/ 文件读取；其他字段来自 DB
  */
 router.get('/files', (req: Request, res: Response) => {
   try {
     const db = new DatabaseManager();
     const files = db.getAllFiles({ status: 'completed' });
-    
+
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), '..', '..', 'storage', 'raw'));
+
+    const responseFiles = files.map(f => {
+      // mtime 从磁盘读（raw/<original_name>）
+      let mtime = f.upload_time;  // fallback 用 upload_time
+      try {
+        const rawPath = path.join(uploadDir, f.original_name);
+        if (fs.existsSync(rawPath)) {
+          mtime = fs.statSync(rawPath).mtime.toISOString();
+        }
+      } catch {
+        // best-effort
+      }
+
+      return {
+        // 前端 page.tsx 和 files/page.tsx 都需要的字段
+        name: f.original_name,
+        size: f.size,
+        mtime,
+        // 兼容字段
+        id: f.id,
+        format: f.format,
+        uploadTime: f.upload_time,
+        category: f.category
+      };
+    });
+
     db.close();
 
     res.json({
       success: true,
-      files: files.map(f => ({
-        id: f.id,
-        name: f.original_name,
-        format: f.format,
-        size: f.size,
-        uploadTime: f.upload_time,
-        category: f.category
-      })),
-      total: files.length
+      files: responseFiles,
+      total: responseFiles.length
     });
-
   } catch (error: any) {
     console.error('❌ 获取文件列表失败:', error);
     res.status(500).json({
