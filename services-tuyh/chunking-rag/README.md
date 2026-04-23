@@ -8,17 +8,19 @@
 
 ```
 项目根/
-├── storage/raw/              ← 跨服务共享上传文件池（两服务都指向这里）
-├── backend/                  ← 同事的文件管理 demo（端口 3002，功能子集）
-├── frontend/                 ← 硬编码连 localhost:3002
-└── services/chunking-rag/    ← 本服务（端口 3002，完整 RAG）
+├── backend/                            ← 同事的文件管理 demo（端口 3002）
+├── frontend/                           ← 硬编码连 localhost:3002
+└── services-tuyh/chunking-rag/         ← 本服务（端口 3002，完整 RAG）
+    └── storage/                        ← 服务自包含存储
+        ├── raw/                        上传文件
+        ├── converted/                  转换后 markdown
+        ├── mappings/                   行号映射
+        └── knowledge.db                SQLite
 ```
 
-**端口冲突**：`backend/` 和本服务都绑 3002，同一时刻只能一个在跑。约定为"谁演示谁启动"。
+**团队约定**：每人独立目录，互不依赖对方代码。本服务所有状态（上传文件 + DB + 转换产物）都在 `services-tuyh/chunking-rag/storage/` 里自包含；同事 backend 用自己的 `backend/storage/raw/`。两套数据池互相不可见。
 
-**存储分层**：
-- `/storage/raw/`（项目根）—— 两个服务共享的上传文件池，canonical 原文件存储
-- `services/chunking-rag/storage/`（服务私有）—— SQLite DB、切分后 markdown、行号映射
+**端口冲突**：`backend/` 和本服务都绑 3002，同一时刻只能一个在跑。约定为"谁演示谁启动"。
 
 ## 启动
 
@@ -26,7 +28,7 @@
 # 先确保 3002 没被占
 lsof -ti:3002 | xargs kill -9 2>/dev/null
 
-cd services/chunking-rag
+cd services-tuyh/chunking-rag
 cp .env.example .env     # 首次；配 LLM_API_KEY 可选
 npm install              # 首次
 npm run dev              # tsx hot reload
@@ -46,7 +48,7 @@ npm run dev              # port 3000
 |---|---|
 | `GET /health` | 健康检查 |
 | `POST /api/upload` | 文件上传（自动转换 + 切分 + 入库 + 三阶段状态机） |
-| `GET /api/upload/raw-files?page=N&limit=M` | `/storage/raw/` 分页列表 |
+| `GET /api/upload/raw-files?page=N&limit=M` | `storage/raw/` 分页列表 |
 | `GET /api/qa/files` | 已切分文件列表，返回 `{name, size, mtime, id, format, uploadTime, category}` |
 | `GET /api/qa/stats` | 统计（`totalFiles`, `stats.fileCount`, `stats.chunkCount`, `stats.indexedCount`） |
 | `POST /api/qa/ask-stream` | SSE 流式问答，发 `data: {answer}` token + 最后 `data: {sources}` |
@@ -59,7 +61,7 @@ npm run dev              # port 3000
 
 见 `.env.example`。关键项：
 - `PORT=3002`（与 frontend 硬编码一致）
-- `UPLOAD_DIR=../../storage/raw`（相对 cwd，指向项目根共享目录）
+- `UPLOAD_DIR=./storage/raw`（服务私有，相对 cwd）
 - `DB_PATH=./storage/knowledge.db`（服务私有）
 - `LLM_API_KEY=...`（可选；不配置时走拒答 + 关键词检索路径）
 - `EMBEDDING_MODEL`、`EMBEDDING_DIMENSION` —— 向量化模型
@@ -77,9 +79,9 @@ PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build # TS 编译，2 个 p
 
 ## 与同事 backend 的关系
 
-- **共用**：`/storage/raw/`（上传池）
-- **独占**：DB、converter、chunker、retriever、qa、llm 等 RAG 链路
-- **backend 修改**：`backend/src/config.ts` 的 `uploadDir` 从 `./storage/raw` 改为 `../storage/raw`（见 spec D2），使 backend 也指向项目根共享目录
+- **完全独立**：不读不写同事目录，同事代码也一行没改（按团队约定"每人独立目录"）
+- **功能差异**：同事 backend 只做文件管理（上传+列表+删除），本服务功能是其超集 + 完整 RAG（切分/检索/LLM 问答）
+- **前端共用**：同事 frontend 硬编码 `localhost:3002`，所以演示时两服务二选一启动，前端无需修改
 
 ## 设计文档
 
