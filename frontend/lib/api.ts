@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
-
 // axios 全局配置（10分钟超时）
 axios.defaults.timeout = 10 * 60 * 1000;
 
