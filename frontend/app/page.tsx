@@ -27,12 +27,32 @@ export default function Home() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // API 基础 URL
+  const getApiBaseUrl = () => {
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+  };
+
+  // 构建完整的 API URL
+  const buildApiUrl = (path: string) => {
+    const baseUrl = getApiBaseUrl();
+    // 确保路径以 / 开头
+    const apiPath = path.startsWith('/') ? path : `/${path}`;
+    // 如果是相对路径（以 / 开头）
+    if (baseUrl.startsWith('/')) {
+      // 直接拼接，去除重复的 /
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      return cleanBase + apiPath;
+    }
+    // 如果是完整 URL，确保以 / 结尾后拼接
+    return baseUrl.endsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/${path}`;
+  };
+
   // 初始化时获取文档数量
   useEffect(() => {
     setHasMounted(true);
     const checkConnection = async () => {
       try {
-        const res = await fetch('http://localhost:3002/api/qa/stats');
+        const res = await fetch(buildApiUrl('/qa/stats'));
         const data = await res.json();
         const count = data.totalFiles || 0;
         setIsServerConnected(true);
@@ -51,7 +71,7 @@ export default function Home() {
   // 获取 raw 目录文档列表
   const loadRawFiles = (page: number = 1) => {
     setIsLoadingFiles(true);
-    fetch(`http://localhost:3002/api/upload/raw-files?page=${page}&limit=10`)
+    fetch(buildApiUrl(`/upload/raw-files?page=${page}&limit=10`))
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -141,7 +161,7 @@ export default function Home() {
     }
 
     try {
-      const response = await fetch('http://localhost:3002/api/upload', {
+      const response = await fetch(buildApiUrl('/upload'), {
         method: 'POST',
         body: formData,
       });
@@ -151,7 +171,7 @@ export default function Home() {
       if (data.success) {
         setUploadMessage(`✅ ${data.message}`);
         // 刷新文档数量
-        const statsRes = await fetch('http://localhost:3002/api/qa/stats');
+        const statsRes = await fetch(buildApiUrl('/qa/stats'));
         const statsData = await statsRes.json();
         setDocCount(statsData.totalFiles || 0);
       } else {
@@ -188,7 +208,7 @@ export default function Home() {
 
     try {
       // 调用后端 API
-      const response = await fetch('http://localhost:3002/api/qa/ask-stream', {
+      const response = await fetch(buildApiUrl('/qa/ask-stream'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
