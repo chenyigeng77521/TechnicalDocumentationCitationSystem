@@ -299,11 +299,13 @@ export class DatabaseManager {
 
   /**
    * 获取数据库统计信息
+   * fileCount 只计 status='completed' 的记录，和 getAllFiles({status:'completed'}) 返回结果长度一致
+   * （避免 /stats.totalFiles 和 /files 列表长度不同步）
    */
   getStats(): { fileCount: number; chunkCount: number } {
-    const fileCount = this.db.prepare('SELECT COUNT(*) as count FROM files').get() as { count: number };
+    const fileCount = this.db.prepare("SELECT COUNT(*) as count FROM files WHERE status = 'completed'").get() as { count: number };
     const chunkCount = this.db.prepare('SELECT COUNT(*) as count FROM chunks').get() as { count: number };
-    
+
     return {
       fileCount: fileCount.count,
       chunkCount: chunkCount.count

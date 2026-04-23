@@ -3,7 +3,6 @@ import { DatabaseManager } from '../database/index.js';
 import { generateAnswer } from '../llm/index.js';
 
 const router = Router();
-const db = new DatabaseManager(process.env.DB_PATH || './storage/knowledge.db');
 
 interface AskRequest {
   question: string;
@@ -12,10 +11,12 @@ interface AskRequest {
 }
 
 router.post('/ask-stream', async (req: Request, res: Response) => {
+  const db = new DatabaseManager();
   try {
     const { question, topK = 5 }: AskRequest = req.body;
 
     if (!question || typeof question !== 'string') {
+      db.close();
       res.status(400).json({ error: '问题不能为空' });
       return;
     }
@@ -81,6 +82,8 @@ ${contextText}
       // connection may have closed
     }
     res.end();
+  } finally {
+    db.close();
   }
 });
 
