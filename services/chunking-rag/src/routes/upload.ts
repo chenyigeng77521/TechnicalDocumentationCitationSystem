@@ -188,8 +188,8 @@ router.post('/url', async (req: Request, res: Response) => {
 router.get('/raw-files', (req: Request, res: Response) => {
   try {
     const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), '..', '..', 'storage', 'raw'));
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit as string) || 10);
     const skip = (page - 1) * limit;
 
     if (!fs.existsSync(uploadDir)) {
