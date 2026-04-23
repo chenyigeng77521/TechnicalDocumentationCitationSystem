@@ -247,4 +247,86 @@ router.post('/index', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * DELETE /api/qa/files/:filename
+ * 级联删除：raw/ 物理文件 + DB file 记录 + chunks + converted/mappings sidecar
+ * Best-effort 策略（见 spec D3）：DB 失败 throw；raw/sidecar 失败 warn 不回滚
+ */
+router.delete('/files/:filename', (req: Request, res: Response) => {
+  const { filename } = req.params;
+  const db = new DatabaseManager();
+  const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), '..', '..', 'storage', 'raw'));
+  const convertedDir = './storage/converted';
+  const mappingsDir = './storage/mappings';
+
+  const rawPath = path.join(uploadDir, filename);
+  const rawExists = fs.existsSync(rawPath);
+
+  // 1. 查 DB：同名 original_name 的记录（理论上 0 或 1 条）
+  const allFiles = db.getAllFiles();
+  const matches = allFiles.filter(f => f.original_name === filename);
+
+  if (!rawExists && matches.length === 0) {
+    db.close();
+    return res.status(404).json({
+      success: false,
+      message: '文件不存在'
+    });
+  }
+
+  let warning: string | undefined;
+
+  // 2. DB 删除：放 try/catch，失败直接 500
+  try {
+    for (const f of matches) {
+      db.deleteFileChunks(f.id);
+      db.deleteFile(f.id);
+    }
+  } catch (dbErr: any) {
+    db.close();
+    console.error('❌ DB 删除失败:', dbErr);
+    return res.status(500).json({
+      success: false,
+      message: `DB 删除失败: ${dbErr.message}`
+    });
+  }
+
+  // 3. raw 文件删除：失败 warn 不报错
+  if (rawExists) {
+    try {
+      fs.unlinkSync(rawPath);
+    } catch (rawErr: any) {
+      console.warn(`⚠️ raw 文件删除失败: ${rawErr.message}`);
+      warning = `DB 已清理，但 raw 文件未能删除：${rawErr.message}`;
+    }
+  }
+
+  // 4. sidecar 删除（converted + mappings）：失败 warn 不报错
+  for (const f of matches) {
+    for (const sidecarDir of [convertedDir, mappingsDir]) {
+      const ext = sidecarDir === convertedDir ? '.md' : '.json';
+      const sidecarPath = path.join(sidecarDir, `${f.id}${ext}`);
+      if (fs.existsSync(sidecarPath)) {
+        try {
+          fs.unlinkSync(sidecarPath);
+        } catch (sideErr: any) {
+          console.warn(`⚠️ sidecar 删除失败 ${sidecarPath}: ${sideErr.message}`);
+        }
+      }
+    }
+  }
+
+  db.close();
+
+  const response: any = {
+    success: true,
+    message: !rawExists && matches.length > 0
+      ? '文件不存在但清理了 DB 记录'
+      : '文件已删除'
+  };
+  if (warning) response.warning = warning;
+
+  res.json(response);
+});
+
 export default router;
