@@ -13,7 +13,7 @@ import { DatabaseManager } from '../database/index.js';
 import { FileFormat, FileStatus } from '../types.js';
 import * as dotenv from 'dotenv';
 dotenv.config();
-import { safeFilename, fixEncoding } from './filename-utils.js';
+import { safeFilename } from './filename-utils.js';
 
 const router = Router();
 
