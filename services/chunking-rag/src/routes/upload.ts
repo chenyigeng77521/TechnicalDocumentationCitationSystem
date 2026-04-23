@@ -11,19 +11,23 @@ import { DocumentConverter } from '../converter/index.js';
 import { chunkDocument } from '../converter/chunker.js';
 import { DatabaseManager } from '../database/index.js';
 import { FileFormat, FileStatus } from '../types.js';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 const router = Router();
 
 // Multer 配置
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'storage', 'files');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), '..', '..', 'storage', 'raw');
+    const resolvedDir = path.resolve(uploadDir);
+    if (!fs.existsSync(resolvedDir)) {
+      fs.mkdirSync(resolvedDir, { recursive: true });
     }
-    cb(null, uploadDir);
+    cb(null, resolvedDir);
   },
   filename: (req, file, cb) => {
+    // 文件名策略在 Task 4 处理；此步仍用 UUID 作为过渡
     const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   }
