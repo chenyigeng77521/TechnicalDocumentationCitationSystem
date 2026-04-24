@@ -39,6 +39,11 @@ except ImportError as e:
     adaptive_topk_simple = None
 # ─────────────────────────────────────────────────────────────────────────────
 
+from .interfaces import (
+    search_test as interfaces_search_test,
+    RetrievalResponse,
+    RetrievedChunkResponse,
+)
 from .types import (
     RetrievedChunk,
     ContextBlock,
@@ -376,6 +381,52 @@ class ReasoningPipeline:
                 )
             )
         return chunks
+
+    def search_test_chunks(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+    ) -> tuple[List[RetrievedChunk], RetrievalResponse]:
+        """
+        使用 interfaces.search_test 检索文档（新版本）
+        对应方案.md 3.4.1 ~ 3.4.2
+
+        参数：
+            query: 用户查询
+            top_k: 期望召回数量，None 时自适应决定
+
+        返回：
+            Tuple[List[RetrievedChunk], RetrievalResponse]
+            - RetrievedChunk 列表（用于推理层）
+            - RetrievalResponse 原始响应（用于调试信息）
+        """
+        # 调用 interfaces.search_test
+        resp = interfaces_search_test(query, top_k=top_k)
+
+        # 转换为 RetrievedChunk 列表
+        chunks: List[RetrievedChunk] = []
+        for i, chunk_resp in enumerate(resp.retrieved_chunks):
+            metadata = chunk_resp.metadata
+            chunks.append(
+                RetrievedChunk(
+                    chunk_id=chunk_resp.chunk_id,
+                    file_path=metadata.file_path,
+                    file_hash='',                    # 预留接口
+                    content=chunk_resp.content,
+                    anchor_id=metadata.anchor_id,
+                    title_path=metadata.title_path,
+                    char_offset_start=int(metadata.anchor_id.split('#')[-1]) if '#' in metadata.anchor_id else 0,
+                    char_offset_end=0,               # 预留接口
+                    char_count=len(chunk_resp.content),
+                    is_truncated=chunk_resp.is_truncated,
+                    chunk_index=i,
+                    content_type=chunk_resp.content_type,
+                    reranker_score=chunk_resp.score,
+                    raw_text=chunk_resp.content,
+                )
+            )
+
+        return chunks, resp
 
     def update_llm_config(self, config: LLMConfig) -> None:
         """更新 LLM 配置 - 对齐 TS updateLLMConfig()"""
