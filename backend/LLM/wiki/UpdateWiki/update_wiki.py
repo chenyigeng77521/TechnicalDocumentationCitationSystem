@@ -14,6 +14,7 @@
 """
 import sys
 import argparse
+import time
 from pathlib import Path
 
 # 添加 scripts 目录到 Python 路径
@@ -44,15 +45,42 @@ class KnowledgeBaseUpdater:
         self.llm_client = LLMClient(self.config, self.logger)
         self.executor = FileExecutor(self.config.paths, self.logger)
 
-    def run(self, force_full: bool = False) -> int:
+    def run(self, force_full: bool = False, daemon_mode: bool = False, interval: int = 300) -> int:
         """执行更新流程
 
         Args:
             force_full: 是否强制全量更新
+            daemon_mode: 是否常驻模式
+            interval: 常驻模式下的检测间隔（秒）
 
         Returns:
-            int: 0 成功，1 失败
+            int: 0 成功，1 失败，130 用户中断
         """
+        if daemon_mode:
+            self.logger.info(f"进入常驻模式，检测间隔: {interval} 秒，按 Ctrl+C 退出")
+
+        try:
+            while True:
+                exit_code = self._run_once(force_full=force_full)
+
+                if not daemon_mode:
+                    return exit_code
+
+                if exit_code == 0:
+                    self.logger.info(f"本次检测完成，{interval} 秒后进入下一轮...")
+                else:
+                    self.logger.warning(f"本次执行异常（退出码: {exit_code}），{interval} 秒后重试...")
+
+                time.sleep(interval)
+                # 后续轮次恢复为增量检测
+                force_full = False
+
+        except KeyboardInterrupt:
+            self.logger.info("用户中断")
+            return 130
+
+    def _run_once(self, force_full: bool = False) -> int:
+        """执行单次更新流程"""
         self.logger.divider()
         self.logger.info("开始知识库增量更新")
 
@@ -112,8 +140,7 @@ class KnowledgeBaseUpdater:
             return 0
 
         except KeyboardInterrupt:
-            self.logger.info("用户中断")
-            return 130
+            raise
         except Exception as e:
             self.logger.error(f"更新过程中发生错误: {e}")
             import traceback
@@ -146,6 +173,8 @@ def main():
   python update_wiki.py --force            # 强制全量更新
   python update_wiki.py --config config.yaml  # 使用配置文件
   python update_wiki.py --verbose          # 详细输出
+  python update_wiki.py --daemon           # 常驻模式
+  python update_wiki.py -d -i 600          # 常驻模式，每10分钟检测一次
         """
     )
     parser.add_argument(
@@ -162,6 +191,17 @@ def main():
         '--verbose', '-v',
         action='store_true',
         help='详细输出'
+    )
+    parser.add_argument(
+        '--daemon', '-d',
+        action='store_true',
+        help='常驻模式，循环检测变更'
+    )
+    parser.add_argument(
+        '--interval', '-i',
+        type=int,
+        default=None,
+        help='常驻模式检测间隔（秒），默认读取配置或 300'
     )
 
     args = parser.parse_args()
@@ -180,7 +220,14 @@ def main():
     if args.verbose:
         updater.logger.logger.setLevel(10)  # DEBUG
 
-    sys.exit(updater.run(force_full=args.force))
+    # 确定间隔时间：命令行 > 配置文件 > 默认 300
+    interval = args.interval if args.interval is not None else updater.config.interval
+
+    sys.exit(updater.run(
+        force_full=args.force,
+        daemon_mode=args.daemon,
+        interval=interval
+    ))
 
 
 # 用于兼容旧的 bash 脚本调用

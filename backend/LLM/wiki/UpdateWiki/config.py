@@ -73,6 +73,8 @@ class AppConfig:
     paths: PathConfig = field(default_factory=PathConfig)
     max_file_size: int = 1024 * 1024  # 1MB
     max_content_length: int = 5000
+    daemon: bool = False
+    interval: int = 300  # 默认 5 分钟
 
     @classmethod
     def from_yaml(cls, yaml_path: Path) -> "AppConfig":
@@ -107,4 +109,6 @@ class AppConfig:
             ),
             max_file_size=llm_data.get("max_file_size", 1024 * 1024),
             max_content_length=llm_data.get("max_content_length", 5000),
+            daemon=data.get("daemon", False),
+            interval=data.get("interval", 300),
         )

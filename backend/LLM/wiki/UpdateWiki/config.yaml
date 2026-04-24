@@ -22,6 +22,10 @@ llm:
   # 单文件最大处理长度
   max_content_length: 5000
 
+# 常驻模式配置
+daemon: false
+interval: 300  # 检测间隔，单位秒（默认 5 分钟）
+
 paths:
   project_root: /Users/lenghaijun/sdd/kdDemo
   raw_dir: "raw"

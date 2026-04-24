@@ -83,7 +83,7 @@ LLM_MODEL=deepseek-chat
 
 ### 基本用法
 
-```
+```bash
 # 正常运行（自动检测变更并增量更新）
 python update_wiki.py
 
@@ -98,6 +98,12 @@ python update_wiki.py --verbose
 
 # 组合使用
 python update_wiki.py --force --verbose --config ./config.yaml
+
+# 常驻模式
+python update_wiki.py --daemon 
+python update_wiki.py --daemon --config /path/to/config.yaml         
+# 常驻模式，每10分钟检测一次
+python update_wiki.py -d -i 600 
 ```
 
 ### 命令行参数说明
