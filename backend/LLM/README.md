@@ -251,7 +251,7 @@ RERANKER_MODEL = "BAAI/bge-reranker-base"
 # - "cross-encoder/ms-marco-MiniLM-L-6-v2"  # 轻量级
 ```
 
-### 检索参数配置
+### 可参考参数配置
 
 ```
 # 在代码中修改
