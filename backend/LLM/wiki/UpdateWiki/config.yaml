@@ -1,0 +1,30 @@
+# 知识库更新工具配置文件
+
+llm:
+  # API 类型: openai, azure, anthropic, deepseek, zhipu
+  api_type: "deepseek"
+
+  # API 密钥（也可通过环境变量 LLM_API_KEY 设置）
+  api_key: "sk-8c814e3379274286a853bde65f66ae74"
+
+  # API 地址
+  api_base: "https://api.deepseek.com/v1"
+
+  # 模型名称
+  model: "deepseek-chat"
+
+  # 温度参数 (0-1)
+  temperature: 0.1
+
+  # 最大输出 tokens
+  max_tokens: 8192
+
+  # 单文件最大处理长度
+  max_content_length: 5000
+
+paths:
+  project_root: /Users/lenghaijun/sdd/kdDemo
+  raw_dir: "raw"
+  wiki_dir: "wiki"
+  logs_dir: "logs"
+  state_file: ".raw_manifest"
