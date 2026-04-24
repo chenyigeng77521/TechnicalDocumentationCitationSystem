@@ -199,3 +199,281 @@ body {
   transform: translateY(-4px);
   box-shadow: 0 12px 40px rgba(139, 92, 246, 0.15);
 }
+
+/* ========== 响应式设计 - 自动适应手机和电脑 ========== */
+
+/* 大屏幕 (>1200px) */
+@media (min-width: 1200px) {
+  .container-mobile {
+    max-width: 1200px !important;
+  }
+}
+
+/* 中等屏幕 (768px - 1199px) - 平板 */
+@media (max-width: 1199px) and (min-width: 768px) {
+  .container-mobile {
+    padding: 12px !important;
+  }
+  
+  .title-mobile {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* 小屏幕 (<768px) - 手机 */
+@media (max-width: 767px) {
+  /* 主容器改为单列布局 */
+  .container-mobile {
+    flex-direction: column !important;
+    padding: 12px !important;
+    margin-left: 0 !important;
+  }
+
+  /* 主内容区域 */
+  .main-mobile {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 卡片全屏 */
+  .card-mobile {
+    width: 100% !important;
+    border-radius: 12px !important;
+  }
+
+  /* 标题调整 */
+  .title-mobile {
+    font-size: 1.25rem !important;
+  }
+
+  .subtitle-mobile {
+    font-size: 0.875rem !important;
+  }
+
+  /* 侧边栏改为顶部工具栏 */
+  .sidebar-mobile {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important !important;
+    width: 100% !important;
+    max-width: none !important;
+    background: var(--surface) !important;
+    border-top: 1px solid var(--border) !important;
+    padding: 10px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 16px !important;
+    z-index: 1000 !important;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
+    padding-bottom: env(safe-area-inset-bottom, 10px) !important;
+  }
+
+  /* 隐藏桌面端侧边栏的固定位置 */
+  .sidebar {
+    position: static !important;
+    align-self: center !important;
+    width: 100% !important;
+    max-width: 600px !important;
+    margin-bottom: 60px !important; /* 为底部工具栏留空间 */
+  }
+
+  /* 统计信息调整 */
+  .stats-mobile {
+    flex-direction: row !important;
+    justify-content: center !important;
+    gap: 16px !important;
+    font-size: 12px !important;
+    margin-bottom: 60px !important;
+  }
+
+  /* 按钮调整 */
+  .upload-btn {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  /* 输入框调整 */
+  .textarea {
+    font-size: 16px !important; /* 防止 iOS 缩放 */
+    padding: 12px !important;
+  }
+
+  /* 推荐问题调整为可横向滚动 */
+  .toolbar-mobile {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding-bottom: 8px !important;
+  }
+
+  .chip {
+    display: inline-block !important;
+    margin-right: 8px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* 手机端底部工具栏优化 */
+  .sidebar-mobile {
+    display: flex !important;
+    flex-direction: column !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%) !important;
+    border-top: 2px solid var(--border) !important;
+    padding: 8px 12px 12px !important;
+    gap: 8px !important;
+    z-index: 1000 !important;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 10px) + 4px) !important;
+  }
+
+  /* 底部按钮行 */
+  .mobile-btn-row {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 6px 0 !important;
+  }
+
+  /* 底部按钮样式 */
+  .mobile-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    min-width: 64px !important;
+    max-width: 80px !important;
+    height: 56px !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    cursor: pointer !important;
+    padding: 6px !important;
+    flex: 0 0 auto !important;
+    transition: all 0.2s !important;
+  }
+
+  .mobile-btn:active {
+    transform: scale(0.95) !important;
+    background: var(--primary-light) !important;
+    border-color: var(--primary) !important;
+  }
+
+  .mobile-btn-icon {
+    font-size: 22px !important;
+  }
+
+  .mobile-btn-text {
+    font-size: 10px !important;
+    color: var(--text-sub) !important;
+    text-align: center !important;
+    line-height: 1.2 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* 底部信息面板（引用来源、知识库列表） */
+  .mobile-info-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 8px 0 !important;
+    max-height: 120px !important;
+    overflow-y: auto !important;
+    border-top: 1px solid var(--border) !important;
+    margin-top: 4px !important;
+  }
+
+  .mobile-panel-title {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: var(--text) !important;
+    padding: 0 4px !important;
+  }
+
+  .mobile-panel-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    background: var(--surface) !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    color: var(--text-sub) !important;
+    border: 1px solid var(--border) !important;
+  }
+
+  .mobile-panel-icon {
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .mobile-panel-text {
+    flex: 1 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 11px !important;
+  }
+
+  .mobile-panel-meta {
+    font-size: 9px !important;
+    color: var(--text-light) !important;
+    flex-shrink: 0 !important;
+    margin-left: 6px !important;
+  }
+
+  /* 隐藏桌面端的侧边栏元素在手机端 */
+  .source-panel-mobile-hide,
+  .knowledge-base-mobile-hide {
+    display: none !important;
+  }
+}
+
+/* 小屏幕手机 (<480px) */
+@media (max-width: 479px) {
+  .container-mobile {
+    padding: 8px !important;
+  }
+
+  .title-mobile {
+    font-size: 1.1rem !important;
+  }
+
+  .subtitle-mobile {
+    font-size: 0.75rem !important;
+  }
+
+  .chip {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .textarea {
+    font-size: 14px !important;
+    padding: 10px !important;
+  }
+
+  .upload-btn {
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  .upload-icon {
+    font-size: 20px !important;
+  }
+
+  .upload-text {
+    font-size: 9px !important;
+  }
+}

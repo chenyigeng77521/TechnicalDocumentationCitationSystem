@@ -265,19 +265,19 @@ export default function Home() {
   ];
 
   return (
-    <div style={styles.container}>
-      <div style={styles.mainContent}>
+    <div style={styles.container} className="container-mobile">
+      <div style={styles.mainContent} className="main-mobile">
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.logo}>
             <div style={styles.logoIcon}>🧠</div>
-            <h1 style={styles.title}>智能知识库问答</h1>
+            <h1 style={styles.title} className="title-mobile">智能知识库问答</h1>
           </div>
-          <p style={styles.subtitle}>基于企业知识库的 AI 智能检索与问答系统</p>
+          <p style={styles.subtitle} className="subtitle-mobile">基于企业知识库的 AI 智能检索与问答系统</p>
         </div>
 
         {/* Main card */}
-        <div style={styles.card}>
+        <div style={styles.card} className="card-mobile">
         {/* Result area */}
         <div 
           ref={resultRef} 
@@ -377,7 +377,7 @@ export default function Home() {
       </div>
 
       {/* Stats */}
-      <div style={styles.stats}>
+      <div style={styles.stats} className="stats-mobile">
         <div style={styles.statItem}>
           <span style={{...styles.statDot, ...(hasMounted && isServerConnected ? styles.dotGreen : styles.dotGray)}}></span>
           <span>{hasMounted && isServerConnected ? '知识库已连接' : '知识库未连接'}</span>
@@ -389,8 +389,75 @@ export default function Home() {
       </div>
       </div>
 
+      {/* 移动端底部工具栏 */}
+      <div className="sidebar-mobile" style={{ display: 'none' }}>
+        {/* 按钮行：上传和知识库 */}
+        <div className="mobile-btn-row">
+          <button 
+            style={styles.mobileBtn}
+            onClick={handleUploadClick}
+            disabled={isUploading}
+          >
+            <span style={styles.mobileBtnIcon}>{isUploading ? '⏳' : '📁'}</span>
+            <span style={styles.mobileBtnText}>{isUploading ? '上传中' : '上传'}</span>
+          </button>
+          
+          <button 
+            style={styles.mobileBtn}
+            onClick={handleKnowledgeBaseClick}
+          >
+            <span style={styles.mobileBtnIcon}>📚</span>
+            <span style={styles.mobileBtnText}>知识库</span>
+          </button>
+        </div>
+        
+        {/* 知识库文档列表（展开时显示） */}
+        {showKnowledgeBase && (
+          <div className="mobile-info-panel">
+            <div className="mobile-panel-title">📚 知识库文档 ({rawTotal} 个)</div>
+            {isLoadingFiles ? (
+              <div style={{ padding: '10px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                加载中...
+              </div>
+            ) : rawFiles.length === 0 ? (
+              <div style={{ padding: '10px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                暂无文档
+              </div>
+            ) : (
+              rawFiles.slice(0, 5).map((file, idx) => (
+                <div key={idx} className="mobile-panel-item">
+                  <span className="mobile-panel-icon">📄</span>
+                  <span className="mobile-panel-text" title={file.name}>
+                    {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
+                  </span>
+                  <span className="mobile-panel-meta">{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+        
+        {/* 引用来源 */}
+        {(() => {
+          const lastMsg = messages[messages.length - 1];
+          const hasSources = lastMsg?.sources && lastMsg.sources.length > 0;
+          if (!hasSources || !lastMsg.sources) return null;
+          return (
+            <div className="mobile-info-panel">
+              <div className="mobile-panel-title">📖 引用来源</div>
+              {lastMsg.sources.slice(0, 3).map((source, idx) => (
+                <div key={idx} className="mobile-panel-item">
+                  <span className="mobile-panel-icon">📄</span>
+                  <span className="mobile-panel-text">{source}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* 右侧边栏 */}
-      <div style={styles.sidebar}>
+      <div style={styles.sidebar} className="sidebar-mobile">
         {/* 按钮行：上传按钮在左，知识库按钮和知识库列表在右 */}
         <div style={styles.btnRow}>
           <button 
@@ -483,7 +550,7 @@ export default function Home() {
         )}
 
         {/* 上传文档要求 */}
-        <div style={styles.sourcePanel}>
+        <div style={styles.sourcePanel} className="source-panel-mobile-hide">
           <div style={styles.sourcePanelTitle}>📤 上传文档要求</div>
           <div style={{ padding: '10px 12px', fontSize: '11px' }}>
             <div style={styles.reqItem}>
@@ -505,8 +572,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 来源显示区域 */}
-        <div style={styles.sourcePanel}>
+        {/* 来源显示区域 - 手机端隐藏 */}
+        <div style={styles.sourcePanel} className="source-panel-mobile-hide">
           <div style={styles.sourcePanelTitle}>📖 引用来源</div>
           <div style={styles.sourcePanelList}>
             {messages.length > 0 && messages[messages.length - 1].sources ? (
@@ -720,6 +787,85 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '9px',
     cursor: 'pointer',
     transition: 'all 0.15s',
+  },
+  // 移动端底部样式
+  mobileBtnRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '10px',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '6px 0',
+  },
+  mobileBtn: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    minWidth: '64px',
+    maxWidth: '80px',
+    height: '56px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    padding: '6px',
+    flex: '0 0 auto',
+    transition: 'all 0.2s',
+  },
+  mobileBtnIcon: {
+    fontSize: '22px',
+  },
+  mobileBtnText: {
+    fontSize: '10px',
+    color: 'var(--text-sub)',
+    textAlign: 'center',
+    lineHeight: '1.2',
+  },
+  mobileInfoPanel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    padding: '8px 0',
+    maxHeight: '120px',
+    overflowY: 'auto',
+    borderTop: '1px solid var(--border)',
+    marginTop: '4px',
+  },
+  mobilePanelTitle: {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: 'var(--text)',
+    padding: '0 4px',
+  },
+  mobilePanelItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 8px',
+    background: 'var(--surface)',
+    borderRadius: '6px',
+    fontSize: '11px',
+    color: 'var(--text-sub)',
+    border: '1px solid var(--border)',
+  },
+  mobilePanelIcon: {
+    fontSize: '12px',
+    flexShrink: 0,
+  },
+  mobilePanelText: {
+    flex: 1,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontSize: '11px',
+  },
+  mobilePanelMeta: {
+    fontSize: '9px',
+    color: 'var(--text-light)',
+    flexShrink: 0,
+    marginLeft: 'auto',
   },
   uploadStatus: {
     width: '140px',
