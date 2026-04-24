@@ -5,3 +5,7 @@ eval/report.md
 eval/report-*.md
 eval/__pycache__/
 eval/**/__pycache__/
+
+
+# 个人本地归档（不提交）
+backend/back/
