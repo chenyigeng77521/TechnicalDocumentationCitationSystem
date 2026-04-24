@@ -101,7 +101,7 @@ python update_wiki.py --force --verbose --config ./config.yaml
 
 # 常驻模式
 python update_wiki.py --daemon 
-python update_wiki.py --daemon --config /path/to/config.yaml         
+python update_wiki.py --daemon --config ./config.yaml        
 # 常驻模式，每10分钟检测一次
 python update_wiki.py -d -i 600 
 ```
