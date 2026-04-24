@@ -1,0 +1,17 @@
+# 推理与引用层依赖
+# 运行：pip install -r requirements.txt
+
+# Web 框架
+flask>=2.3.0
+flask-sock>=0.7.0       # WebSocket 支持（预留接口：若不需要 WS 可不装）
+
+# LLM 调用
+openai>=1.0.0           # 支持 OpenAI 兼容 API
+
+# retrieval.py 依赖（已在 backend/LLM 中使用）
+# langchain-community>=0.2.0
+# langchain-huggingface>=0.0.3
+# sentence-transformers>=2.6.0
+
+# 工具
+python-dotenv>=1.0.0    # 可选：从 .env 读取配置

@@ -236,15 +236,24 @@ class Reranker:
         self.top_n = top_n
         print("重排序模型加载完成")
 
-    def rerank(self, query: str, docs: List[Document]):
+    def rerank(self, query: str, docs: List[Document]) -> List[tuple]:
+        """
+        重排序文档并返回分数。
+
+        Returns:
+            List[Tuple[Document, float]]: 排序后的 (文档, 分数) 列表，
+            分数为 CrossEncoder 原始预测值（越高越相关）。
+        """
         if not docs:
             return []
 
         pairs = [[query, d.page_content] for d in docs]
         scores = self.model.predict(pairs)
 
+        # 按分数降序排列
         sorted_idx = np.argsort(scores)[::-1]
-        return [docs[i] for i in sorted_idx[:self.top_n]]
+        top_n_idx = sorted_idx[:self.top_n]
+        return [(docs[i], float(scores[i])) for i in top_n_idx]
 
 
 # ==================== Pipeline ====================
@@ -290,9 +299,12 @@ def pipeline(query: str, vectorstore=None, all_documents=None, ensemble_retrieve
 
     # 使用单例模式获取重排序器
     reranker = get_reranker()
-    final_docs = reranker.rerank(query, docs)
+    reranked = reranker.rerank(query, docs)
+    # reranked: List[Tuple[Document, float]]
+    final_docs = [doc for doc, _ in reranked]
+    final_scores = [score for _, score in reranked]
 
-    return final_docs
+    return final_docs, final_scores
 
 
 # ==================== 初始化函数 ====================
@@ -323,7 +335,7 @@ if __name__ == "__main__":
     system = init_retrieval_system()
     # 使用初始化好的检索系统组件执行查询
     # 通过传递已加载的资源（向量数据库、文档、混合检索器），避免重复初始化，提升查询性能
-    results = pipeline(
+    results, final_scores = pipeline(
         "如何提高混合检索召回率",
         vectorstore=system['vectorstore'],
         all_documents=system['documents'],
@@ -335,3 +347,5 @@ if __name__ == "__main__":
 
     for i, d in enumerate(results):
         print(f"{i + 1}. {d.page_content[:100]}")
+
+    print("\n分数:", final_scores)

@@ -9,15 +9,19 @@
 ---
 
 > ⚠️ **2026-04-23 晚更新（team convention 调整）**：
-> 团队约定变更为"每人独立目录，互不影响"（见群聊）。因此本 spec 里 D2 节关于
-> "共享 `/storage/raw/` + 改同事 config" 的方案**已作废**，实际代码采用：
+> 团队约定变更为"每人独立目录，互不影响"，服务目录从 `services/` 改名到 `services-tuyh/`（owner-tagged）。本 spec 里 D2 节关于
+> "共享 `/storage/raw/` + 改同事 config" 的方案**已作废**：
 >
-> - 服务目录从 `services/` 改名到 `services-tuyh/`（owner-tagged）
-> - 存储完全自包含：`UPLOAD_DIR=./storage/raw`（相对 `services-tuyh/chunking-rag/` cwd）
+> - 存储完全自包含：`UPLOAD_DIR=./storage/raw`（相对服务根 cwd）
 > - 项目根 `/storage/raw/` 已删除，不再作为跨服务共享池
 > - `backend/src/config.ts` 那 1 行改动已 revert 回原样
 >
-> 契约对齐（6 个前端端点）+ chunker 实现 + 所有 e2e 断言都**不受影响**——仅存储拓扑私有化。
+> **⚠️ 2026-04-23 再次调整**：团队再次约定"所有方案统一放入 `backend/`"（与同事 demo 同根目录，靠子目录名区分 owner）。实际最终路径：
+>
+> - TS 版本路径：`backend/chunking-rag/`（不再是 `services-tuyh/chunking-rag/`）
+> - 与同事代码同根共存，端口/存储仍然完全独立
+>
+> 契约对齐（6 个前端端点）+ chunker 实现 + 所有 e2e 断言都**不受影响**——仅目录拓扑变化。
 > 下方 D2/D2b 关于"共享"的描述保留作设计过程记录，不代表当前实现。
 
 ---
@@ -33,7 +37,7 @@
 1. **不动同事代码**：`backend/`、`frontend/` 一行不改
 2. **完整对接前端**：前端 0 修改即可完整使用上传 + 问答功能
 3. **保留 v1 切分工作**：v1 的 chunker、状态机、空 chunks 守卫等增强功能完整带过来
-4. **独立目录**：所有新代码在 `services-tuyh/chunking-rag/`，与同事 `backend/` 平级
+4. **独立目录**：所有新代码在 `backend/chunking-rag/`，与同事 `backend/` 平级
 
 ### 非目标
 - v2 设计的 char_offset、reranker、查询扩展、增量更新等高级功能（留给后续迭代）
@@ -106,7 +110,7 @@
 ### D2. 上传落点 = 项目根 `/storage/raw/`（跨服务共享），砍掉服务内 `original/` 目录
 
 - **共享 `/storage/raw/`**：项目根级目录，前端上传 + 列表 + 删除都以此为准；两个服务（同事的 backend、我们的 chunking-rag）都指向这里，消除数据孤岛
-- 我们服务通过 env var 配置：`.env.example` 加 `UPLOAD_DIR=../../storage/raw`（相对 `services-tuyh/chunking-rag/` cwd）
+- 我们服务通过 env var 配置：`.env.example` 加 `UPLOAD_DIR=../../storage/raw`（相对 `backend/chunking-rag/` cwd）
 - 同事 backend 需要一行 config 改动：`./storage/raw` → `../storage/raw`（相对 `backend/` cwd）——**这是 B 方案唯一对同事代码的改动**
 - v1 流程是 multer → 临时目录 → converter copy 到 `original/`：现在改成 multer 直接落到共享 `/storage/raw/`，converter 从那里读取，**不再 copy 到服务内 `original/`**（消除冗余）
 - DB 里 `original_path` 字段含义变更：从 `storage/original/<uuid>.ext` 改成 `/storage/raw/<sanitized_name>`（绝对或相对都行，取 env var 解析的路径）
@@ -244,15 +248,15 @@ router.delete('/files/:filename', (req, res) => {
 - `src/converter/chunker.test.ts` 14 个测试全部带过来，应该一个不变全绿
 
 ### 集成测试（手工走一遍）
-1. `cd services-tuyh/chunking-rag && npm install && npm run dev`
+1. `cd backend/chunking-rag && npm install && npm run dev`
 2. `cd frontend && npm run dev`（默认 3000）
 3. 浏览器打开 http://localhost:3000
 4. 上传一份 md → 看 stats 数字 → 在文件列表里能看到 → 提问 → 流式答案出现
 5. 删除文件 → DB chunks 被清掉
 
 ### 兼容性验证
-- `cd services-tuyh/chunking-rag && PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm test` → `# pass 14 / # fail 0`（v1 的 chunker 测试一个不变全过）
-- `cd services-tuyh/chunking-rag && PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l` → `2`（仅保留 v1 的 2 个 pre-existing TS 错误：`converter/index.ts:208` Buffer 类型问题、`llm/index.ts:2` RetrievedChunk 未导出。**不允许引入第 3 个**）
+- `cd backend/chunking-rag && PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm test` → `# pass 14 / # fail 0`（v1 的 chunker 测试一个不变全过）
+- `cd backend/chunking-rag && PATH=~/.nvm/versions/node/v20.20.2/bin:$PATH npm run build 2>&1 | grep "error TS" | wc -l` → `2`（仅保留 v1 的 2 个 pre-existing TS 错误：`converter/index.ts:208` Buffer 类型问题、`llm/index.ts:2` RetrievedChunk 未导出。**不允许引入第 3 个**）
 - `tsc --noEmit` 同上检测口径
 
 ---

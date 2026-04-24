@@ -10,11 +10,11 @@
 
 ### 1.1 TS 版（已 ship）
 
-- 路径：`services-tuyh/chunking-rag/`（TypeScript，Express，端口 3002）
+- 路径：`backend/chunking-rag/`（TypeScript，Express，端口 3002）
 - 状态：已合进 `origin/main`（16 commits，9/9 e2e PASS）
 - Eval baseline：**40/100**（团队统一测题集）
 - Spec：[2026-04-23-chunking-rag-service-design.md](./2026-04-23-chunking-rag-service-design.md)
-- 6 个前端端点全部可用，存储自包含在 `services-tuyh/chunking-rag/storage/`
+- 6 个前端端点全部可用，存储自包含在 `backend/chunking-rag/storage/`
 
 ### 1.2 团队 Layer 1 设计文档
 
@@ -44,12 +44,12 @@
    - FlagReranker(BAAI/bge-reranker-v2-m3) 重排 + 硬阈值 0.4 拒答
 2. **前端 0 修改**：6 个端点与 TS 版**语义契约**一致（字段名/类型/嵌套 shape）——由 snapshot 契约测试锁定关键字段；header 顺序、JSON key 顺序、datetime 序列化等表达层细节不在锁定范围（见 §4）
 3. **二选一占 3002 端口**：和 TS 版互斥启动，不做反向代理
-4. **存储完全自包含**：`services-tuyh/chunking-rag-py/storage/`（与 TS 版 storage 隔离，允许并存）
+4. **存储完全自包含**：`backend/chunking-rag-py/storage/`（与 TS 版 storage 隔离，允许并存）
 
 ### 2.2 非目标
 
-- 替换 TS 版：TS 版作为 fallback 保留在仓库，两版同时存在
-- 和同事 `backend/` 集成：两服务并存靠端口约定，不共享数据
+- 替换 TS 版：TS 版作为 fallback 保留在仓库（同级兄弟目录 `backend/chunking-rag/`），两版同时存在
+- 与同事 `backend/` 根目录的 Express 服务**进程/数据集成**：即使现在共享 `backend/` 目录（团队约定 2026-04-23 更新），仍通过端口约定二选一启动，不共享 SQLite、不共享 raw 目录
 - 改动 `frontend/`：一行不动
 - 修改团队 `docs/layer1-design-v2.md`
 - 实现 v2 文档里的 char_offset anchor、content_type 三类分派、增量更新 pipeline（见 §10）
@@ -62,69 +62,75 @@
 
 ```
 TechnicalDocumentationCitationSystem/
-├── backend/                       ⬅ 同事（文件管理 demo，不碰）
-├── frontend/                      ⬅ 同事（硬编码 localhost:3002，不碰）
-├── docs/
-│   ├── layer1-design-v2.md        ⬅ 团队文档（只读参考）
-│   └── superpowers/specs/
-│       ├── 2026-04-23-chunking-rag-service-design.md   (TS 版)
-│       └── 2026-04-23-chunking-rag-py-design.md        (本 spec)
-└── services-tuyh/
-    ├── chunking-rag/              ⬅ TS 版（已 ship，端口 3002）
-    └── chunking-rag-py/           ⬅ Python 版（本 spec，端口 3002，与 TS 二选一）
-        ├── requirements.txt
-        ├── .env.example
-        ├── README.md
-        ├── pyproject.toml         (可选，只配 ruff/pytest)
-        ├── app/
-        │   ├── __init__.py
-        │   ├── main.py            FastAPI app entry，lifespan 初始化 embedder/reranker
-        │   ├── config.py          pydantic-settings
-        │   ├── deps.py            FastAPI Depends 工厂（db / embedder / reranker 单例）
-        │   ├── routes/
-        │   │   ├── __init__.py
-        │   │   ├── upload.py      POST /api/upload, GET /api/upload/raw-files
-        │   │   ├── qa.py          GET /api/qa/files, /api/qa/stats, DELETE /api/qa/files/{name}
-        │   │   └── qa_stream.py   POST /api/qa/ask-stream (SSE)
-        │   ├── converter/
-        │   │   ├── __init__.py
-        │   │   ├── parser.py      各格式 → markdown + line_map (pdf/docx/pptx/xlsx/md)
-        │   │   └── chunker.py     markdown → Chunk[]（单段落/标题切，保留 line 范围）
-        │   ├── embedder/
-        │   │   ├── __init__.py
-        │   │   └── bge_m3.py      FlagEmbedding BGEM3FlagModel 封装（dense-only）
-        │   ├── retriever/
-        │   │   ├── __init__.py
-        │   │   ├── dense.py       numpy 余弦相似度 top-k
-        │   │   ├── bm25.py        rank_bm25 + jieba，每次查询在内存里重建 index
-        │   │   ├── rrf.py         RRF 融合两路 ranked list
-        │   │   └── reranker.py    FlagReranker 封装
-        │   ├── qa/
-        │   │   ├── __init__.py
-        │   │   ├── orchestrator.py  组合检索 + 重排 + 阈值门控
-        │   │   └── prompt.py        prompt 模板
-        │   ├── llm/
-        │   │   ├── __init__.py
-        │   │   └── client.py        openai SDK + 亚信网关（stream/non-stream）
-        │   ├── database/
-        │   │   ├── __init__.py
-        │   │   └── sqlite.py        sqlite3 stdlib + schema + CRUD
-        │   ├── filename_utils.py    sanitize / fix_encoding / 冲突加后缀（抄 TS 版）
-        │   └── sse.py               SSE 事件编码 util
-        ├── tests/
-        │   ├── conftest.py
-        │   ├── test_chunker.py
-        │   ├── test_filename_utils.py
-        │   ├── test_sqlite.py
-        │   ├── test_bm25.py
-        │   ├── test_rrf.py
-        │   ├── test_dense_retriever.py     (mock embedder)
-        │   └── test_upload_qa_e2e.py       (TestClient，mock embedder/reranker/llm)
-        └── storage/
-            ├── raw/                原文件
-            ├── converted/          转换后 .md
-            ├── mappings/           line_map .json
-            └── knowledge.db        SQLite
+├── backend/                          ⬅ 团队约定：所有方案都放这里（2026-04-23 更新）
+│   ├── src/ package.json tsconfig.json ...  ⬅ 同事 chenyigeng 的文件管理 demo（不碰）
+│   ├── chunking-rag/                 ⬅ TS 版（已 ship，端口 3002）
+│   └── chunking-rag-py/              ⬅ Python 版（本 spec，端口 3002，与 TS 二选一）
+├── frontend/                         ⬅ 同事（硬编码 localhost:3002，不碰）
+└── docs/
+    ├── layer1-design-v2.md           ⬅ 团队文档（只读参考）
+    └── superpowers/specs/
+        ├── 2026-04-23-chunking-rag-service-design.md   (TS 版)
+        └── 2026-04-23-chunking-rag-py-design.md        (本 spec)
+```
+
+`backend/chunking-rag-py/` 内部：
+
+```
+backend/chunking-rag-py/
+├── requirements.txt
+├── .env.example
+├── README.md
+├── pyproject.toml              (可选，只配 ruff/pytest)
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 FastAPI app entry，lifespan 初始化 embedder/reranker
+│   ├── config.py               pydantic-settings
+│   ├── deps.py                 FastAPI Depends 工厂（db / embedder / reranker 单例）
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── upload.py           POST /api/upload, GET /api/upload/raw-files
+│   │   ├── qa.py               GET /api/qa/files, /api/qa/stats, DELETE /api/qa/files/{name}
+│   │   └── qa_stream.py        POST /api/qa/ask-stream (SSE)
+│   ├── converter/
+│   │   ├── __init__.py
+│   │   ├── parser.py           各格式 → markdown + line_map (pdf/docx/pptx/xlsx/md)
+│   │   └── chunker.py          markdown → Chunk[]（单段落/标题切，保留 line 范围）
+│   ├── embedder/
+│   │   ├── __init__.py
+│   │   └── bge_m3.py           FlagEmbedding BGEM3FlagModel 封装（dense-only）
+│   ├── retriever/
+│   │   ├── __init__.py
+│   │   ├── dense.py            numpy 余弦相似度 top-k
+│   │   ├── bm25.py             rank_bm25 + jieba，每次查询在内存里重建 index
+│   │   ├── rrf.py              RRF 融合两路 ranked list
+│   │   └── reranker.py         FlagReranker 封装
+│   ├── qa/
+│   │   ├── __init__.py
+│   │   ├── orchestrator.py     组合检索 + 重排 + 阈值门控
+│   │   └── prompt.py           prompt 模板
+│   ├── llm/
+│   │   ├── __init__.py
+│   │   └── client.py           openai SDK + 亚信网关（stream/non-stream）
+│   ├── database/
+│   │   ├── __init__.py
+│   │   └── sqlite.py           sqlite3 stdlib + schema + CRUD
+│   ├── filename_utils.py       sanitize / fix_encoding / 冲突加后缀（抄 TS 版）
+│   └── sse.py                  SSE 事件编码 util
+├── tests/
+│   ├── conftest.py
+│   ├── test_chunker.py
+│   ├── test_filename_utils.py
+│   ├── test_sqlite.py
+│   ├── test_bm25.py
+│   ├── test_rrf.py
+│   ├── test_dense_retriever.py (mock embedder)
+│   └── test_upload_qa_e2e.py   (TestClient，mock embedder/reranker/llm)
+└── storage/
+    ├── raw/                    原文件
+    ├── converted/              转换后 .md
+    ├── mappings/               line_map .json
+    └── knowledge.db            SQLite
 ```
 
 ### 3.2 与 TS 版的差异
@@ -339,7 +345,7 @@ question
 
 ### D8. 文件名策略：沿用 TS 版 sanitize + 冲突后缀
 
-抄 TS 版 `services-tuyh/chunking-rag/src/routes/filename-utils.ts` 的实现，Python 重写为 `app/filename_utils.py`：
+抄 TS 版 `backend/chunking-rag/src/routes/filename-utils.ts` 的实现，Python 重写为 `app/filename_utils.py`：
 - `fix_encoding(name)`：latin1 乱码修正 → utf-8
 - `sanitize_filename(name)`：清非法字符（保留中文）
 - 冲突加 `_1` `_2` 后缀——**原子创建**：用 `os.open(path, O_CREAT | O_EXCL | O_WRONLY)` 拿 fd，失败（`FileExistsError`）则加后缀重试。这**不是**"先 `os.path.exists` 探测再写"（TOCTOU 竞态），而是内核级原子 `create-or-fail`；拿到 fd 后才 write bytes
@@ -352,7 +358,7 @@ question
 
 ### D10. 上传失败显式状态机，不留孤儿 DB 态
 
-对标 TS 版 [upload.ts:88-123](../../../services-tuyh/chunking-rag/src/routes/upload.ts)：
+对标 TS 版 [upload.ts:88-123](../../../backend/chunking-rag/src/routes/upload.ts)：
 - INSERT files(status='converting') **在** parse/chunk/embed **之前**完成——父记录是所有后续失败的 DB 归属点
 - 成功路径：chunks 写入 + UPDATE status='completed' 在同一逻辑事务里
 - 失败路径：UPDATE status='failed'（失败再失败只 log，不递归抛）；raw/converted/mapping 文件**保留**（与 TS 版一致，供重试/排查）
@@ -367,7 +373,7 @@ question
 # 3002 端口占用时清理（无进程也不报错）
 pids=$(lsof -ti:3002 2>/dev/null); [ -n "$pids" ] && kill -9 $pids 2>/dev/null || true
 
-cd services-tuyh/chunking-rag-py
+cd backend/chunking-rag-py
 conda activate sqllineage
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 3002
@@ -379,7 +385,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 3002
 
 ### 6.1 上传（`POST /api/upload`）
 
-对标 TS 版 [upload.ts:88-123](../../../services-tuyh/chunking-rag/src/routes/upload.ts) 的 `converting → completed / failed` 状态机（TS 版注释原话："防止出现 completed + chunks=0 灰态"）。失败时 DB 必须留下 `status='failed'` 记录，不能产生"raw 有文件但 DB 无记录"的孤儿态。
+对标 TS 版 [upload.ts:88-123](../../../backend/chunking-rag/src/routes/upload.ts) 的 `converting → completed / failed` 状态机（TS 版注释原话："防止出现 completed + chunks=0 灰态"）。失败时 DB 必须留下 `status='failed'` 记录，不能产生"raw 有文件但 DB 无记录"的孤儿态。
 
 **限额实现**（FastAPI/python-multipart 不会自动套用 multer 的 `limits`，必须显式写）：
 - **文件数 ≤ 10**：`files: list[UploadFile] = File(...)` 解析完 `len(files)` 检查，>10 直接 413 + `{success:false, message:"最多 10 个文件"}`
@@ -537,7 +543,7 @@ CREATE INDEX IF NOT EXISTS idx_files_category ON files(category);
 
 **与 TS 版 schema 完全一致**（TS 版也是单表 + vector JSON）。Python 版 `sqlite3` 手写 row → dict 映射，没有 ORM。
 
-**统计口径**：`getStats().fileCount` 只数 `status='completed'`，和 `GET /api/qa/files` 列表长度一致（抄 TS 版 [database/index.ts:306](../../../services-tuyh/chunking-rag/src/database/index.ts)）。
+**统计口径**：`getStats().fileCount` 只数 `status='completed'`，和 `GET /api/qa/files` 列表长度一致（抄 TS 版 [database/index.ts:306](../../../backend/chunking-rag/src/database/index.ts)）。
 
 ---
 
@@ -736,7 +742,7 @@ Python **3.12.4**（conda env `sqllineage`）。依赖管理 `pip install -r req
 写任何业务代码之前，先在干净 env 里跑通依赖解析 + 模型首次加载。任一失败就更新 `requirements.txt` 的对应 pin：
 
 ```bash
-cd services-tuyh/chunking-rag-py                # 所有后续命令都在 service root
+cd backend/chunking-rag-py                # 所有后续命令都在 service root
 conda activate sqllineage
 python --version                                # 必须 3.12.4
 pip install -r requirements.txt                 # 必须零冲突
@@ -753,7 +759,7 @@ kill %1
 
 ## 附录 B：.env.example
 
-所有 `*_DIR` / `DB_PATH` 环境变量值为**相对路径**时，`config.py` 解析为**相对服务根**（即 `services-tuyh/chunking-rag-py/`），不依赖启动 cwd：
+所有 `*_DIR` / `DB_PATH` 环境变量值为**相对路径**时，`config.py` 解析为**相对服务根**（即 `backend/chunking-rag-py/`），不依赖启动 cwd：
 
 ```python
 # app/config.py 关键片段
