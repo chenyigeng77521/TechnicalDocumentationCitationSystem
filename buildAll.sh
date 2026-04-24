@@ -41,6 +41,8 @@ echo "  1️⃣ 编译后端 (backend/entrance)"
 echo "========================================"
 cd "$SCRIPT_DIR/backend/entrance"
 
+npm install
+
 if [ ! -d "node_modules" ]; then
     echo "   📦 后端依赖未安装，先安装依赖..."
     npm install
@@ -67,6 +69,7 @@ echo "  2️⃣ 编译前端 (frontend)"
 echo "========================================"
 cd "$SCRIPT_DIR/frontend"
 
+npm install
 if [ ! -d "node_modules" ]; then
     echo "   📦 前端依赖未安装，先安装依赖..."
     npm install
