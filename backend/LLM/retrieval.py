@@ -3,6 +3,8 @@ import os
 from typing import List
 import pickle
 import numpy as np
+import requests
+import json
 
 """
 用户查询："如何提高混合检索召回率"
@@ -64,6 +66,10 @@ DB_PATH = os.path.join(BASE_DIR, "your_vector_db.sqlite")
 TABLE_NAME = "your_table_name"
 CHUNKS_PKL_PATH = os.path.join(BASE_DIR, "doc_chunks.pkl")
 
+# 向量库 API 配置（新增）
+VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://localhost:8001")
+VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
+
 # 模型配置
 VECTOR_MODEL = "BAAI/bge-m3"  # 向量嵌入模型：支持100+语言的多语言嵌入模型
 RERANKER_MODEL = "BAAI/bge-reranker-base"  # 重排序模型
@@ -87,22 +93,133 @@ def get_reranker():
     return reranker
 
 
-# ==================== 加载向量数据库 ====================
+# ==================== API 客户端（新增）====================
+class VectorAPIClient:
+    """向量库 API 客户端"""
+
+    def __init__(self, api_url=VECTOR_API_URL, api_key=VECTOR_API_KEY):
+        self.api_url = api_url
+        self.api_key = api_key
+        self.session = requests.Session()
+
+        if self.api_key:
+            self.session.headers.update({"X-API-Key": self.api_key})
+        self.session.headers.update({"Content-Type": "application/json"})
+
+    def search(self, query: str, top_k: int = 20, use_hybrid: bool = True) -> List[Document]:
+        """通过 API 调用向量检索"""
+        try:
+            response = self.session.post(
+                f"{self.api_url}/api/search",
+                json={
+                    "query": query,
+                    "top_k": top_k,
+                    "use_hybrid": use_hybrid,
+                    "return_scores": True
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            # 转换为 Document 对象
+            documents = []
+            for item in result.get("results", []):
+                doc = Document(
+                    page_content=item.get("text", ""),
+                    metadata={
+                        "id": item.get("id", ""),
+                        "score": item.get("score", 0.0),
+                        **item.get("metadata", {})
+                    }
+                )
+                documents.append(doc)
+
+            return documents
+
+        except requests.exceptions.RequestException as e:
+            print(f"API 调用失败: {e}")
+            return []
+
+    def health_check(self) -> bool:
+        """健康检查"""
+        try:
+            response = self.session.get(f"{self.api_url}/health", timeout=5)
+            return response.status_code == 200
+        except:
+            return False
+
+
+# 全局 API 客户端
+_api_client = None
+
+
+def get_api_client():
+    """获取 API 客户端实例"""
+    global _api_client
+    if _api_client is None:
+        _api_client = VectorAPIClient()
+        if not _api_client.health_check():
+            print(f"⚠️ 警告: 向量库 API 服务不可用: {VECTOR_API_URL}")
+    return _api_client
+
+
+# ==================== 加载向量数据库（修改为 API 调用）====================
 def load_vectorstore():
-    """加载向量数据库"""
-    if not os.path.exists(DB_PATH):
-        raise FileNotFoundError(f"数据库文件不存在: {DB_PATH}")
+    """
+    加载向量数据库
+    修改为通过 API 访问，不再直接连接本地数据库
+    """
+    api_client = get_api_client()
+    if not api_client.health_check():
+        raise ConnectionError(f"向量库 API 服务不可用: {VECTOR_API_URL}")
 
-    connection = SQLiteVec.create_connection(db_file=DB_PATH)
-    vectorstore = SQLiteVec(
-        table=TABLE_NAME,
-        connection=connection,
-        embedding=embedding_model,
-    )
-    return vectorstore
+    # 返回一个包装对象，保持与原接口兼容
+    class VectorStoreAPIWrapper:
+        def __init__(self, client):
+            self.client = client
+
+        def similarity_search(self, query: str, k: int = 20) -> List[Document]:
+            """向量检索"""
+            return self.client.search(query, top_k=k, use_hybrid=False)
+
+        def similarity_search_with_score(self, query: str, k: int = 20):
+            """带分数的向量检索"""
+            try:
+                response = self.client.session.post(
+                    f"{self.client.api_url}/api/search",
+                    json={
+                        "query": query,
+                        "top_k": k,
+                        "use_hybrid": False,
+                        "return_scores": True
+                    },
+                    timeout=30
+                )
+                response.raise_for_status()
+                result = response.json()
+
+                docs_with_scores = []
+                for item in result.get("results", []):
+                    doc = Document(
+                        page_content=item.get("text", ""),
+                        metadata={
+                            "id": item.get("id", ""),
+                            **item.get("metadata", {})
+                        }
+                    )
+                    docs_with_scores.append((doc, item.get("score", 0.0)))
+
+                return docs_with_scores
+
+            except Exception as e:
+                print(f"API 调用失败: {e}")
+                return []
+
+    return VectorStoreAPIWrapper(api_client)
 
 
-# ==================== 加载文档 ====================
+# ==================== 加载文档（保持不变）====================
 def load_documents():
     """加载文档块"""
     if not os.path.exists(CHUNKS_PKL_PATH):
@@ -112,7 +229,7 @@ def load_documents():
         return pickle.load(f)
 
 
-# ==================== 向量检索包装 ====================
+# ==================== 向量检索包装（保持不变）====================
 class SQLiteVecRetriever(BaseRetriever):
     def __init__(self, vectorstore, k=20):
         self.vectorstore = vectorstore
@@ -125,7 +242,7 @@ class SQLiteVecRetriever(BaseRetriever):
         return await self.vectorstore.asimilarity_search(query, k=self.k)
 
 
-# ==================== BM25 ====================
+# ==================== BM25（保持不变）====================
 def create_bm25_retriever(documents):
     """创建 BM25 检索器"""
     bm25_retriever = BM25Retriever.from_documents(documents)
@@ -133,7 +250,7 @@ def create_bm25_retriever(documents):
     return bm25_retriever
 
 
-# ==================== 混合检索 ====================
+# ==================== 混合检索（保持不变）====================
 def create_ensemble_retriever(vector_retriever, bm25_retriever):
     """创建混合检索器"""
     if EnsembleRetriever:
@@ -169,7 +286,7 @@ class SimpleEnsembleRetriever(BaseRetriever):
         return self._get_relevant_documents(query)
 
 
-# ==================== Query Expansion ====================
+# ==================== Query Expansion（保持不变）====================
 def build_multi_query_retriever(base_retriever):
     """构建多查询检索器"""
     if MultiQueryRetriever:
@@ -187,7 +304,7 @@ def build_multi_query_retriever(base_retriever):
         return base_retriever
 
 
-# ==================== Adaptive TopK ====================
+# ==================== Adaptive TopK（保持不变）====================
 def adaptive_topk(query: str):
     """自适应 TopK 策略"""
     if len(query) > 30:
@@ -228,7 +345,7 @@ def adaptive_topk_simple(query: str, initial_results: List = None) -> int:
     return min(max(k, 5), 25)
 
 
-# ==================== Reranker ====================
+# ==================== Reranker（保持不变）====================
 class Reranker:
     def __init__(self, model_name=RERANKER_MODEL, top_n=3):
         print(f"正在加载重排序模型: {model_name}...")
@@ -236,27 +353,18 @@ class Reranker:
         self.top_n = top_n
         print("重排序模型加载完成")
 
-    def rerank(self, query: str, docs: List[Document]) -> List[tuple]:
-        """
-        重排序文档并返回分数。
-
-        Returns:
-            List[Tuple[Document, float]]: 排序后的 (文档, 分数) 列表，
-            分数为 CrossEncoder 原始预测值（越高越相关）。
-        """
+    def rerank(self, query: str, docs: List[Document]):
         if not docs:
             return []
 
         pairs = [[query, d.page_content] for d in docs]
         scores = self.model.predict(pairs)
 
-        # 按分数降序排列
         sorted_idx = np.argsort(scores)[::-1]
-        top_n_idx = sorted_idx[:self.top_n]
-        return [(docs[i], float(scores[i])) for i in top_n_idx]
+        return [docs[i] for i in sorted_idx[:self.top_n]]
 
 
-# ==================== Pipeline ====================
+# ==================== Pipeline（保持不变）====================
 def pipeline(query: str, vectorstore=None, all_documents=None, ensemble_retriever=None):
     """
     检索管道
@@ -299,15 +407,12 @@ def pipeline(query: str, vectorstore=None, all_documents=None, ensemble_retrieve
 
     # 使用单例模式获取重排序器
     reranker = get_reranker()
-    reranked = reranker.rerank(query, docs)
-    # reranked: List[Tuple[Document, float]]
-    final_docs = [doc for doc, _ in reranked]
-    final_scores = [score for _, score in reranked]
+    final_docs = reranker.rerank(query, docs)
 
-    return final_docs, final_scores
+    return final_docs
 
 
-# ==================== 初始化函数 ====================
+# ==================== 初始化函数（保持不变）====================
 def init_retrieval_system():
     """初始化检索系统，返回可复用的组件"""
     print("正在初始化检索系统...")
@@ -335,7 +440,7 @@ if __name__ == "__main__":
     system = init_retrieval_system()
     # 使用初始化好的检索系统组件执行查询
     # 通过传递已加载的资源（向量数据库、文档、混合检索器），避免重复初始化，提升查询性能
-    results, final_scores = pipeline(
+    results = pipeline(
         "如何提高混合检索召回率",
         vectorstore=system['vectorstore'],
         all_documents=system['documents'],
@@ -347,5 +452,3 @@ if __name__ == "__main__":
 
     for i, d in enumerate(results):
         print(f"{i + 1}. {d.page_content[:100]}")
-
-    print("\n分数:", final_scores)
