@@ -148,11 +148,13 @@ tree-sitter-c==0.24.1
 tree-sitter-c-sharp==0.23.5
 tree-sitter-cpp==0.23.4
 tree-sitter-elixir==0.3.5
+tree-sitter-embedded-template==0.25.0
 tree-sitter-go==0.25.0
 tree-sitter-java==0.23.5
 tree-sitter-javascript==0.25.0
 tree-sitter-julia==0.23.1
 tree-sitter-kotlin==1.1.0
+tree-sitter-language-pack==0.13.0
 tree-sitter-lua==0.5.0
 tree-sitter-objc==3.0.2
 tree-sitter-php==0.24.1
@@ -164,6 +166,7 @@ tree-sitter-scala==0.26.0
 tree-sitter-swift==0.0.1
 tree-sitter-typescript==0.23.2
 tree-sitter-verilog==1.0.3
+tree-sitter-yaml==0.7.2
 tree-sitter-zig==1.1.2
 truststore==0.10.4
 typer==0.21.0
