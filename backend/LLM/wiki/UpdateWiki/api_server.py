@@ -4,7 +4,12 @@ REST API 服务模块
 提供 HTTP 接口供第三方调用更新知识库
 """
 import sys
+import asyncio
+import json
+import queue
+import threading
 from pathlib import Path
+from datetime import datetime
 
 # 添加当前目录到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -13,6 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from sse_starlette.sse import EventSourceResponse
 import uvicorn
 
 app = FastAPI(
@@ -85,6 +91,88 @@ async def update_files(request: UpdateRequest):
 
     result = _updater.update_files(request.files)
     return UpdateResponse(**result)
+
+
+@app.post("/api/v1/update/stream")
+async def update_files_stream(request: UpdateRequest):
+    """流式更新接口（SSE）
+
+    与 `/api/v1/update` 功能相同，但通过 Server-Sent Events 实时推送执行日志，
+    最后推送最终结果。适用于需要实时观察更新进度的场景。
+
+    **事件类型说明：**
+    - `type: log` — 实时日志（level 可为 info / warning / error / debug）
+    - `type: result` — 最终执行结果（仅在成功完成时发送）
+    - `type: error` — 执行异常（仅在发生未捕获异常时发送）
+
+    **调用示例（curl）：**
+    ```bash
+    curl -N -H "Accept: text/event-stream" \
+         -H "Content-Type: application/json" \
+         -X POST http://localhost:8080/api/v1/update/stream \
+         -d '{"files":["raw/接口全业务整理.xls"]}'
+    ```
+    """
+    if not _updater:
+        raise HTTPException(status_code=503, detail="服务未初始化")
+
+    if not request.files:
+        async def empty_generator():
+            yield {"type": "error", "message": "文件列表不能为空"}
+        return EventSourceResponse(empty_generator())
+
+    # 线程安全队列，用于同步线程与 async generator 之间的日志传递
+    log_queue: queue.Queue = queue.Queue()
+    result_holder: Dict[str, Any] = {}
+
+    def log_callback(level: str, message: str) -> None:
+        log_queue.put({
+            "type": "log",
+            "level": level,
+            "message": message,
+            "time": datetime.now().isoformat()
+        })
+
+    def run_update() -> None:
+        """在后台线程中执行更新"""
+        _updater.logger.add_callback(log_callback)
+        try:
+            result = _updater.update_files(request.files)
+            result_holder["result"] = result
+        except Exception as e:
+            result_holder["error"] = str(e)
+            _updater.logger.error(f"流式更新异常: {e}")
+        finally:
+            _updater.logger.remove_callback(log_callback)
+            log_queue.put({"type": "done"})
+
+    # 启动后台线程执行同步更新任务
+    thread = threading.Thread(target=run_update, daemon=True)
+    thread.start()
+
+    async def event_generator():
+        """异步生成器：从队列中读取日志并 yield 给客户端"""
+        while True:
+            try:
+                msg = log_queue.get(timeout=0.1)
+                msg_type = msg.get("type")
+                if msg_type == "done":
+                    break
+                yield json.dumps(msg)
+            except queue.Empty:
+                # 队列为空时检查线程是否已结束
+                if not thread.is_alive() and log_queue.empty():
+                    break
+                await asyncio.sleep(0.05)
+                continue
+
+        # 发送最终结果或异常
+        if "error" in result_holder:
+            yield json.dumps({"type": "error", "message": result_holder["error"]})
+        elif "result" in result_holder:
+            yield json.dumps({"type": "result", "data": result_holder["result"]})
+
+    return EventSourceResponse(event_generator())
 
 
 @app.post("/api/v1/update/{file_name:path}", response_model=UpdateResponse)

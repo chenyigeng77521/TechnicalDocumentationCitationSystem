@@ -176,10 +176,13 @@ project_root/
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/health` | 健康检查，返回服务状态与当前配置 |
-| `POST` | `/api/v1/update` | 批量更新，Body 中传入文件列表 |
-| `POST` | `/api/v1/update/{file_name:path}` | 单文件更新，URL 中传入文件路径 |
+| `POST` | `/api/v1/update` | 批量更新（同步阻塞），Body 中传入文件列表 |
+| `POST` | `/api/v1/update/{file_name:path}` | 单文件更新（同步阻塞），URL 中传入文件路径 |
+| `POST` | `/api/v1/update/stream` | 流式更新（SSE），实时推送执行日志与最终结果 |
 
-### 请求说明
+### 同步更新接口
+
+适用于简单场景，调用方等待服务端执行完毕后一次性返回结果。大模型调用期间（通常 20~40 秒）调用方处于阻塞等待状态。
 
 **文件路径格式：**
 - 支持相对于 `project_root` 的完整路径，如 `raw/接口全业务整理.xls`
@@ -198,6 +201,76 @@ curl -X POST http://localhost:8080/api/v1/update \
 
 ```bash
 curl -X POST "http://localhost:8080/api/v1/update/接口全业务整理.xls"
+```
+
+### 流式更新接口（SSE）
+
+适用于需要实时观察执行进度的场景。服务端通过 Server-Sent Events 逐条推送执行日志，最后推送最终结果。调用方可在大模型调用期间实时看到进度，避免长时间黑盒等待。
+
+**接口：** `POST /api/v1/update/stream`
+
+**请求格式：** 与同步接口相同，Body 中传入 `{"files": [...]}`
+
+**调用示例（curl）：**
+
+```bash
+curl -N -H "Accept: text/event-stream" \
+     -H "Content-Type: application/json" \
+     -X POST http://localhost:8080/api/v1/update/stream \
+     -d '{"files":["raw/接口全业务整理.xls"]}'
+```
+
+**SSE 事件类型：**
+
+| 事件类型 | 说明 |
+|---------|------|
+| `log` | 实时执行日志（包含 level、message、time 字段） |
+| `result` | 最终执行结果（仅在成功完成时发送） |
+| `error` | 执行异常（仅在发生未捕获异常时发送） |
+
+**SSE 响应示例：**
+
+```
+data: {"type": "log", "level": "info", "message": "收到外部更新请求，文件数量: 1", "time": "2026-04-25T15:10:13.670281"}
+
+data: {"type": "log", "level": "info", "message": "正在调用大模型: deepseek-chat", "time": "2026-04-25T15:10:13.670680"}
+
+data: {"type": "log", "level": "info", "message": "大模型响应解析成功", "time": "2026-04-25T15:10:44.123456"}
+
+data: {"type": "log", "level": "info", "message": "更新文件: MML接口.md", "time": "2026-04-25T15:10:44.234567"}
+
+data: {"type": "result", "data": {"success": true, "message": "更新完成", "data": {"deleted_files": [], "updated_files": ["MML接口.md"], ...}, "invalid_files": []}}
+```
+
+**调用方处理建议：**
+
+1. 使用支持 SSE 的 HTTP 客户端（如 `curl -N`、`fetch` with `ReadableStream`、Python `sseclient` 等）
+2. 设置充足的超时时间（建议 120 秒以上），或禁用超时
+3. 收到 `type: log` 时可实时展示给用户或写入日志系统
+4. 收到 `type: result` 时解析 `data` 字段获取最终执行结果
+5. 收到 `type: error` 时按异常流程处理
+
+**前端 JavaScript 示例：**
+
+```javascript
+const eventSource = new EventSource('/api/v1/update/stream', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ files: ['raw/doc1.md'] })
+});
+
+eventSource.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === 'log') {
+    console.log(`[${msg.level}] ${msg.message}`);
+  } else if (msg.type === 'result') {
+    console.log('执行结果:', msg.data);
+    eventSource.close();
+  } else if (msg.type === 'error') {
+    console.error('执行异常:', msg.message);
+    eventSource.close();
+  }
+};
 ```
 
 ### 响应格式
@@ -239,6 +312,15 @@ curl -X POST "http://localhost:8080/api/v1/update/接口全业务整理.xls"
 | `data` | `object` | 详细操作结果，包含 `deleted_files`（删除）、`updated_files`（更新）、`created_files`（创建）、`files_content_keys`（内容文件键）、`invalid_links`（无效链接） |
 | `invalid_files` | `array` | 传入但不存在的文件列表 |
 
+### 同步与流式接口的选择建议
+
+| 场景 | 推荐接口 | 理由 |
+|------|---------|------|
+| 后台任务 / 脚本调用 | `/api/v1/update` | 简单直接，无需处理 SSE |
+| Web 前端实时展示进度 | `/api/v1/update/stream` | 用户可看到实时进度，体验更好 |
+| 大文件 / 网络不稳定 | `/api/v1/update/stream` | 可通过日志确认服务仍在运行 |
+| 微服务间简单触发 | `/api/v1/update` | 调用方代码更简单 |
+
 ### 与增量检测的协同
 
 通过 API 触发更新后，服务会自动重新计算被更新文件的 MD5 并写入 `.raw_manifest`。这意味着：
@@ -248,8 +330,9 @@ curl -X POST "http://localhost:8080/api/v1/update/接口全业务整理.xls"
 ### 注意事项
 
 1. **服务启动依赖配置** ：启动服务前请确保 `config.yaml` 或环境变量中的 LLM API 配置正确，否则调用更新接口时会失败
-2. **大模型调用耗时** ：更新接口内部会同步调用大模型 API，单次请求可能需要数十秒，请确保 HTTP 客户端设置足够的超时时间
+2. **大模型调用耗时** ：更新接口内部会同步调用大模型 API，单次请求可能需要数十秒。使用同步接口时请确保 HTTP 客户端设置足够的超时时间；使用 SSE 接口时建议禁用超时或设置 120 秒以上
 3. **并发安全** ：当前版本为单进程服务，若并发调用更新接口，文件操作可能产生竞争，建议调用方做好串行控制
+4. **SSE 连接保持** ：`sse-starlette` 会自动发送心跳（ping）以保持连接，长时间无日志输出时调用方不会断开
 
 ## 注意事项
 
