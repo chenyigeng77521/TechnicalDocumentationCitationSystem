@@ -3,11 +3,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.ingestion.api.routes_index import router as index_router
 from backend.ingestion.api.routes_search import router as search_router
+from backend.ingestion.db.connection import init_db, DEFAULT_DB_PATH
 
 PORT = 3003
 
 
 def create_app() -> FastAPI:
+    # 启动时初始化 DB（建表 / 启用 WAL），避免请求时表不存在导致 500
+    init_db(DEFAULT_DB_PATH)
+
     app = FastAPI(title="Ingestion Service", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
