@@ -1,85 +1,40 @@
-import sqlite3
 import os
 from typing import List
-import pickle
 import numpy as np
 import requests
-import json
 
-"""
-用户查询："如何提高混合检索召回率"
-    ↓
-【步骤1】查询扩展
-    → 生成3个相关查询变体
-    ↓
-【步骤2】多路检索
-    → 向量检索：找到语义相似的文档
-    → BM25检索：找到关键词匹配的文档
-    → 混合检索：合并两者结果
-    ↓
-【步骤3】自适应TopK
-    → 查询长度=12字符，返回8个候选
-    ↓
-【步骤4】重排序
-    → CrossEncoder对8个文档精细打分
-    → 返回最相关的3个文档
-    ↓
-【输出】排好序的最相关文档片段
-"""
-from langchain_community.vectorstores import SQLiteVec
-
-# 使用新的 langchain-huggingface 包（推荐）
-try:
-    from langchain_huggingface import HuggingFaceEmbeddings
-except ImportError:
-    # 如果未安装新包，回退到旧版本（会显示警告）
-    from langchain_community.embeddings import HuggingFaceEmbeddings
-# BM25Retriever - 从 langchain_community 导入
-from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
-from langchain_core.retrievers import BaseRetriever
-# FakeListLLM - 从 langchain_community 导入
-from langchain_community.llms import FakeListLLM
-
-# 尝试导入 EnsembleRetriever 和 MultiQueryRetriever
-# 在新版 LangChain (1.x) 中，统一从 langchain_community 导入
-try:
-    from langchain_community.retrievers import EnsembleRetriever
-except ImportError:
-    EnsembleRetriever = None
-
-try:
-    from langchain_community.retrievers.multi_query import MultiQueryRetriever
-except ImportError:
-    try:
-        # 某些版本可能在根目录
-        from langchain_community.retrievers import MultiQueryRetriever
-    except ImportError:
-        MultiQueryRetriever = None
-
 from sentence_transformers import CrossEncoder
 
 # ==================== 配置 ====================
-# 获取脚本所在目录，确保路径正确
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "your_vector_db.sqlite")
-TABLE_NAME = "your_table_name"
-CHUNKS_PKL_PATH = os.path.join(BASE_DIR, "doc_chunks.pkl")
 
-# 向量库 API 配置（新增）
-VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://localhost:8001")
+# 向量库 API 配置
+VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://localhost:18082")
 VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
 
 # 模型配置
-VECTOR_MODEL = "BAAI/bge-m3"  # 向量嵌入模型：支持100+语言的多语言嵌入模型
+VECTOR_MODEL = "BAAI/bge-m3"  # 向量嵌入模型
 RERANKER_MODEL = "BAAI/bge-reranker-base"  # 重排序模型
 
-# ==================== 初始化嵌入模型（全局只加载一次） ====================
-embedding_model = HuggingFaceEmbeddings(
-    model_name=VECTOR_MODEL,
-    model_kwargs={'device': 'cpu'},  # 可根据需要改为 'cuda' 使用GPU
-    encode_kwargs={'normalize_embeddings': True}  # BGE模型需要归一化
-)
+# ==================== 惰性加载嵌入模型 ====================
+_embedding_model = None
+
+
+def get_embedding_model():
+    """惰性加载 HuggingFaceEmbeddings（首次调用时才初始化）"""
+    global _embedding_model
+    if _embedding_model is None:
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except ImportError:
+            from langchain_community.embeddings import HuggingFaceEmbeddings
+        _embedding_model = HuggingFaceEmbeddings(
+            model_name=VECTOR_MODEL,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+    return _embedding_model
 
 # ==================== 初始化重排序模型（全局只加载一次） ====================
 reranker = None  # 延迟加载
@@ -113,7 +68,7 @@ class VectorAPIClient:
         """
         # 1. 计算 embedding（bge-m3 + normalize）
         try:
-            embedding = embedding_model.embed_query(query)
+            embedding = get_embedding_model().embed_query(query)
         except Exception as e:
             print(f"计算 embedding 失败: {e}")
             return []
@@ -160,6 +115,43 @@ class VectorAPIClient:
         """向量检索并返回 (Document, score) 元组列表"""
         docs = self.search(query, top_k=top_k, filters=filters)
         return [(doc, doc.metadata.get("score", 0.0)) for doc in docs]
+
+    def text_search(self, query: str, top_k: int = 20, filters: dict = None) -> List[Document]:
+        """通过 API 调用 BM25 全文检索（SQLite FTS5）
+
+        直接传字符串给 /chunks/text-search，不需要本地计算 embedding。
+        """
+        try:
+            response = self.session.post(
+                f"{self.api_url}/chunks/text-search",
+                json={
+                    "query": query,
+                    "top_k": top_k,
+                    "filters": filters
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            documents = []
+            for item in result.get("results", []):
+                metadata = item.get("metadata", {})
+                metadata["score"] = item.get("score", 0.0)
+                metadata["bm25_rank"] = item.get("bm25_rank", 0.0)
+                metadata["chunk_id"] = item.get("chunk_id", "")
+
+                doc = Document(
+                    page_content=item.get("content", ""),
+                    metadata=metadata
+                )
+                documents.append(doc)
+
+            return documents
+
+        except requests.exceptions.RequestException as e:
+            print(f"BM25 API 调用失败: {e}")
+            return []
 
     def health_check(self) -> bool:
         """健康检查"""
@@ -210,89 +202,7 @@ def load_vectorstore():
     return VectorStoreAPIWrapper(api_client)
 
 
-# ==================== 加载文档（保持不变）====================
-def load_documents():
-    """加载文档块"""
-    if not os.path.exists(CHUNKS_PKL_PATH):
-        raise FileNotFoundError(f"文档文件不存在: {CHUNKS_PKL_PATH}")
-
-    with open(CHUNKS_PKL_PATH, "rb") as f:
-        return pickle.load(f)
-
-
-# ==================== 向量检索包装（保持不变）====================
-class SQLiteVecRetriever(BaseRetriever):
-    def __init__(self, vectorstore, k=20):
-        self.vectorstore = vectorstore
-        self.k = k
-
-    def _get_relevant_documents(self, query: str) -> List[Document]:
-        return self.vectorstore.similarity_search(query, k=self.k)
-
-    async def _aget_relevant_documents(self, query: str) -> List[Document]:
-        return await self.vectorstore.asimilarity_search(query, k=self.k)
-
-
-# ==================== BM25（保持不变）====================
-def create_bm25_retriever(documents):
-    """创建 BM25 检索器"""
-    bm25_retriever = BM25Retriever.from_documents(documents)
-    bm25_retriever.k = 20
-    return bm25_retriever
-
-
-# ==================== 混合检索（保持不变）====================
-def create_ensemble_retriever(vector_retriever, bm25_retriever):
-    """创建混合检索器"""
-    if EnsembleRetriever:
-        return EnsembleRetriever(
-            retrievers=[vector_retriever, bm25_retriever],
-            weights=[0.5, 0.5],
-        )
-    else:
-        # 手动实现简单的混合检索
-        return SimpleEnsembleRetriever(vector_retriever, bm25_retriever, k=20)
-
-
-class SimpleEnsembleRetriever(BaseRetriever):
-    """简单的混合检索器实现"""
-
-    def __init__(self, vector_ret, bm25_ret, k=20):
-        self.vector_ret = vector_ret
-        self.bm25_ret = bm25_ret
-        self.k = k
-
-    def _get_relevant_documents(self, query: str) -> List[Document]:
-        vec_docs = self.vector_ret._get_relevant_documents(query)
-        bm25_docs = self.bm25_ret._get_relevant_documents(query)
-        # 简单合并并去重
-        all_docs = {}
-        for doc in vec_docs + bm25_docs:
-            key = doc.page_content[:100]
-            if key not in all_docs:
-                all_docs[key] = doc
-        return list(all_docs.values())[:self.k]
-
-    async def _aget_relevant_documents(self, query: str) -> List[Document]:
-        return self._get_relevant_documents(query)
-
-
-# ==================== Query Expansion（保持不变）====================
-def build_multi_query_retriever(base_retriever):
-    """构建多查询检索器"""
-    if MultiQueryRetriever:
-        fake_llm = FakeListLLM(
-            responses=[
-                "混合检索 提升召回\n双路召回 方法\nBM25 向量融合 技术"
-            ]
-        )
-        return MultiQueryRetriever.from_llm(
-            retriever=base_retriever,
-            llm=fake_llm
-        )
-    else:
-        print("⚠️ MultiQueryRetriever 不可用，使用基础检索器")
-        return base_retriever
+# （本地 BM25、混合检索、Query Expansion 已移除，全部走 API）
 
 
 # ==================== Adaptive TopK（保持不变）====================
@@ -355,91 +265,77 @@ class Reranker:
         return [docs[i] for i in sorted_idx[:self.top_n]]
 
 
-# ==================== Pipeline（保持不变）====================
-def pipeline(query: str, vectorstore=None, all_documents=None, ensemble_retriever=None):
+def _merge_results(vec_docs: List[Document], bm25_docs: List[Document]) -> List[Document]:
+    """合并向量检索和 BM25 检索结果，按 chunk_id 去重"""
+    all_docs = {}
+    for doc in vec_docs + bm25_docs:
+        key = doc.metadata.get("chunk_id", doc.page_content[:100])
+        if key not in all_docs:
+            all_docs[key] = doc
+    return list(all_docs.values())
+
+
+# ==================== Pipeline（API 向量 + API BM25 + 重排序）====================
+def pipeline(query: str, top_k: int = 20, use_bm25: bool = True, use_rerank: bool = True):
     """
-    检索管道
+    检索管道（双路 API 检索 + 重排序）
 
     Args:
         query: 查询字符串
-        vectorstore: 向量数据库（可选，首次调用时自动加载）
-        all_documents: 文档列表（可选，首次调用时自动加载）
-        ensemble_retriever: 混合检索器（可选，首次调用时自动创建）
+        top_k: 每路检索返回数量
+        use_bm25: 是否启用 BM25 API 检索
+        use_rerank: 是否启用 CrossEncoder 重排序
     """
     print("原始查询:", query)
 
-    # 延迟加载资源
-    if vectorstore is None:
-        vectorstore = load_vectorstore()
-    if all_documents is None:
-        all_documents = load_documents()
-    if ensemble_retriever is None:
-        vector_retriever = SQLiteVecRetriever(vectorstore, k=20)
-        bm25_retriever = create_bm25_retriever(all_documents)
-        ensemble_retriever = create_ensemble_retriever(vector_retriever, bm25_retriever)
+    client = get_api_client()
 
-    multi = build_multi_query_retriever(ensemble_retriever)
+    # 1. 向量 API 检索
+    vec_docs = client.search(query, top_k=top_k)
+    print(f"向量召回: {len(vec_docs)}")
 
-    docs = multi.invoke(query)
-    print("召回数量:", len(docs))
+    docs = vec_docs
 
-    # 获取得分（如果能从检索器中获取）
-    scores = None  # 实际情况可能无法获取
-    if hasattr(multi, 'similarity_search_with_score'):
-        docs_with_scores = multi.similarity_search_with_score(query)
-        docs = [d for d, _ in docs_with_scores]
-        scores = [s for _, s in docs_with_scores]
+    # 2. BM25 API 检索（可选）
+    if use_bm25:
+        bm25_docs = client.text_search(query, top_k=top_k)
+        print(f"BM25 召回: {len(bm25_docs)}")
+        docs = _merge_results(vec_docs, bm25_docs)
+        print(f"合并去重后: {len(docs)}")
 
-    # 自适应 TopK
-    k = adaptive_topk_simple(query, docs)  # 使用简化版
+    if not docs:
+        return []
 
-    # k = adaptive_topk(query)
+    # 3. 自适应 TopK 截断
+    k = adaptive_topk_simple(query, docs)
     docs = docs[:k]
 
-    # 使用单例模式获取重排序器
-    reranker = get_reranker()
-    final_docs = reranker.rerank(query, docs)
+    # 4. CrossEncoder 重排序（可选）
+    if use_rerank:
+        reranker = get_reranker()
+        docs = reranker.rerank(query, docs)
 
-    return final_docs
+    return docs
 
 
-# ==================== 初始化函数（保持不变）====================
+# ==================== 初始化函数 ====================
 def init_retrieval_system():
     """初始化检索系统，返回可复用的组件"""
     print("正在初始化检索系统...")
 
-    # 加载资源
     vectorstore = load_vectorstore()
-    all_documents = load_documents()
-
-    # 创建检索器
-    vector_retriever = SQLiteVecRetriever(vectorstore, k=20)
-    bm25_retriever = create_bm25_retriever(all_documents)
-    ensemble_retriever = create_ensemble_retriever(vector_retriever, bm25_retriever)
 
     print("检索系统初始化完成")
     return {
         'vectorstore': vectorstore,
-        'documents': all_documents,
-        'ensemble_retriever': ensemble_retriever
+        'client': get_api_client(),
     }
 
 
 # ==================== 测试 ====================
 if __name__ == "__main__":
-    # 方式1：一次性初始化（推荐用于多次查询）
-    system = init_retrieval_system()
-    # 使用初始化好的检索系统组件执行查询
-    # 通过传递已加载的资源（向量数据库、文档、混合检索器），避免重复初始化，提升查询性能
-    results = pipeline(
-        "如何提高混合检索召回率",
-        vectorstore=system['vectorstore'],
-        all_documents=system['documents'],
-        ensemble_retriever=system['ensemble_retriever']
-    )
-
-    # 方式2：直接调用（适合单次查询，会自动加载资源）
-    # results = pipeline("如何提高混合检索召回率")
+    # 直接调用检索管道（会自动初始化）
+    results = pipeline("如何提高混合检索召回率", top_k=20)
 
     for i, d in enumerate(results):
         print(f"{i + 1}. {d.page_content[:100]}")
