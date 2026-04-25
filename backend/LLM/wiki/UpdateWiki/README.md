@@ -9,6 +9,7 @@
 - **多格式支持** ：支持文本文件、Excel、Word、PDF 等多种原始文档格式
 - **智能同步** ：调用大模型自动生成/更新/删除 wiki 页面，并维护索引与交叉引用
 - **状态持久化** ：通过 `.raw_manifest` 记录文件状态，实现增量追踪
+- **REST API 服务** ：支持以 HTTP 服务方式运行，供第三方系统调用触发指定文件更新
 
 ## 环境要求
 
@@ -106,6 +107,19 @@ python update_wiki.py --daemon --config ./config.yaml
 python update_wiki.py -d -i 600 
 ```
 
+### REST API 服务模式
+
+```bash
+# 启动 HTTP 服务（默认端口 8080）
+python update_wiki.py --serve
+
+# 指定端口与绑定地址
+python update_wiki.py --serve --port 8080 --host 0.0.0.0
+
+# 组合使用（指定配置 + 服务）
+python update_wiki.py --serve --config ./config.yaml --port 9000
+```
+
 ### 命令行参数说明
 
 | 参数 | 简写 | 说明 |
@@ -113,6 +127,11 @@ python update_wiki.py -d -i 600
 | `--config` | `-c` | 指定配置文件路径 |
 | `--force` | `-f` | 强制全量更新模式 |
 | `--verbose` | `-v` | 开启详细日志输出 |
+| `--daemon` | `-d` | 常驻模式，循环检测变更 |
+| `--interval` | `-i` | 常驻模式检测间隔（秒） |
+| `--serve` | `-s` | 启动 REST API 服务，供第三方 HTTP 调用 |
+| `--port` | `-p` | REST API 服务端口（默认 8080） |
+| `--host` | - | REST API 服务绑定地址（默认 0.0.0.0） |
 
 ### 兼容旧版入口
 
@@ -138,7 +157,8 @@ project_root/
 │   └── auto-update.log
 ├── .raw_manifest        # 文件状态记录（增量检测用）
 ├── config.yaml          # 配置文件
-└── update_wiki.py       # 主程序
+├── update_wiki.py       # 主程序
+└── api_server.py        # REST API 服务模块
 ```
 
 ## 工作原理
@@ -146,6 +166,90 @@ project_root/
 1. **变更检测** ： `ChangeDetector` 计算 `raw/` 目录下所有文件的 MD5，与 `.raw_manifest` 中的历史状态对比，输出变更文件列表
 2. **大模型处理** ： `LLMClient` 将变更文件内容、现有 wiki 结构等信息组装成 Prompt，调用大模型生成需要执行的文件操作（创建/更新/删除）
 3. **文件执行** ： `FileExecutor` 根据大模型返回的 JSON 结果，实际写入、修改或删除 `wiki/` 下的文件，并更新 `index.md` 与 `log.md`
+
+## REST API 服务
+
+启动服务后，第三方系统可通过 HTTP 接口触发指定文件的 wiki 更新。服务会自动调用大模型生成 wiki 内容、执行文件操作，并将结果返回给调用方，同时同步更新 `.raw_manifest` 状态文件，确保与增量检测流程兼容。
+
+### 接口列表
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/health` | 健康检查，返回服务状态与当前配置 |
+| `POST` | `/api/v1/update` | 批量更新，Body 中传入文件列表 |
+| `POST` | `/api/v1/update/{file_name:path}` | 单文件更新，URL 中传入文件路径 |
+
+### 请求说明
+
+**文件路径格式：**
+- 支持相对于 `project_root` 的完整路径，如 `raw/接口全业务整理.xls`
+- 支持裸文件名，如 `接口全业务整理.xls`，服务会自动在 `raw/` 目录下查找并补全前缀
+- 单文件更新接口支持路径分隔符，如 `subdir/file.md`
+
+**批量更新请求示例：**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/update \
+  -H "Content-Type: application/json" \
+  -d '{"files":["raw/接口全业务整理.xls", "doc2.md"]}'
+```
+
+**单文件更新请求示例：**
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/update/接口全业务整理.xls"
+```
+
+### 响应格式
+
+成功响应示例：
+
+```json
+{
+  "success": true,
+  "message": "更新完成",
+  "data": {
+    "deleted_files": [],
+    "updated_files": ["MML接口.md"],
+    "created_files": [],
+    "files_content_keys": ["MML接口.md"],
+    "invalid_links": []
+  },
+  "invalid_files": []
+}
+```
+
+错误响应示例（文件不存在）：
+
+```json
+{
+  "success": false,
+  "message": "所有指定的文件都不存在",
+  "data": null,
+  "invalid_files": ["not_exist.md"]
+}
+```
+
+### 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | `boolean` | 是否成功完成更新流程 |
+| `message` | `string` | 操作结果描述 |
+| `data` | `object` | 详细操作结果，包含 `deleted_files`（删除）、`updated_files`（更新）、`created_files`（创建）、`files_content_keys`（内容文件键）、`invalid_links`（无效链接） |
+| `invalid_files` | `array` | 传入但不存在的文件列表 |
+
+### 与增量检测的协同
+
+通过 API 触发更新后，服务会自动重新计算被更新文件的 MD5 并写入 `.raw_manifest`。这意味着：
+- 后续通过 `python update_wiki.py` 进行增量检测时，已处理的文件不会被视为未变更
+- API 调用与命令行增量更新可以混合使用，状态保持一致
+
+### 注意事项
+
+1. **服务启动依赖配置** ：启动服务前请确保 `config.yaml` 或环境变量中的 LLM API 配置正确，否则调用更新接口时会失败
+2. **大模型调用耗时** ：更新接口内部会同步调用大模型 API，单次请求可能需要数十秒，请确保 HTTP 客户端设置足够的超时时间
+3. **并发安全** ：当前版本为单进程服务，若并发调用更新接口，文件操作可能产生竞争，建议调用方做好串行控制
 
 ## 注意事项
 

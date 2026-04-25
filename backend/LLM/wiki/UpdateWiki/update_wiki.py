@@ -162,6 +162,135 @@ class KnowledgeBaseUpdater:
                 files.add(rel_path)
         return files
 
+    def _resolve_file_paths(self, file_paths: list) -> list:
+        """解析并补全文件路径
+
+        如果传入的路径已存在于 project_root 下，直接使用；
+        否则尝试在 raw_dir 下查找并补全前缀。
+
+        Args:
+            file_paths: 原始文件路径列表
+
+        Returns:
+            list: 补全后的文件路径列表
+        """
+        resolved = []
+        for fp in file_paths:
+            fp_path = Path(fp)
+            if (self.config.paths.project_root / fp_path).exists():
+                resolved.append(fp)
+            else:
+                # 尝试在 raw 目录下查找
+                raw_candidate = self.config.paths.raw_dir / fp_path
+                if (self.config.paths.project_root / raw_candidate).exists():
+                    resolved.append(str(raw_candidate))
+                else:
+                    resolved.append(fp)
+        return resolved
+
+    def update_files(self, file_paths: list) -> dict:
+        """更新指定文件对应的 wiki 内容（供外部调用）
+
+        Args:
+            file_paths: 文件路径列表，相对于 project_root
+                        或相对于 raw_dir 的裸文件名
+
+        Returns:
+            dict: 包含 success、message、data 等字段的结果字典
+        """
+        self.logger.divider()
+        self.logger.info(f"收到外部更新请求，文件数量: {len(file_paths)}")
+
+        if not file_paths:
+            self.logger.warning("文件列表为空")
+            return {
+                "success": False,
+                "message": "文件列表不能为空",
+                "data": None
+            }
+
+        # 解析路径（支持裸文件名自动补全 raw/ 前缀）
+        file_paths = self._resolve_file_paths(file_paths)
+
+        # 验证文件
+        valid_files = []
+        invalid_files = []
+        for fp in file_paths:
+            full_path = self.config.paths.project_root / fp
+            if full_path.exists():
+                valid_files.append(fp)
+            else:
+                invalid_files.append(fp)
+                self.logger.warning(f"文件不存在: {fp}")
+
+        if not valid_files:
+            self.logger.error("所有指定的文件都不存在")
+            return {
+                "success": False,
+                "message": "所有指定的文件都不存在",
+                "data": None,
+                "invalid_files": invalid_files
+            }
+
+        try:
+            # 调用大模型
+            operations = self.llm_client.update_knowledge_base(
+                valid_files,
+                is_first_run=False
+            )
+
+            if not operations:
+                self.logger.error("大模型返回空结果，更新失败")
+                return {
+                    "success": False,
+                    "message": "大模型返回空结果，更新失败",
+                    "data": None,
+                    "invalid_files": invalid_files
+                }
+
+            # 执行操作
+            success = self.executor.execute(operations)
+
+            if not success:
+                self.logger.error("文件操作执行失败")
+                return {
+                    "success": False,
+                    "message": "文件操作执行失败",
+                    "data": None,
+                    "invalid_files": invalid_files
+                }
+
+            # 更新状态文件，确保下次增量检测正确
+            self.detector.update_state_for_files(valid_files)
+
+            self.logger.info("指定文件更新完成")
+
+            return {
+                "success": True,
+                "message": "更新完成",
+                "data": {
+                    "deleted_files": operations.get("deleted_files", []),
+                    "updated_files": operations.get("updated_files", []),
+                    "created_files": operations.get("created_files", []),
+                    "files_content_keys": list(operations.get("files_content", {}).keys()),
+                    "invalid_links": self.executor._validate_links()
+                },
+                "invalid_files": invalid_files
+            }
+
+        except Exception as e:
+            self.logger.error(f"更新过程中发生错误: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return {
+                "success": False,
+                "message": f"更新失败: {str(e)}",
+                "data": None,
+                "invalid_files": invalid_files
+            }
+        finally:
+            self.logger.divider()
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -203,6 +332,23 @@ def main():
         default=None,
         help='常驻模式检测间隔（秒），默认读取配置或 300'
     )
+    parser.add_argument(
+        '--serve', '-s',
+        action='store_true',
+        help='启动 REST API 服务，供第三方 HTTP 调用'
+    )
+    parser.add_argument(
+        '--port', '-p',
+        type=int,
+        default=8080,
+        help='REST API 服务端口（默认 8080）'
+    )
+    parser.add_argument(
+        '--host',
+        type=str,
+        default='0.0.0.0',
+        help='REST API 服务绑定地址（默认 0.0.0.0）'
+    )
 
     args = parser.parse_args()
 
@@ -219,6 +365,13 @@ def main():
     # 设置日志级别
     if args.verbose:
         updater.logger.logger.setLevel(10)  # DEBUG
+
+    # 启动 REST API 服务
+    if args.serve:
+        updater.logger.info(f"启动 REST API 服务: http://{args.host}:{args.port}")
+        from api_server import start_server
+        start_server(updater, host=args.host, port=args.port)
+        return
 
     # 确定间隔时间：命令行 > 配置文件 > 默认 300
     interval = args.interval if args.interval is not None else updater.config.interval

@@ -113,3 +113,22 @@ class ChangeDetector:
 
         self._save_state(current_state)
         return ChangeResult(status="CHANGED", changed_files=changed_files)
+
+    def update_state_for_files(self, file_paths: List[str]) -> None:
+        """为指定文件更新状态（MD5）
+
+        Args:
+            file_paths: 相对于 project_root 的文件路径列表
+        """
+        state = self._load_previous_state()
+
+        for fp in file_paths:
+            full_path = self.path_config.project_root / fp
+            if full_path.exists():
+                state[fp] = self._get_file_md5(full_path)
+            elif fp in state:
+                # 文件已删除，从状态中移除
+                del state[fp]
+
+        self._save_state(state)
+        self.logger.info(f"已更新 {len(file_paths)} 个文件的状态")
