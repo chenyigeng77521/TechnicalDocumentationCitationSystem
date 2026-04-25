@@ -9,8 +9,18 @@ from backend.ingestion.chunker.types import Chunk
 from backend.ingestion.parser.types import ParseResult, TitleNode
 
 MAX_CHARS = 1000
-MIN_CHARS = 5
+MIN_CHARS = 30
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[。！？.!?])\s*")
+# heading-only 段（如 "## Installation"），信息已在 title_tree，跳过避免 chunk 污染
+HEADING_ONLY_RE = re.compile(r"^#{1,6}\s+\S.*$", re.MULTILINE)
+
+
+def _is_heading_only(text: str) -> bool:
+    """判断段落是否只含 markdown heading 行（一行或多行连续标题）。"""
+    lines = [ln for ln in text.strip().splitlines() if ln.strip()]
+    if not lines:
+        return False
+    return all(HEADING_ONLY_RE.match(ln.strip()) for ln in lines)
 
 
 def _make_chunk_id(file_path: str, chunk_index: int, content: str) -> str:
@@ -99,6 +109,11 @@ def split_document(
             cursor += len(para) + 2
             continue
 
+        # 跳过 heading-only 段（标题信息已在 title_tree / title_path）
+        if _is_heading_only(para):
+            cursor += len(para) + 2
+            continue
+
         for piece, is_truncated in _split_paragraph(para):
             if not piece:
                 continue
@@ -128,11 +143,13 @@ def split_document(
 
     # 过滤过短 chunk（除非 is_truncated）
     chunks = [c for c in chunks if c.char_count >= MIN_CHARS or c.is_truncated]
-    # 重新编号 chunk_index
+    # 重新编号 chunk_index + 重算 chunk_id
     for i, c in enumerate(chunks):
         c.chunk_index = i
         c.chunk_id = _make_chunk_id(file_path, i, c.content)
 
-    from backend.ingestion.chunker.overlap import apply_overlap
-    chunks = apply_overlap(chunks)
+    # MVP: 不应用 overlap。
+    # 三级 fallback 已按段落/句子边界切分，有自然分隔；apply_overlap 会让
+    # content 含 overlap 后 char_offset_*/anchor_id 失真（前端跳转出错）。
+    # overlap.py 保留，未来若发现 chunk 间语义断裂再启用并同步重算 anchor。
     return chunks

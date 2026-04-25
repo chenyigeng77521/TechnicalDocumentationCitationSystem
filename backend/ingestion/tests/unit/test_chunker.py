@@ -13,13 +13,14 @@ def _meta():
 
 
 def test_short_text_is_one_chunk():
-    pr = ParseResult(raw_text="hello world", title_tree=[])
+    text = "hello world this is some sample content for testing chunker"  # 60 chars
+    pr = ParseResult(raw_text=text, title_tree=[])
     chunks = split_document(pr, **_meta())
     assert len(chunks) == 1
-    assert chunks[0].content == "hello world"
+    assert chunks[0].content == text
     assert chunks[0].chunk_index == 0
     assert chunks[0].char_offset_start == 0
-    assert chunks[0].char_offset_end == 11
+    assert chunks[0].char_offset_end == len(text)
     assert chunks[0].is_truncated is False
 
 
@@ -51,7 +52,8 @@ def test_single_giant_sentence_triggers_hard_truncate():
 
 
 def test_chunk_id_is_deterministic():
-    pr = ParseResult(raw_text="hello world", title_tree=[])
+    text = "hello world some longer content to pass the MIN_CHARS filter"
+    pr = ParseResult(raw_text=text, title_tree=[])
     c1 = split_document(pr, **_meta())[0]
     c2 = split_document(pr, **_meta())[0]
     assert c1.chunk_id == c2.chunk_id
@@ -59,18 +61,44 @@ def test_chunk_id_is_deterministic():
 
 
 def test_anchor_id_format():
-    pr = ParseResult(raw_text="hello", title_tree=[])
+    text = "hello world this is a paragraph long enough to pass MIN_CHARS"
+    pr = ParseResult(raw_text=text, title_tree=[])
     c = split_document(pr, **_meta())[0]
     assert c.anchor_id == "a.md#0"
 
 
-def test_title_path_from_tree():
-    tree = [TitleNode(level=1, text="Top", char_offset=0, children=[
-        TitleNode(level=2, text="Sub", char_offset=20, children=[]),
-    ])]
-    pr = ParseResult(raw_text="Top intro\n\nSub content here", title_tree=tree)
+def test_heading_only_paragraph_is_skipped():
+    """## Installation 这种纯标题段不应作为 chunk（信息已在 title_path）。"""
+    raw = "## Installation\n\nactual content paragraph that is long enough to keep it"
+    tree = [TitleNode(level=2, text="Installation", char_offset=0)]
+    pr = ParseResult(raw_text=raw, title_tree=tree)
     chunks = split_document(pr, **_meta())
-    # 至少一个 chunk 有 title_path
+    # 只剩 1 个 chunk（实际内容那段），标题段被跳过
+    assert len(chunks) == 1
+    assert "Installation" not in chunks[0].content   # 标题不混进 content
+    assert "actual content" in chunks[0].content
+
+
+def test_no_overlap_means_offsets_match_content():
+    """关掉 overlap 后 char_offset_end - char_offset_start == len(content)。"""
+    para1 = "First paragraph with enough characters to keep."  # 47 chars
+    para2 = "Second paragraph also with enough length here."   # 46 chars
+    pr = ParseResult(raw_text=f"{para1}\n\n{para2}", title_tree=[])
+    chunks = split_document(pr, **_meta())
+    for c in chunks:
+        assert c.char_offset_end - c.char_offset_start == len(c.content), \
+            f"offset 跟 content 长度不匹配: {c.char_offset_start}-{c.char_offset_end} vs {len(c.content)}"
+        assert c.char_count == len(c.content)
+
+
+def test_title_path_from_tree():
+    intro = "Top section intro paragraph long enough to keep around."  # 56 chars
+    sub = "Sub section content here also long enough to be kept."        # 53 chars
+    tree = [TitleNode(level=1, text="Top", char_offset=0, children=[
+        TitleNode(level=2, text="Sub", char_offset=len(intro) + 2, children=[]),
+    ])]
+    pr = ParseResult(raw_text=f"{intro}\n\n{sub}", title_tree=tree)
+    chunks = split_document(pr, **_meta())
     paths = [c.title_path for c in chunks if c.title_path]
     assert any("Top" in p for p in paths)
 
