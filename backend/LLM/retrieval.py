@@ -106,32 +106,47 @@ class VectorAPIClient:
             self.session.headers.update({"X-API-Key": self.api_key})
         self.session.headers.update({"Content-Type": "application/json"})
 
-    def search(self, query: str, top_k: int = 20, use_hybrid: bool = True) -> List[Document]:
-        """通过 API 调用向量检索"""
+    def search(self, query: str, top_k: int = 20, filters: dict = None) -> List[Document]:
+        """通过 API 调用向量检索
+
+        本地使用 bge-m3 计算 query embedding，调用向量库 /chunks/vector-search 接口。
+        """
+        # 1. 计算 embedding（bge-m3 + normalize）
+        try:
+            embedding = embedding_model.embed_query(query)
+        except Exception as e:
+            print(f"计算 embedding 失败: {e}")
+            return []
+
+        # 校验维度（bge-m3 应为 1024）
+        if len(embedding) != 1024:
+            print(f"Embedding 维度异常: {len(embedding)}, 期望 1024")
+            return []
+
+        # 2. 调用向量库 API
         try:
             response = self.session.post(
-                f"{self.api_url}/api/search",
+                f"{self.api_url}/chunks/vector-search",
                 json={
-                    "query": query,
+                    "embedding": embedding,
                     "top_k": top_k,
-                    "use_hybrid": use_hybrid,
-                    "return_scores": True
+                    "filters": filters
                 },
                 timeout=30
             )
             response.raise_for_status()
             result = response.json()
 
-            # 转换为 Document 对象
+            # 3. 解析响应（适配新字段名 chunk_id / content）
             documents = []
             for item in result.get("results", []):
+                metadata = item.get("metadata", {})
+                metadata["score"] = item.get("score", 0.0)
+                metadata["chunk_id"] = item.get("chunk_id", "")
+
                 doc = Document(
-                    page_content=item.get("text", ""),
-                    metadata={
-                        "id": item.get("id", ""),
-                        "score": item.get("score", 0.0),
-                        **item.get("metadata", {})
-                    }
+                    page_content=item.get("content", ""),
+                    metadata=metadata
                 )
                 documents.append(doc)
 
@@ -140,6 +155,11 @@ class VectorAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"API 调用失败: {e}")
             return []
+
+    def search_with_score(self, query: str, top_k: int = 20, filters: dict = None):
+        """向量检索并返回 (Document, score) 元组列表"""
+        docs = self.search(query, top_k=top_k, filters=filters)
+        return [(doc, doc.metadata.get("score", 0.0)) for doc in docs]
 
     def health_check(self) -> bool:
         """健康检查"""
@@ -181,40 +201,11 @@ def load_vectorstore():
 
         def similarity_search(self, query: str, k: int = 20) -> List[Document]:
             """向量检索"""
-            return self.client.search(query, top_k=k, use_hybrid=False)
+            return self.client.search(query, top_k=k)
 
         def similarity_search_with_score(self, query: str, k: int = 20):
             """带分数的向量检索"""
-            try:
-                response = self.client.session.post(
-                    f"{self.client.api_url}/api/search",
-                    json={
-                        "query": query,
-                        "top_k": k,
-                        "use_hybrid": False,
-                        "return_scores": True
-                    },
-                    timeout=30
-                )
-                response.raise_for_status()
-                result = response.json()
-
-                docs_with_scores = []
-                for item in result.get("results", []):
-                    doc = Document(
-                        page_content=item.get("text", ""),
-                        metadata={
-                            "id": item.get("id", ""),
-                            **item.get("metadata", {})
-                        }
-                    )
-                    docs_with_scores.append((doc, item.get("score", 0.0)))
-
-                return docs_with_scores
-
-            except Exception as e:
-                print(f"API 调用失败: {e}")
-                return []
+            return self.client.search_with_score(query, top_k=k)
 
     return VectorStoreAPIWrapper(api_client)
 
