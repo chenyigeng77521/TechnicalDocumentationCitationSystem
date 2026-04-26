@@ -71,15 +71,15 @@ fi
 # 检查并启动 Wiki 更新服务
 echo ""
 echo "3️⃣ 检查 Wiki 更新服务状态..."
-if lsof -i:8080 | grep -q LISTEN; then
-    echo "   ✅ Wiki 更新服务已运行 (8080)"
+if lsof -i:18010 | grep -q LISTEN; then
+    echo "   ✅ Wiki 更新服务已运行 (18010)"
 else
     echo "   🔄 启动 Wiki 更新服务..."
     cd "$current_path/backend/LLM/wiki/UpdateWiki"
-    nohup python3 update_wiki.py --serve --port 8080 > "$current_path/logs/update_wiki.log" 2>&1 &
+    nohup python3 update_wiki.py --serve --port 18010 > "$current_path/logs/update_wiki.log" 2>&1 &
     sleep 3
-    if lsof -i:8080 | grep -q LISTEN; then
-        echo "   ✅ Wiki 更新服务已启动 (8080)"
+    if lsof -i:18010 | grep -q LISTEN; then
+        echo "   ✅ Wiki 更新服务已启动 (18010)"
     else
         echo "   ❌ Wiki 更新服务启动失败，请检查日志"
     fi
@@ -107,7 +107,7 @@ echo "📊 服务状态:"
 echo "  Nginx: $LOCAL_IP  端口 80 (代理)"
 echo "  FirstLayer: 问题分类服务  端口 3004 (独立服务)"
 echo "  后端：3002 (通过 Nginx 代理)"
-echo "  Wiki更新：8080 (独立服务)"
+echo "  Wiki更新：18010 (独立服务)"
 echo "  前端：3000 (通过 Nginx 代理)"
 echo ""
 echo "🌐 访问地址:"
@@ -125,10 +125,10 @@ echo "     本地：http://localhost:3004"
 echo "     局域网：http://$LOCAL_IP:3004"
 echo "     文档：http://localhost:3004/docs"
 echo ""
-echo "  📝 Wiki 更新服务 (独立 8080 端口):"
-echo "     本地：http://localhost:8080"
-echo "     局域网：http://$LOCAL_IP:8080"
-echo "     文档：http://localhost:8080/docs"
+echo "  📝 Wiki 更新服务 (独立 18010 端口):"
+echo "     本地：http://localhost:18010"
+echo "     局域网：http://$LOCAL_IP:18010"
+echo "     文档：http://localhost:18010/docs"
 echo "  ───────────────────────────────────────"
 echo ""
 echo "📝 日志文件:"

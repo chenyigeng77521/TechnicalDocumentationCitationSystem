@@ -340,8 +340,8 @@ def main():
     parser.add_argument(
         '--port', '-p',
         type=int,
-        default=8080,
-        help='REST API 服务端口（默认 8080）'
+        default=18010,
+        help='REST API 服务端口（默认 18010）'
     )
     parser.add_argument(
         '--host',
