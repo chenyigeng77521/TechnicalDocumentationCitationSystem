@@ -21,6 +21,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # OPENAI_API_KEY           查询扩展用 LLM API Key（启用查询扩展时必需）
 # OPENAI_API_BASE          查询扩展用 LLM API 基础地址，默认 https://api.openai.com/v1
 # RERANK_TOP_N             重排序后返回的文档数量，默认 3
+# RERANK_CONTEXT_WINDOW    重排序上下文扩展窗口，前后各取 N 个相邻 chunk，默认 1
 # SEARCH_TIMEOUT           向量/BM25 检索 API 超时时间（秒），默认 30
 # HEALTH_TIMEOUT           健康检查 API 超时时间（秒），默认 5
 # ADAPTIVE_TOPK_MIN        自适应 TopK 最小返回数量，默认 5
@@ -49,6 +50,7 @@ OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
 
 # 重排序配置
 RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "3"))
+RERANK_CONTEXT_WINDOW = int(os.getenv("RERANK_CONTEXT_WINDOW", "1"))
 
 # API 超时配置（秒）
 SEARCH_TIMEOUT = int(os.getenv("SEARCH_TIMEOUT", "30"))
@@ -297,6 +299,58 @@ def adaptive_topk_simple(query: str, initial_results: List = None) -> int:
     return min(max(k, ADAPTIVE_TOPK_MIN), ADAPTIVE_TOPK_MAX)
 
 
+# ==================== 重排序上下文扩展 ====================
+def _expand_rerank_context(docs: List[Document], window: int = RERANK_CONTEXT_WINDOW) -> List[str]:
+    """
+    为重排序构建扩展上下文。
+
+    对每个 doc，在同文件的检索结果中查找前后相邻的 chunk，
+    将它们的内容拼接作为重排序时的输入文本。
+
+    返回与 docs 一一对应的扩展后文本列表。
+    """
+    if not docs or window <= 0:
+        return [d.page_content for d in docs]
+
+    # 按 file_path 分组并排序
+    by_file: dict = {}
+    for doc in docs:
+        fp = doc.metadata.get("file_path", "")
+        by_file.setdefault(fp, []).append(doc)
+
+    for fp in by_file:
+        by_file[fp].sort(key=lambda d: d.metadata.get("char_offset_start", 0))
+
+    # 构建 (file_path, char_offset_start) -> 在排序后列表中的索引
+    index_map = {}
+    for fp, file_docs in by_file.items():
+        for idx, d in enumerate(file_docs):
+            key = (fp, d.metadata.get("char_offset_start", 0))
+            index_map[key] = (fp, idx)
+
+    expanded_texts = []
+    for doc in docs:
+        fp = doc.metadata.get("file_path", "")
+        start = doc.metadata.get("char_offset_start", 0)
+        key = (fp, start)
+
+        if key not in index_map:
+            expanded_texts.append(doc.page_content)
+            continue
+
+        _, idx = index_map[key]
+        file_docs = by_file.get(fp, [])
+
+        # 收集前后 window 个相邻 chunk
+        parts = []
+        for j in range(max(0, idx - window), min(len(file_docs), idx + window + 1)):
+            parts.append(file_docs[j].page_content)
+
+        expanded_texts.append("\n".join(parts))
+
+    return expanded_texts
+
+
 # ==================== Reranker（保持不变）====================
 class Reranker:
     def __init__(self, model_name=RERANKER_MODEL, top_n=RERANK_TOP_N):
@@ -309,7 +363,12 @@ class Reranker:
         if not docs:
             return []
 
-        pairs = [[query, d.page_content] for d in docs]
+        # 上下文扩展：用相邻 chunk 补全后打分
+        expanded_texts = _expand_rerank_context(docs)
+        if RERANK_CONTEXT_WINDOW > 0:
+            print(f"重排序上下文扩展: window={RERANK_CONTEXT_WINDOW}")
+
+        pairs = [[query, text] for text in expanded_texts]
         scores = self.model.predict(pairs)
 
         sorted_idx = np.argsort(scores)[::-1]

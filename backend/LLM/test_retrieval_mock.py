@@ -393,6 +393,36 @@ class TestRunner:
         self._assert(len(results) == 4,
                      f"查询扩展后合并去重应为 4 个，实际 {len(results)}")
 
+    # ---------- 测试 12: 重排序上下文扩展 ----------
+    def test_rerank_context_expansion(self):
+        print("\n[TEST] 重排序上下文扩展")
+        from retrieval import _expand_rerank_context
+        from langchain_core.documents import Document
+
+        # 构造同文件的 3 个相邻 chunk
+        docs = [
+            Document(page_content="第一段内容", metadata={"file_path": "a.md", "char_offset_start": 0}),
+            Document(page_content="第二段内容", metadata={"file_path": "a.md", "char_offset_start": 100}),
+            Document(page_content="第三段内容", metadata={"file_path": "a.md", "char_offset_start": 200}),
+            Document(page_content="孤立文档", metadata={"file_path": "b.md", "char_offset_start": 0}),
+        ]
+
+        # window=1，中间 chunk 应该包含前后各 1 个
+        texts = _expand_rerank_context(docs, window=1)
+
+        self._assert(len(texts) == 4, f"扩展后文本数量应为 4，实际 {len(texts)}")
+        self._assert("第一段内容" in texts[1] and "第三段内容" in texts[1],
+                     "中间 chunk 应包含前后相邻 chunk")
+        self._assert(texts[0] == "第一段内容\n第二段内容",
+                     "第一个 chunk 应只包含自身和下一个")
+        self._assert(texts[3] == "孤立文档",
+                     "孤立文件应保持不变")
+
+        # window=0 应退化为原内容
+        texts_no_expand = _expand_rerank_context(docs, window=0)
+        self._assert(texts_no_expand[1] == "第二段内容",
+                     "window=0 时不应扩展")
+
     # ---------- 汇总 ----------
     def run_all(self):
         print("=" * 60)
@@ -411,6 +441,7 @@ class TestRunner:
         self.test_pipeline_hybrid()
         self.test_expand_query_fallback()
         self.test_pipeline_query_expansion()
+        self.test_rerank_context_expansion()
 
         print("\n" + "=" * 60)
         print(f"测试结果: 通过 {self.passed} 项, 失败 {self.failed} 项")
