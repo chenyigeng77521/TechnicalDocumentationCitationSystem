@@ -20,6 +20,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # QUERY_EXPANSION_NUM      扩展变体数量，默认 3
 # OPENAI_API_KEY           查询扩展用 LLM API Key（启用查询扩展时必需）
 # OPENAI_API_BASE          查询扩展用 LLM API 基础地址，默认 https://api.openai.com/v1
+# RERANK_TOP_N             重排序后返回的文档数量，默认 3
+# SEARCH_TIMEOUT           向量/BM25 检索 API 超时时间（秒），默认 30
+# HEALTH_TIMEOUT           健康检查 API 超时时间（秒），默认 5
+# ADAPTIVE_TOPK_MIN        自适应 TopK 最小返回数量，默认 5
+# ADAPTIVE_TOPK_MAX        自适应 TopK 最大返回数量，默认 25
 # ------------------------------------------------------------------
 
 # 向量库 API 配置
@@ -41,6 +46,17 @@ QUERY_EXPANSION_NUM = int(os.getenv("QUERY_EXPANSION_NUM", "3"))
 # LLM API 配置（查询扩展用）
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+
+# 重排序配置
+RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "3"))
+
+# API 超时配置（秒）
+SEARCH_TIMEOUT = int(os.getenv("SEARCH_TIMEOUT", "30"))
+HEALTH_TIMEOUT = int(os.getenv("HEALTH_TIMEOUT", "5"))
+
+# 自适应 TopK 边界
+ADAPTIVE_TOPK_MIN = int(os.getenv("ADAPTIVE_TOPK_MIN", "5"))
+ADAPTIVE_TOPK_MAX = int(os.getenv("ADAPTIVE_TOPK_MAX", "25"))
 
 # ==================== 惰性加载嵌入模型 ====================
 _embedding_model = None
@@ -112,7 +128,7 @@ class VectorAPIClient:
                     "top_k": top_k,
                     "filters": filters
                 },
-                timeout=30
+                timeout=SEARCH_TIMEOUT
             )
             response.raise_for_status()
             result = response.json()
@@ -159,7 +175,7 @@ class VectorAPIClient:
                     "top_k": top_k,
                     "filters": filters
                 },
-                timeout=30
+                timeout=SEARCH_TIMEOUT
             )
             response.raise_for_status()
             result = response.json()
@@ -191,7 +207,7 @@ class VectorAPIClient:
     def health_check(self) -> bool:
         """健康检查"""
         try:
-            response = self.session.get(f"{self.api_url}/health", timeout=5)
+            response = self.session.get(f"{self.api_url}/health", timeout=HEALTH_TIMEOUT)
             return response.status_code == 200
         except:
             return False
@@ -278,12 +294,12 @@ def adaptive_topk_simple(query: str, initial_results: List = None) -> int:
         k += 3
 
     # 限制范围
-    return min(max(k, 5), 25)
+    return min(max(k, ADAPTIVE_TOPK_MIN), ADAPTIVE_TOPK_MAX)
 
 
 # ==================== Reranker（保持不变）====================
 class Reranker:
-    def __init__(self, model_name=RERANKER_MODEL, top_n=3):
+    def __init__(self, model_name=RERANKER_MODEL, top_n=RERANK_TOP_N):
         print(f"正在加载重排序模型: {model_name}...")
         self.model = CrossEncoder(model_name)
         self.top_n = top_n
