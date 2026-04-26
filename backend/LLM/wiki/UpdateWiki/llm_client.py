@@ -2,6 +2,7 @@
 大模型客户端模块
 """
 import json
+import re
 from pathlib import Path
 from typing import List, Dict, Optional
 from openai import OpenAI, AzureOpenAI
@@ -38,6 +39,22 @@ class LLMClient:
                 api_key=llm.api_key,
                 base_url=llm.api_base
             )
+
+    def _load_prompt_template(self, name: str) -> str:
+        """从 prompts.md 加载指定 prompt 模板"""
+        prompts_file = Path(__file__).parent / "prompts.md"
+        if not prompts_file.exists():
+            raise FileNotFoundError(f"prompts.md 不存在: {prompts_file}")
+
+        content = prompts_file.read_text(encoding='utf-8')
+
+        # 查找 ## name 后面的内容，直到下一个 ## 或文件结束
+        pattern = rf'^## {re.escape(name)}\s*\n(.*?)(?=\n## |\Z)'
+        match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
+        if not match:
+            raise ValueError(f"prompts.md 中未找到 prompt: {name}")
+
+        return match.group(1).strip()
 
     def _load_agents_rules(self) -> str:
         """加载 AGENTS.md 中的规则"""
@@ -135,41 +152,7 @@ class LLMClient:
     def _build_system_prompt(self) -> str:
         """构建系统提示词"""
         agents_rules = self._load_agents_rules()
-
-        # 使用转义的三引号或使用列表拼接避免冲突
-        base_prompt_lines = [
-            "你是一个知识库管理员，擅长整理和同步文档。",
-            "",
-            "## 核心职责",
-            "根据 raw/ 目录中的原始文档，同步更新 wiki/ 目录中的结构化知识。",
-            "",
-            "## 输出格式要求",
-            "你必须严格按照 JSON 格式输出结果，不要输出任何其他内容。",
-            "",
-            "输出格式：",
-            "{",
-            '  "deleted_files": ["file1.md", "file2.md"],',
-            '  "updated_files": ["file3.md", "file4.md"],',
-            '  "created_files": ["file5.md", "file6.md"],',
-            '  "files_content": {',
-            '    "file3.md": "完整的文件内容",',
-            '    "file5.md": "完整的文件内容"',
-            '  },',
-            '  "index_content": "完整的 index.md 内容",',
-            '  "log_entry": "log.md 的追加内容（Markdown格式）"',
-            "}",
-            "",
-            "## 重要规则",
-            "1. 每个核心概念单独一个 .md 文件",
-            "2. 每篇文章以摘要开头",
-            "3. 相关主题之间用 [[链接]] 建立交叉引用",
-            "4. 删除的文件必须从 index.md 中移除链接",
-            "5. log_entry 使用 Markdown 格式，包含时间戳和操作记录",
-            "6. 必须保持 wiki/ 与 raw/ 内容完全一致",
-            "7. 不要编造不存在的内容",
-        ]
-
-        base_prompt = "\n".join(base_prompt_lines)
+        base_prompt = self._load_prompt_template("system_prompt")
 
         if agents_rules:
             base_prompt = f"{agents_rules}\n\n{base_prompt}"
@@ -189,7 +172,6 @@ class LLMClient:
             full_path = self.config.paths.project_root / file_path
             if full_path.exists():
                 content = self._read_file_content(full_path, self.config.max_content_length)
-                # 使用列表拼接避免三引号嵌套
                 raw_contents.append(
                     "\n### 文件: " + file_path + "\n\n```\n" + content + "\n```\n"
                 )
@@ -209,68 +191,19 @@ class LLMClient:
         if not index_content:
             index_content = "(不存在)"
 
-        # 构建变更文件列表字符串
+        # 构建动态变量
+        run_mode = "**首次运行 - 需要全量构建**" if is_first_run else "**增量更新模式**"
         changed_list = "\n".join(f"- {f}" for f in changed_files)
 
-        # 构建运行模式文本
-        run_mode = "**首次运行 - 需要全量构建**" if is_first_run else "**增量更新模式**"
+        # 加载模板并替换占位符
+        prompt = self._load_prompt_template("user_prompt")
+        prompt = prompt.replace("{run_mode}", run_mode)
+        prompt = prompt.replace("{changed_list}", changed_list)
+        prompt = prompt.replace("{raw_contents}", "".join(raw_contents))
+        prompt = prompt.replace("{wiki_list}", wiki_list)
+        prompt = prompt.replace("{index_content}", index_content)
 
-        # 使用列表拼接构建完整的 prompt（避免三引号嵌套问题）
-        prompt_lines = [
-            "## 任务：知识库增量更新",
-            "",
-            "### 运行模式",
-            run_mode,
-            "",
-            "### 变更文件列表",
-            changed_list,
-            "",
-            "### 变更文件内容",
-            "".join(raw_contents),
-            "",
-            "### 现有 wiki 文件列表",
-            wiki_list,
-            "",
-            "### 当前 wiki/index.md 内容",
-            index_content,
-            "",
-            "## 必须执行的任务",
-            "",
-            "### 1. 内容对比",
-            "- 读取每个 raw 文件的内容，提取其中的表名、章节、主题、概念",
-            "- 读取对应的 wiki 文件（如果存在）",
-            "- 识别 raw 中已删除的内容（在 raw 中找不到的章节/表/段落）",
-            "- 识别 raw 中新增/修改的内容",
-            "",
-            "### 2. 删除同步",
-            "对于 raw 中已删除的内容：",
-            "- 必须删除对应的 wiki 页面（.md 文件）",
-            "- 必须从 wiki/index.md 中删除该页面的链接",
-            "",
-            "### 3. 新增/修改同步",
-            "对于 raw 中新增或修改的内容：",
-            "- 更新或创建对应的 wiki 页面",
-            "- 确保 wiki 内容与 raw 内容完全一致",
-            "",
-            "### 4. 孤立页面清理",
-            "- 检查 wiki/ 目录下每个页面是否能追溯到 raw 文件",
-            "- 无法追溯的页面 → 删除",
-            "",
-            "### 5. 链接有效性检查",
-            "- 验证 wiki/index.md 中的所有链接",
-            "- 删除指向不存在文件的链接",
-            "",
-            "### 6. 更新 log.md",
-            "记录所有操作，包含：删除、更新、创建的文件列表",
-            "",
-            "## 注意事项",
-            "- 不要询问任何问题，直接执行",
-            "- 只输出 JSON 格式的结果",
-            "- 确保 wiki/ 与 raw/ 内容完全一致",
-            "- 如果 raw 文件内容为空或无效，请在 log_entry 中记录警告",
-        ]
-
-        return "\n".join(prompt_lines)
+        return prompt
 
     def update_knowledge_base(
         self,
@@ -338,31 +271,17 @@ class LLMClient:
         context_files: Optional[List[str]] = None
     ) -> Optional[str]:
         """查询知识库（简单查询接口）"""
-
+    
         # 获取 wiki 内容
         wiki_content = self._read_index_content()
-
-        # 使用列表构建 prompt
-        system_prompt_lines = [
-            "你是一个知识库查询助手。请严格遵守以下规则：",
-            "1. 只使用下面提供的知识库内容中的信息",
-            "2. 不要使用你的训练数据中的知识",
-            "3. 如果知识库中没有相关信息，请直接说\"知识库中暂无此信息\"",
-            "4. 回答时必须说明信息来源",
-        ]
-        system_prompt = "\n".join(system_prompt_lines)
-
-        user_prompt_lines = [
-            "## 知识库内容：",
-            wiki_content if wiki_content else "(知识库为空)",
-            "",
-            "## 用户问题：",
-            query,
-            "",
-            "请基于上述知识库内容回答问题。",
-        ]
-        user_prompt = "\n".join(user_prompt_lines)
-        
+    
+        # 加载模板并替换占位符
+        system_prompt = self._load_prompt_template("query_system_prompt")
+    
+        user_prompt = self._load_prompt_template("query_user_prompt")
+        user_prompt = user_prompt.replace("{wiki_content}", wiki_content if wiki_content else "(知识库为空)")
+        user_prompt = user_prompt.replace("{query}", query)
+    
         try:
             response = self.client.chat.completions.create(
                 model=self.config.llm.model,
@@ -373,9 +292,9 @@ class LLMClient:
                 temperature=0.1,
                 max_tokens=2000
             )
-            
+    
             return response.choices[0].message.content
-            
+                
         except Exception as e:
             self.logger.error(f"查询知识库失败: {e}")
             return f"查询失败: {str(e)}"
