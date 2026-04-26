@@ -115,6 +115,17 @@ function sanitizeFileName(fileName: string): string {
 // Multer 配置
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // 每次上传时确保目录存在，如果不存在则创建
+    if (!fs.existsSync(uploadDir)) {
+      try {
+        fs.mkdirSync(uploadDir, { recursive: true });
+        console.log(`📁 创建上传目录：${uploadDir}`);
+      } catch (error: any) {
+        console.error(`❌ 创建上传目录失败：${uploadDir}`, error.message);
+        cb(error, undefined as any);
+        return;
+      }
+    }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -231,7 +242,9 @@ router.get('/raw-files', (req, res) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
+    // 如果目录不存在，返回空列表而不是报错
     if (!fs.existsSync(rawDir)) {
+      console.log(`📂 上传目录不存在：${rawDir}，返回空列表`);
       return res.json({
         success: true,
         files: [],
