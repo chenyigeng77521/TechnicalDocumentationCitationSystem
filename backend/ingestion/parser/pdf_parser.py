@@ -23,18 +23,31 @@ async def _ocr_pdf(path: Path) -> str:
     """调 PaddleOCR 识别。CPU 模式可跑，但慢。"""
     from paddleocr import PaddleOCR
     import asyncio
+    import numpy as np
 
     def _run():
-        ocr = PaddleOCR(use_angle_cls=True, lang="ch", show_log=False)
+        # PaddleOCR 3.x API（2026-04-26 实测，参考 INTERFACE.md 部署章节）：
+        # - 用 predict() 替代已 deprecated 的 ocr()
+        # - 输入：numpy 数组 (H, W, 3 RGB)；不再支持 bytes 直传
+        # - 输出：list[OCRResult]，OCRResult 是 dict-like，
+        #         rec_texts: list[str] 是识别出的文字
+        #         rec_scores: list[float] 是每条置信度
+        ocr = PaddleOCR(use_textline_orientation=True, lang="ch")
         doc = fitz.open(path)
         all_text = []
         for page in doc:
             pix = page.get_pixmap(dpi=200)
-            img_bytes = pix.tobytes("png")
-            result = ocr.ocr(img_bytes, cls=True)
-            page_text = "\n".join(
-                line[1][0] for block in (result or []) for line in (block or [])
+            # PyMuPDF pixmap → numpy 数组
+            img_array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                pix.height, pix.width, pix.n
             )
+            # 4 通道 RGBA → 3 通道 RGB（OCR 不需要 alpha）
+            if img_array.shape[2] == 4:
+                img_array = img_array[:, :, :3]
+            result = ocr.predict(img_array)
+            page_text = ""
+            if result and len(result) > 0:
+                page_text = "\n".join(result[0].get('rec_texts', []))
             all_text.append(page_text)
         doc.close()
         return "\n\n".join(all_text)
