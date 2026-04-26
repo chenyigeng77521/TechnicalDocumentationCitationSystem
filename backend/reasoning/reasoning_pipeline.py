@@ -1,13 +1,17 @@
 """
 推理管道
 核心：retrieval.py → 上下文注入 → LLM 推理 → 引用验证 Pipeline
-对齐 TypeScript: backend/chunking-rag/src/Reasoning/reasoning_pipeline.ts
 
 集成说明：
 - 直接调用 backend/LLM/retrieval.py 的 pipeline() 和 init_retrieval_system()
 - retrieval.py 返回 List[langchain_core.documents.Document]
 - 本层将 Document 转换为 RetrievedChunk，补充 retrieval.py 未提供的字段
   （详见 README.md 中的"预留接口"部分）
+
+v2 变更：
+- LLM 配置改由 .env 统一维护，通过 config_loader 加载
+- 支持 provider 切换：glm5 / kimi / minimax / qwen / openai
+- 构造时若未显式传入 LLMConfig，自动从配置文件读取 active_provider
 """
 
 from __future__ import annotations
@@ -44,7 +48,7 @@ from .interfaces import (
     RetrievalResponse,
     RetrievedChunkResponse,
 )
-from .types import (
+from ._types import (
     RetrievedChunk,
     ContextBlock,
     CitationSource,
@@ -71,19 +75,63 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# 对齐 TS: LLMConfig interface
 # ============================================================
 @dataclass
 class LLMConfig:
+    """
+    LLM 运行时配置。
+
+    可由以下来源填充（优先级从高到低）：
+      1. 显式传入构造函数
+      2. 环境变量（LLM_API_KEY / LLM_MODEL / LLM_BASE_URL / LLM_PROVIDER）
+      3. .env 中 LLM_ACTIVE_PROVIDER 对应的配置块
+
+    建议通过 LLMConfig.from_file() 工厂方法创建（从 .env 读取），而不是直接设置字段。
+    """
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     model: str = 'gpt-4-turbo'
     temperature: float = 0.1
     max_tokens: int = 2000
+    provider: str = 'openai'          # 记录来源 provider，仅用于日志
+
+    @classmethod
+    def from_file(
+        cls,
+        provider: Optional[str] = None,
+        llm_config_file: Optional[str] = None,
+    ) -> 'LLMConfig':
+        """
+        从 .env / 环境变量创建 LLMConfig 实例。
+
+        参数：
+            provider: 强制指定 provider（覆盖 yaml active_provider 和环境变量）
+            llm_config_file: 自定义 llm_config.yaml 路径
+        """
+        try:
+            from .config_loader import get_active_llm_config
+            pcfg = get_active_llm_config(provider, llm_config_file)
+            if pcfg is None:
+                logger.warning("⚠️ 未找到有效 LLM provider 配置，将使用默认值（无 API 调用）")
+                return cls()
+            logger.info(
+                f"🤖 已从 .env 加载 provider={pcfg.provider!r}  "
+                f"model={pcfg.model!r}"
+            )
+            return cls(
+                api_key=pcfg.api_key or None,
+                base_url=pcfg.base_url or None,
+                model=pcfg.model,
+                temperature=pcfg.temperature,
+                max_tokens=pcfg.max_tokens,
+                provider=pcfg.provider,
+            )
+        except Exception as e:
+            logger.error(f"❌ 从配置文件加载 LLMConfig 失败: {e}")
+            return cls()
 
 
 # ============================================================
-# 对齐 TS: ReasoningPipelineConfig interface
 # ============================================================
 @dataclass
 class ReasoningPipelineConfig:
@@ -96,7 +144,7 @@ class ReasoningPipelineConfig:
 
 class ReasoningPipeline:
     """
-    推理管道 - 对齐 TS ReasoningPipeline class
+    推理管道
     编排整个推理流程：检索 → 治理 → 注入 → LLM → 验证
     """
 
@@ -113,25 +161,33 @@ class ReasoningPipeline:
         )
         self.governor: ContextGovernor = create_context_governor()
 
-        self.llm_config: LLMConfig = cfg.llm or LLMConfig()
+        # ── LLM 配置：显式传入 > .env ───────────────────────
+        if cfg.llm is not None:
+            self.llm_config: LLMConfig = cfg.llm
+        else:
+            self.llm_config: LLMConfig = LLMConfig.from_file()
+
         self.enable_async_verification: bool = cfg.enable_async_verification
         self.enable_governance: bool = cfg.enable_governance
 
         # retrieval.py 共享资源（通过 init_retrieval_system 初始化一次）
         self._retrieval_system: Optional[dict] = None
 
-        # OpenAI 客户端
+        # OpenAI 兼容客户端（glm5/kimi/minimax/qwen 均通过此客户端调用）
         self._openai = None
         if self.llm_config.api_key:
             self._init_openai()
 
+        # 推理层静态参数（来自 reasoning_config.yaml）
+        from .config_loader import load_reasoning_config
+        self._rcfg = load_reasoning_config()
+
     # ================================================================ #
-    # 公开接口 - 对齐 TS ReasoningPipeline 公开方法                     #
     # ================================================================ #
 
     def reason(self, request: ReasoningRequest) -> ReasoningResponse:
         """
-        执行推理（同步） - 对齐 TS reason()
+        执行推理（同步）
         调用链：retrieval.py → 治理 → 注入 → LLM → 验证
         """
         query = request.query
@@ -202,7 +258,7 @@ class ReasoningPipeline:
         request: ReasoningRequest,
     ) -> AsyncGenerator:
         """
-        流式推理 - 对齐 TS streamReason()
+        流式推理
         Yields: StreamEventToken | StreamEventCitation | StreamEventVerification |
                 StreamEventDone | StreamEventError
         """
@@ -238,27 +294,29 @@ class ReasoningPipeline:
 
         if self._openai:
             stream_msg = self.prompt_builder.build_stream_message(query, blocks, truncated)
+            # 维护已发现引用 ID 的集合，增量检测新引用，避免每个 token 全文扫描
+            seen_ids: set[int] = set()
+            block_index: dict[int, ContextBlock] = {b.id: b for b in blocks}
             async for token in self._stream_generate(stream_msg):
                 full_answer += token
                 yield StreamEventToken(content=token)
 
-                # 实时检查新引用 - 对齐 TS
-                current_ids = self.prompt_builder.extract_citation_ids(full_answer)
-                for cid in current_ids:
-                    if not any(c.id == cid for c in citations):
-                        block = next((b for b in blocks if b.id == cid), None)
-                        if block:
-                            citation = CitationSource(
-                                id=block.id,
-                                anchor_id=block.anchor_id,
-                                title_path=block.title_path,
-                                score=block.reranker_score,
-                                verification_status=VerificationStatus.PENDING,
-                                file_path=self._extract_file_path(block.anchor_id),
-                                snippet=block.content[:100],
-                            )
-                            citations.append(citation)
-                            yield StreamEventCitation(citation=citation)
+                # 仅对新 token 做增量匹配
+                for cid in self.prompt_builder.extract_citation_ids(token):
+                    if cid not in seen_ids and cid in block_index:
+                        seen_ids.add(cid)
+                        block = block_index[cid]
+                        citation = CitationSource(
+                            id=block.id,
+                            anchor_id=block.anchor_id,
+                            title_path=block.title_path,
+                            score=block.reranker_score,
+                            verification_status=VerificationStatus.PENDING,
+                            file_path=self._extract_file_path(block.anchor_id),
+                            snippet=block.content[:self._rcfg.snippet_length],
+                        )
+                        citations.append(citation)
+                        yield StreamEventCitation(citation=citation)
         else:
             full_answer = self._build_no_llm_response(blocks)
             yield StreamEventToken(content=full_answer)
@@ -291,9 +349,10 @@ class ReasoningPipeline:
             )
         )
 
-    def retrieve_chunks(self, query: str, top_k: int = 5) -> List[RetrievedChunk]:
+    def retrieve_chunks(self, query: str, top_k: int = None) -> List[RetrievedChunk]:
         """
         调用 retrieval.py 检索文档，并转换为 RetrievedChunk 格式。
+        top_k 默认值来自 reasoning_config.yaml [retrieval.default_top_k]。
 
         retrieval.py pipeline() 返回 (List[Document], List[float]) 元组：
           - docs: 排序后的文档列表
@@ -332,8 +391,9 @@ class ReasoningPipeline:
             return []
 
         # 将 LangChain Document 转换为 RetrievedChunk
+        resolved_top_k = top_k if top_k is not None else self._rcfg.default_top_k
         chunks: List[RetrievedChunk] = []
-        for i, doc in enumerate(docs[:top_k]):
+        for i, doc in enumerate(docs[:resolved_top_k]):
             content = doc.page_content
             metadata = doc.metadata or {}
 
@@ -349,9 +409,8 @@ class ReasoningPipeline:
             raw_id = f"{file_path}{i}{content[:100]}"
             chunk_id = hashlib.sha256(raw_id.encode()).hexdigest()[:16]
 
-            # ── 构造 anchor_id（⚠️ 预留接口：精确字符偏移未存入 metadata，
-            #    retrieval.py 建库时未记录块在文件中的起始偏移，故用估算值）
-            estimated_offset = i * 1000
+            # ── 构造 anchor_id（⚠️ 预留接口：步长来自 reasoning_config.yaml [retrieval.anchor_offset_step]）
+            estimated_offset = i * self._rcfg.anchor_offset_step
             anchor_id = f"{file_path}#{estimated_offset}"
 
             # ── title_path（从 metadata 中读取，建库时若未写入则为 None）
@@ -429,13 +488,27 @@ class ReasoningPipeline:
         return chunks, resp
 
     def update_llm_config(self, config: LLMConfig) -> None:
-        """更新 LLM 配置 - 对齐 TS updateLLMConfig()"""
+        """更新 LLM 配置"""
         self.llm_config = config
         if config.api_key:
             self._init_openai()
 
+    def switch_provider(self, provider: str) -> None:
+        """
+        切换 LLM provider（从 .env 加载指定 provider 配置）。
+
+        示例：
+            pipeline.switch_provider('kimi')
+            pipeline.switch_provider('qwen')
+        """
+        from .config_loader import reload_configs
+        reload_configs()   # 清除缓存，支持热重载
+        new_cfg = LLMConfig.from_file(provider=provider)
+        self.update_llm_config(new_cfg)
+        logger.info(f"🔄 已切换 provider: {provider!r}  model={new_cfg.model!r}")
+
     def set_score_threshold(self, threshold: float) -> None:
-        """设置拒答阈值 - 对齐 TS setScoreThreshold()"""
+        """设置拒答阈值"""
         self.rejection_guard.set_threshold(threshold)
 
     # ================================================================ #
@@ -443,19 +516,27 @@ class ReasoningPipeline:
     # ================================================================ #
 
     def _init_openai(self):
-        """初始化 OpenAI 客户端（兼容 openai >= 1.0）"""
+        """
+        初始化 OpenAI 兼容客户端（openai >= 1.0）。
+        glm5 / kimi / minimax / qwen 均通过 base_url 切换接入，
+        使用完全相同的 openai.OpenAI 调用方式。
+        """
         try:
             from openai import OpenAI  # type: ignore
-            self._openai = OpenAI(
-                api_key=self.llm_config.api_key,
-                base_url=self.llm_config.base_url,
+            init_kwargs: dict = dict(api_key=self.llm_config.api_key)
+            if self.llm_config.base_url:
+                init_kwargs['base_url'] = self.llm_config.base_url
+            self._openai = OpenAI(**init_kwargs)
+            logger.info(
+                f"✅ LLM 客户端初始化成功: provider={self.llm_config.provider!r}  "
+                f"model={self.llm_config.model!r}  base_url={self.llm_config.base_url!r}"
             )
         except ImportError:
-            logger.warning("openai 包未安装，LLM 功能不可用")
+            logger.warning("openai 包未安装，LLM 功能不可用。请执行: pip install openai")
             self._openai = None
 
     def _generate_with_llm(self, prompt: str) -> str:
-        """使用 LLM 生成回答 - 对齐 TS generateWithLLM()"""
+        """使用 LLM 生成回答"""
         if not self._openai:
             raise RuntimeError('LLM 未配置')
         response = self._openai.chat.completions.create(
@@ -470,7 +551,7 @@ class ReasoningPipeline:
         return response.choices[0].message.content or ''
 
     async def _stream_generate(self, prompt: str) -> AsyncGenerator[str, None]:
-        """流式生成 - 对齐 TS streamGenerate()"""
+        """流式生成"""
         if not self._openai:
             raise RuntimeError('LLM 未配置')
         stream = self._openai.chat.completions.create(
@@ -495,7 +576,7 @@ class ReasoningPipeline:
         chunks: List[RetrievedChunk],
         on_progress: Optional[Callable] = None,
     ) -> None:
-        """后台执行异步验证 - 对齐 TS runAsyncVerification()"""
+        """后台执行异步验证"""
         claimed = self._extract_claimed_citations(answer, citations)
 
         async def _run():
@@ -512,29 +593,33 @@ class ReasoningPipeline:
                 logger.error(f"❌ 异步验证失败: {e}")
 
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(_run())
-            else:
-                loop.run_until_complete(_run())
-        except Exception:
-            pass  # 异步验证失败不影响主流程
+            # 优化：使用 get_running_loop 替代已废弃的 get_event_loop
+            loop = asyncio.get_running_loop()
+            loop.create_task(_run())
+        except RuntimeError:
+            # 没有运行中的事件循环时，新建并运行
+            try:
+                asyncio.run(_run())
+            except Exception:
+                pass  # 异步验证失败不影响主流程
 
     def _extract_claimed_citations(
         self,
         answer: str,
         citations: List[CitationSource],
     ) -> List[ClaimedCitation]:
-        """提取引用声明 - 对齐 TS extractClaimedCitations()"""
+        """提取引用声明"""
         claimed: List[ClaimedCitation] = []
-        used_ids: set = set()
+        used_ids: set[int] = set()
+        # 预建引用 ID 集合，避免内层循环 O(n) 扫描
+        citation_ids: set[int] = {c.id for c in citations}
 
         for match in re.finditer(r'\[(\d+)\]', answer):
             cid = int(match.group(1))
-            if cid not in used_ids and any(c.id == cid for c in citations):
+            if cid not in used_ids and cid in citation_ids:
                 used_ids.add(cid)
-                start = max(0, match.start() - 50)
-                end = min(len(answer), match.end() + 50)
+                start = max(0, match.start() - self._rcfg.context_window_chars)
+                end   = min(len(answer), match.end() + self._rcfg.context_window_chars)
                 claim_text = answer[start:end]
                 claimed.append(
                     ClaimedCitation(
@@ -546,7 +631,7 @@ class ReasoningPipeline:
         return claimed
 
     def _build_rejection_response(self, result: RejectionResult) -> ReasoningResponse:
-        """构建拒答响应 - 对齐 TS buildRejectionResponse()"""
+        """构建拒答响应"""
         message = self.rejection_guard.generate_rejection_message(result)
         debug_info = self.rejection_guard.get_debug_info(result)
         return ReasoningResponse(
@@ -560,7 +645,7 @@ class ReasoningPipeline:
         )
 
     def _build_no_llm_response(self, blocks: List[ContextBlock]) -> str:
-        """构建无 LLM 响应 - 对齐 TS buildNoLLMResponse()"""
+        """构建无 LLM 响应"""
         if not blocks:
             return '未检索到相关文档。'
         summaries = []
@@ -575,7 +660,7 @@ class ReasoningPipeline:
         )
 
     def _calculate_confidence(self, valid_count: int, total_count: int) -> float:
-        """计算置信度 - 对齐 TS calculateConfidence()"""
+        """计算置信度"""
         if total_count == 0:
             return 0.0
         coverage = valid_count / total_count
@@ -583,7 +668,7 @@ class ReasoningPipeline:
         return round(base_score, 2)
 
     def _extract_file_path(self, anchor_id: str) -> str:
-        """从 anchorId 提取文件路径 - 对齐 TS extractFilePath()"""
+        """从 anchorId 提取文件路径"""
         parts = anchor_id.split('#')
         return parts[0] if parts else anchor_id
 
@@ -591,5 +676,5 @@ class ReasoningPipeline:
 def create_reasoning_pipeline(
     config: ReasoningPipelineConfig = None,
 ) -> ReasoningPipeline:
-    """创建推理管道 - 对齐 TS createReasoningPipeline()"""
+    """创建推理管道"""
     return ReasoningPipeline(config)

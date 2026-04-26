@@ -19,11 +19,46 @@ import json
 # ============================================================
 
 @dataclass
+class RetrievalStrategy:
+    """
+    检索策略配置 - 对应方案.md 3.4.1 search_params.retrieval_strategy
+    控制两路召回 + RRF 融合的参数
+    """
+    mode: Literal['sparse', 'dense', 'hybrid'] = 'hybrid'
+    # sparse=仅BM25 / dense=仅向量 / hybrid=RRF融合（生产环境默认）
+    rrf_k: int = 60
+    # RRF 融合常数，控制分数归一化曲线，值越小头部文档权重越大
+    bm25_weight: float = 0.3             # BM25 稀疏检索在 RRF 融合中的权重
+    dense_weight: float = 0.7            # Dense kNN 向量检索在 RRF 融合中的权重
+
+
+@dataclass
+class SearchFilters:
+    """检索过滤条件 - 对应方案.md 3.4.1 search_params.filters"""
+    min_timestamp: Optional[str] = None              # ISO8601，只召回该时间后索引的文档（Task 4）
+    doc_types: Optional[List[str]] = None            # 文档类型白名单，如 ["installation_guide", "api_ref"]
+
+
+@dataclass
 class SearchParams:
     """检索参数 - 对应方案.md 3.4.1"""
-    top_k: Optional[int] = None          # 传 null 时自适应决定
-    rerank: bool = True                  # 是否启用 Reranker 精排
-    filters: Optional[Dict[str, Any]] = None  # 过滤条件
+    top_k: Optional[int] = None                      # 传 null 时由检索层自适应决定
+    rerank: bool = True                              # 是否启用 bge-reranker-v2-m3 精排
+    retrieval_strategy: RetrievalStrategy = field(default_factory=RetrievalStrategy)
+    filters: Optional[SearchFilters] = None          # 过滤条件
+
+
+@dataclass
+class SyncContext:
+    """
+    增量同步上下文 - 对应方案.md 3.4.1 sync_context
+    推理层据此感知文档同步状态（Task 4：5 分钟 SLA）
+    """
+    pipeline_status: Literal['idle', 'syncing', 'locked'] = 'idle'
+    # idle=空闲 / syncing=同步中 / locked=文件锁占用中
+    last_sync_time: Optional[str] = None             # ISO8601，最近一次增量同步完成时间
+    pending_diff_count: int = 0
+    # 当前待处理的 chunk_diff 数量，>0 表示有文档变更尚未入库
 
 
 @dataclass
@@ -32,8 +67,9 @@ class RetrievalRequest:
     推理层 → 检索层 请求
     对应方案.md 3.4.1
     """
-    query_intent: str                              # 经 Query Expansion 改写后的检索意图
+    query_intent: str                              # 经 LLM Query Expansion 改写后的检索意图
     search_params: SearchParams = field(default_factory=SearchParams)
+    sync_context: SyncContext = field(default_factory=SyncContext)
     context_requirement: Literal['paragraph_anchor_required'] = 'paragraph_anchor_required'
 
     def to_dict(self) -> dict:
@@ -48,7 +84,7 @@ class ChunkMetadata:
     file_path: str
     anchor_id: str                                 # 程序定位锚点: file_path#char_offset_start
     title_path: Optional[str]                      # UI 展示锚点: Section > Subsection
-    last_modified: Optional[str] = None             # ISO8601 时间戳
+    last_modified: Optional[str] = None             # ISO8601 时间戳（Task 4：感知 5 分钟内更新）
 
 
 @dataclass
@@ -60,12 +96,25 @@ class RetrievedChunkResponse:
     content: str
     score: float                                   # Reranker 精排后的语义相关度评分 0~1
     content_type: Literal['document', 'code', 'structured_data'] = 'document'
+    content_type_source: Literal['mime_sniff', 'extension', 'manual'] = 'extension'
+    # mime_sniff=file-type库兜底识别(高可信) / extension=扩展名推断(低可信) / manual=人工标注
     is_truncated: bool = False
     metadata: ChunkMetadata = None
 
     def __post_init__(self):
         if self.metadata is None:
             self.metadata = ChunkMetadata(file_path='', anchor_id='', title_path=None)
+
+
+@dataclass
+class EmbeddingMeta:
+    """
+    向量检索元信息 - 对应方案.md 3.4.2 embedding_meta
+    用于向量空间一致性追踪和索引时效验证
+    """
+    model: str = 'bge-m3'                          # Embedding 模型名称
+    model_version: str = ''                         # 模型版本号，版本变更时向量空间可能漂移
+    index_build_time: Optional[str] = None          # 索引最后构建时间 ISO8601（Task 4）
 
 
 @dataclass
@@ -76,8 +125,9 @@ class RetrievalResponse:
     """
     retrieved_chunks: List[RetrievedChunkResponse]
     retrieval_status: Literal['success', 'empty', 'error']
-    max_reranker_score: float                      # 最高精排分，用于判断是否拒答
+    max_reranker_score: float                      # 最高精排分，用于推理层判断是否拒答
     expanded_query: str                            # Query Expansion 后的扩展词串
+    embedding_meta: EmbeddingMeta = field(default_factory=EmbeddingMeta)
 
 
 # ============================================================
@@ -183,8 +233,22 @@ class Citation:
 
 @dataclass
 class SourceLibrary:
-    """源文件库 - 对应方案.md 3.4.4 source_library"""
-    src_idx_001: Dict[str, str] = field(default_factory=dict)
+    """
+    源文件库条目 - 对应方案.md 3.4.4 source_library
+    用于侧边栏文档列表展示
+    """
+    title: str = ''                                 # 文档标题（文件名）
+    url: str = ''                                   # 物理存储路径（CDN 或本地），供后端内部使用
+    display_url: str = ''                           # 前端可访问 URL，含锚点片段(#section-id)，供 Next.js 引用链接跳转
+    update_time: str = ''                           # 文档索引更新时间（可读格式）
+
+    def to_dict(self) -> dict:
+        return {
+            'title': self.title,
+            'url': self.url,
+            'display_url': self.display_url,
+            'update_time': self.update_time,
+        }
 
 
 @dataclass
@@ -279,18 +343,27 @@ class WebResponse:
         debug_info: DebugInfo,
     ) -> 'WebResponse':
         """创建正常响应 - 工厂方法"""
-        # 构建 source_library（去重）
+        # 构建 source_library（按 source_id 去重）
         source_lib: Dict[str, Dict[str, str]] = {}
         for c in citations:
             if isinstance(c, dict):
+                source_id = c.get('source_id', '')
                 loc = c.get('location', {})
                 fp = loc.get('file_path', '')
+                anchor = loc.get('anchor_id', '')
             else:
+                source_id = c.source_id
                 fp = c.location.file_path
-            if fp and fp not in source_lib:
-                source_lib[fp] = {
-                    'title': fp.split('/')[-1],
+                anchor = c.location.anchor_id
+            if source_id and source_id not in source_lib:
+                file_name = fp.split('/')[-1] if fp else source_id
+                # display_url = 物理路径 + anchor 片段，供前端跳转
+                display_url = f"{fp}#{anchor.split('#')[-1]}" if anchor and '#' in anchor else fp
+                source_lib[source_id] = {
+                    'title': file_name,
                     'url': fp,
+                    'display_url': display_url,
+                    'update_time': '',
                 }
 
         return cls(
@@ -352,7 +425,7 @@ class StreamErrorEvent:
 
 INTERFACE_DOC = """
 ================================================================================
-接口说明 - 推理与引用层
+接口说明 - 推理与引用层（对齐方案.md v2，2026-04-26 更新）
 ================================================================================
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -368,31 +441,33 @@ INTERFACE_DOC = """
   "stream": true,                          // [可选] 是否流式，默认 true
   "session_id": "sess_001",                // [可选] 会话 ID
   "config": {
-    "temperature": 0.0,                   // [固定] 0.0 严谨模式
-    "language": "zh-CN"                     // [可选] 响应语言
+    "temperature": 0.0,                    // [固定] 0.0 严谨模式
+    "language": "zh-CN"                    // [可选] 响应语言
   }
 }
 
 【响应格式 - WebResponse】
 {
   "answer": "根据安装手册，您需要编辑 .bashrc 文件来配置路径 [1]。",
-  "answer_status": "resolved",            // resolved | refused
+  "answer_status": "resolved",             // resolved | refused
   "citations": [
     {
       "citation_handle": "[1]",
-      "source_id": "src_001",
+      "source_id": "src_idx_001",
       "snippet": "To set up the path, edit your .bashrc file...",
       "location": {
         "file_path": "/docs/v2/install.md",
         "anchor_id": "/docs/v2/install.md#4821",
-        "title_path": "Install Guide > Step 2"
+        "title_path": "Install Guide > Step 2 > Environment Variables"
       }
     }
   ],
   "source_library": {
-    "/docs/v2/install.md": {
-      "title": "install.md",
-      "url": "/docs/v2/install.md"
+    "src_idx_001": {
+      "title": "Install Guide v2.1",
+      "url": "https://cdn.internal/docs/v2/install.md",
+      "display_url": "https://docs.internal/v2/install#step-2-env-vars",  // ← 新增：前端跳转用
+      "update_time": "2026-04-24 14:50"
     }
   },
   "verification_report": {
@@ -401,7 +476,7 @@ INTERFACE_DOC = """
     "is_truncated_context": false
   },
   "debug_info": {
-    "expanded_query": "环境变量配置 environment variable...",
+    "expanded_query": "环境变量配置 environment variable setup...",
     "max_reranker_score": 0.92,
     "refuse_reason": null
   }
@@ -434,25 +509,41 @@ INTERFACE_DOC = """
 
 【调用示例】
 ```python
-from interfaces import RetrievalRequest, search_test
+from interfaces import search_test
 
 # 简单调用
 response = search_test("如何配置环境变量")
 
 # 指定 top_k
 response = search_test("OAuth2 刷新 Token", top_k=8)
+
+# 遍历结果
+for chunk in response.retrieved_chunks:
+    print(chunk.chunk_id, chunk.score, chunk.content_type_source)
+    print(response.embedding_meta.model, response.embedding_meta.index_build_time)
 ```
 
 【检索请求 - RetrievalRequest】
 {
-  "query_intent": "环境变量配置 environment variable setup",  // Query Expansion 后
+  "query_intent": "环境变量配置 environment variable setup",
   "search_params": {
-    "top_k": null,                       // null=自适应，综合型=8，事实型=3
-    "rerank": true,                      // 是否启用精排
+    "top_k": null,                         // null=自适应（综合型=8，事实型=3，默认=5）
+    "rerank": true,
+    "retrieval_strategy": {               // ← 新增
+      "mode": "hybrid",                   // sparse | dense | hybrid
+      "rrf_k": 60,
+      "bm25_weight": 0.3,
+      "dense_weight": 0.7
+    },
     "filters": {
       "min_timestamp": "2026-04-20T10:00:00Z",
       "doc_types": ["installation_guide", "api_ref"]
     }
+  },
+  "sync_context": {                       // ← 新增（Task 4：5 分钟 SLA 感知）
+    "pipeline_status": "idle",            // idle | syncing | locked
+    "last_sync_time": "2026-04-26T10:00:00Z",
+    "pending_diff_count": 0
   },
   "context_requirement": "paragraph_anchor_required"
 }
@@ -465,6 +556,7 @@ response = search_test("OAuth2 刷新 Token", top_k=8)
       "content": "To set up the path, edit your .bashrc file...",
       "score": 0.92,
       "content_type": "document",
+      "content_type_source": "mime_sniff",  // ← 新增：mime_sniff | extension | manual
       "is_truncated": false,
       "metadata": {
         "file_path": "/docs/v2/install.md",
@@ -474,9 +566,14 @@ response = search_test("OAuth2 刷新 Token", top_k=8)
       }
     }
   ],
-  "retrieval_status": "success",         // success | empty | error
+  "retrieval_status": "success",
   "max_reranker_score": 0.92,
-  "expanded_query": "环境变量配置 environment variable setup install..."
+  "expanded_query": "环境变量配置 environment variable setup...",
+  "embedding_meta": {                     // ← 新增：向量空间一致性追踪
+    "model": "bge-m3",
+    "model_version": "1.0.2",
+    "index_build_time": "2026-04-26T09:55:00Z"
+  }
 }
 
 
@@ -487,10 +584,11 @@ response = search_test("OAuth2 刷新 Token", top_k=8)
 Frontend (Next.js)
   └─ POST /api/reasoning/ask-stream
        └─ ReasoningWebUI.ask_stream()
-            ├─ pipeline.retrieve_chunks()  ← 调用 RetrievalRequest / search_test
-            │    └─ retrieval.py pipeline()
+            ├─ pipeline.search_test_chunks()  ← 新版检索接口
+            │    └─ interfaces.search_test()
+            │         └─ retrieval.py pipeline()
             └─ pipeline.stream_reason()
-                 ├─ rejection_guard.evaluate()
+                 ├─ rejection_guard.evaluate()   ← max_reranker_score < 0.4 → 拒答
                  ├─ governor.govern()
                  ├─ injector.inject()
                  ├─ _stream_generate()

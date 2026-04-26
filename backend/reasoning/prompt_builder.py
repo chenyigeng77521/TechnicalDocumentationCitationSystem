@@ -1,74 +1,86 @@
 """
 提示词构建器
 核心要求 4: 边界严控（拒答）- 构建严格的提示词，确保模型只基于上下文回答
-对齐 TypeScript: backend/chunking-rag/src/Reasoning/prompt_builder.ts
+
+v2 变更：
+  - 提示词模板改由 prompts/prompts.yaml 统一维护
+  - 通过 config_loader.load_prompts_config() 加载（带 lru_cache）
+  - 保留模块级常量（SYSTEM_PROMPT 等）作为向后兼容别名，首次访问时懒加载
 """
 
 from __future__ import annotations
 import re
 from typing import List, Optional, Tuple
-from .types import ContextBlock
+from ._types import ContextBlock
 
 
 # ============================================================
-# 对齐 TS 的提示词模板常量
+# 懒加载模板（向后兼容，直接 import 常量仍可使用）
 # ============================================================
 
-SYSTEM_PROMPT = """你是一个严格的技术文档问答助手。
+def _get_prompts():
+    """懒加载 PromptsConfig，避免模块导入时触发文件 IO"""
+    from .config_loader import load_prompts_config
+    return load_prompts_config()
 
-【核心规则】
-1. 仅根据下方提供的 Context 回答，严禁使用任何外部知识或猜测。
-2. 每个事实性陈述句末必须标注来源，格式为 [n]（n 为对应 Chunk 的 ID）。
-3. 如果 Context 中不包含回答所需信息，直接回复："根据现有文档无法回答此问题。"
-4. 如果 Context 标注了"内容已截断"，可说明信息不足并建议查阅原文。
-5. 不得合并多个 Chunk 的内容进行推断，每条引用必须有直接支撑。
-6. 保持回答简洁准确，不要添加冗余解释。
 
-【引用规则】
-- 每个句子的引用必须是直接的、一一对应的
-- 避免泛泛而谈，每个观点都需要具体引用支撑
-- 数字、版本号、配置项等关键信息必须标注来源"""
+# 向后兼容别名（首次访问时从 prompts.yaml 加载）
+class _LazyStr(str):
+    """惰性字符串代理，允许 `SYSTEM_PROMPT` 等常量在首次使用时才读取配置。"""
+    pass
 
-USER_PROMPT_TEMPLATE = """【Context】
-{context}
 
----
+def __getattr__(name: str):
+    """模块级 __getattr__：当常量被直接 import 时，从配置文件读取。"""
+    _alias_map = {
+        'SYSTEM_PROMPT':       lambda p: p.system_prompt,
+        'USER_PROMPT_TEMPLATE': lambda p: p.user_prompt_template,
+        'REJECTION_PROMPT':    lambda p: p.rejection_prompt,
+        'NO_LLM_PROMPT':       lambda p: p.no_llm_prompt,
+    }
+    if name in _alias_map:
+        return _alias_map[name](_get_prompts())
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-【问题】
-{query}
 
----
-
-【回答要求】
-请严格基于 Context 回答，每个事实陈述后标注引用。"""
-
-REJECTION_PROMPT = """根据现有文档无法回答此问题。
-
-提示：当前检索得分（{max_score}）低于系统阈值，无法确保回答准确性。
-建议：
-1. 尝试重新表述问题
-2. 上传更多相关文档
-3. 确认文档中确实包含此信息"""
-
-NO_LLM_PROMPT = """【问题】
-{query}
-
-【检索到的相关文档】
-{context}
-
----
-根据上述检索结果，以下是相关信息汇总：
-
-{summary}"""
-
+# ============================================================
+# PromptBuilder 类
+# ============================================================
 
 class PromptBuilder:
     """
-    提示词构建器 - 对齐 TS PromptBuilder class
+    提示词构建器
+
+    参数：
+        system_prompt: 自定义系统提示词字符串（传 None 时从 prompts.yaml 读取）
+        prompts_file:  自定义 prompts.yaml 路径（None = 使用默认路径）
     """
 
-    def __init__(self, system_prompt: str = None):
-        self.system_prompt = system_prompt or SYSTEM_PROMPT
+    def __init__(
+        self,
+        system_prompt: Optional[str] = None,
+        prompts_file: Optional[str] = None,
+    ):
+        self._prompts_file = prompts_file
+        self._override_system_prompt = system_prompt  # None = 使用 yaml
+
+    # ── 属性懒加载 ──────────────────────────────────────────
+
+    @property
+    def _cfg(self):
+        """懒加载 PromptsConfig（带缓存）"""
+        from .config_loader import load_prompts_config
+        return load_prompts_config(self._prompts_file)
+
+    @property
+    def system_prompt(self) -> str:
+        return self._override_system_prompt or self._cfg.system_prompt
+
+    @system_prompt.setter
+    def system_prompt(self, value: str):
+        self._override_system_prompt = value
+
+    # ── 公开接口 ────────────────────────────────────────────
 
     def build(
         self,
@@ -77,17 +89,17 @@ class PromptBuilder:
         context_truncated: bool = False,
     ) -> Tuple[str, str]:
         """
-        构建完整的推理提示词 - 对齐 TS build()
+        构建完整的推理提示词
         Returns: (system_prompt, user_prompt)
         """
         context = self._format_context(context_blocks)
 
         extended_system = self.system_prompt
         if context_truncated:
-            extended_system += '\n\n⚠️ 警告：以下 Context 因长度限制被截断，可能不包含完整信息。'
+            extended_system += self._cfg.system_truncation_suffix
 
         user_prompt = (
-            USER_PROMPT_TEMPLATE
+            self._cfg.user_prompt_template
             .replace('{context}', context)
             .replace('{query}', query)
         )
@@ -96,10 +108,10 @@ class PromptBuilder:
 
     def build_rejection(self, max_score: float) -> Tuple[str, str]:
         """
-        构建拒答提示词 - 对齐 TS buildRejection()
+        构建拒答提示词
         Returns: (system_prompt, user_prompt)
         """
-        user = REJECTION_PROMPT.replace('{max_score}', f'{max_score:.2f}')
+        user = self._cfg.rejection_prompt.replace('{max_score}', f'{max_score:.2f}')
         return self.system_prompt, user
 
     def build_no_llm(
@@ -108,29 +120,26 @@ class PromptBuilder:
         context_blocks: List[ContextBlock],
     ) -> Tuple[str, str]:
         """
-        构建无 LLM 模式提示词 - 对齐 TS buildNoLLM()
+        构建无 LLM 模式提示词
         Returns: (system_prompt, user_prompt)
         """
         context = self._format_context(context_blocks)
         summary = self._summarize_results(context_blocks)
         user = (
-            NO_LLM_PROMPT
+            self._cfg.no_llm_prompt
             .replace('{query}', query)
             .replace('{context}', context)
             .replace('{summary}', summary)
         )
-        return '你是一个信息检索助手，负责汇总检索结果。', user
+        return self._cfg.no_llm_system_prompt, user
 
     def extract_citation_ids(self, answer: str) -> List[int]:
         """
-        从 LLM 回答中提取引用 ID - 对齐 TS extractCitationIds()
+        从 LLM 回答中提取引用 ID
+        使用 dict.fromkeys 保序去重，避免 O(n²) 的 list + not in 模式。
         """
-        ids: List[int] = []
-        for match in re.finditer(r'\[(\d+)\]', answer):
-            cid = int(match.group(1))
-            if cid not in ids:
-                ids.append(cid)
-        return ids
+        raw = [int(m.group(1)) for m in re.finditer(r'\[(\d+)\]', answer)]
+        return list(dict.fromkeys(raw))
 
     def build_stream_message(
         self,
@@ -139,24 +148,22 @@ class PromptBuilder:
         context_truncated: bool = False,
     ) -> str:
         """
-        构建用于流式生成的单条消息 - 对齐 TS buildStreamMessage()
+        构建用于流式生成的单条消息
         """
         context = self._format_context(context_blocks)
-        prompt = f"【Context】\n{context}\n\n"
+        warning = self._cfg.stream_truncation_warning if context_truncated else ''
 
-        if context_truncated:
-            prompt += "⚠️ 注意：Context 因长度限制被截断，以下回答可能不完整。\n\n"
+        return (
+            self._cfg.stream_message_template
+            .replace('{context}', context)
+            .replace('{truncation_warning}', warning)
+            .replace('{query}', query)
+        )
 
-        prompt += f"【问题】{query}\n\n"
-        prompt += "请严格基于 Context 回答，每个事实陈述后标注 [引用ID]。"
-        return prompt
-
-    # ------------------------------------------------------------------ #
-    # 私有辅助                                                             #
-    # ------------------------------------------------------------------ #
+    # ── 私有辅助 ────────────────────────────────────────────
 
     def _format_context(self, blocks: List[ContextBlock]) -> str:
-        """格式化上下文块 - 对齐 TS formatContext()"""
+        """格式化上下文块"""
         if not blocks:
             return '（无相关文档）'
         parts = []
@@ -168,7 +175,7 @@ class PromptBuilder:
         return '\n\n---\n\n'.join(parts)
 
     def _summarize_results(self, blocks: List[ContextBlock]) -> str:
-        """汇总检索结果（无 LLM 模式）- 对齐 TS summarizeResults()"""
+        """汇总检索结果（无 LLM 模式）"""
         lines = []
         for i, block in enumerate(blocks):
             snippet = block.content[:200]
@@ -177,6 +184,9 @@ class PromptBuilder:
         return '\n'.join(lines)
 
 
-def create_prompt_builder(system_prompt: str = None) -> PromptBuilder:
-    """创建提示词构建器 - 对齐 TS createPromptBuilder()"""
-    return PromptBuilder(system_prompt)
+def create_prompt_builder(
+    system_prompt: Optional[str] = None,
+    prompts_file: Optional[str] = None,
+) -> PromptBuilder:
+    """创建提示词构建器"""
+    return PromptBuilder(system_prompt, prompts_file)

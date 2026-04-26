@@ -1,17 +1,17 @@
-# 推理与引用层依赖
+# ============================================================
+# 推理与引用层 (Reasoning Layer) 独立依赖
 # 运行：pip install -r requirements.txt
+#
+# 注意：该文件已被精简，仅保留 reasoning 服务实际导入运行的精简依赖。
+# ============================================================
 
-# Web 框架
+# ── Web 框架 ──────────────────────────────
 flask>=2.3.0
-flask-sock>=0.7.0       # WebSocket 支持（预留接口：若不需要 WS 可不装）
+flask-sock>=0.7.0         # WebSocket 长链接支持
 
-# LLM 调用
-openai>=1.0.0           # 支持 OpenAI 兼容 API
+# ── LLM 调用 ──────────────────────────────
+openai>=1.0.0             # OpenAI 兼容 API（支持 Qwen/Kimi/GLM5/MiniMax）
 
-# retrieval.py 依赖（已在 backend/LLM 中使用）
-# langchain-community>=0.2.0
-# langchain-huggingface>=0.0.3
-# sentence-transformers>=2.6.0
-
-# 工具
-python-dotenv>=1.0.0    # 可选：从 .env 读取配置
+# ── 配置解析 ──────────────────────────────
+PyYAML>=6.0.0             # yaml 配置文件解析 (config_loader.py)
+python-dotenv>=1.0.0      # .env 环境变量解析

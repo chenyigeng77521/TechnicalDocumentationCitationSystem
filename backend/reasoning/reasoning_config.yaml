@@ -1,0 +1,76 @@
+# ============================================================
+# 推理层静态参数配置
+# reasoning_config.yaml
+#
+# 修改后无需重启服务，调用 config_loader.reload_configs() 即可热生效。
+# 所有字段均有内置默认值，缺省时回退到代码默认值。
+# ============================================================
+
+
+# ── 拒答守卫 (RejectionGuard) ────────────────────────────────
+rejection:
+  # reranker_score 低于此值时触发拒答（LOW_SCORE）
+  # 取值范围：0.0 ~ 1.0，越高越严格
+  score_threshold: 0.4
+
+
+# ── 上下文治理 (ContextGovernor) ────────────────────────────
+governance:
+  # 最大上下文 token 数（超出时截断）
+  max_context_tokens: 6000
+
+  # 去重：Jaccard 相似度阈值，超过此值视为重复（保留高分块）
+  # 取值范围：0.0 ~ 1.0，越高越宽松（越少被去重）
+  deduplication_threshold: 0.95
+
+  # 冲突解决策略
+  # 可选值：keep_higher_score | keep_both | merge
+  conflict_resolution: keep_higher_score
+
+  # 低分过滤：reranker_score 低于此值的块直接丢弃
+  min_score_threshold: 0.1
+
+  # 冲突判定：同文件两块的字符偏移差小于此值，才进行相似度判断
+  conflict_offset_threshold: 500
+
+  # 冲突判定：Jaccard 相似度超过此值才视为冲突
+  conflict_similarity_threshold: 0.7
+
+  # 分词最小长度：分词结果中长度 <= 此值的 token 被过滤
+  token_min_length: 2
+
+
+# ── 上下文注入 (ContextInjector) ────────────────────────────
+injection:
+  # 最大 token 数（与 governance.max_context_tokens 含义相同，
+  # 可独立调整注入层的 token 预算）
+  max_tokens: 6000
+
+  # 去重：余弦相似度阈值（TF 向量），超过此值视为重复
+  deduplication_threshold: 0.95
+
+  # token → 字符数换算系数（粗估：1 token ≈ N chars）
+  chars_per_token: 4
+
+
+# ── 引用验证 (CitationVerifier) ─────────────────────────────
+verification:
+  # Token 匹配率 >= 此值时，验证状态置为 VERIFIED
+  # 取值范围：0.0 ~ 1.0
+  verified_threshold: 0.8
+
+  # 提取引用上下文时，引用标记前后各取 N 个字符作为 claim_text
+  context_window_chars: 50
+
+  # snippet 摘要最大字符数（用于 CitationSource.snippet 字段）
+  snippet_length: 100
+
+
+# ── 检索 (ReasoningPipeline / webui) ────────────────────────
+retrieval:
+  # retrieve_chunks() 默认检索数量（top_k）
+  default_top_k: 5
+
+  # anchor_id 偏移估算步长（预留接口：建库时未存入精确偏移，故按排名估算）
+  # anchor_id = file_path#{rank * anchor_offset_step}
+  anchor_offset_step: 1000

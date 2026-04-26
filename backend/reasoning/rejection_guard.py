@@ -1,18 +1,16 @@
 """
 拒答守卫
 核心要求 4: 边界严控（拒答）- 严格限制推理范围
-对齐 TypeScript: backend/chunking-rag/src/Reasoning/rejection_guard.ts
 """
 
 from __future__ import annotations
 from enum import Enum
 from typing import List, Optional
 from dataclasses import dataclass, field
-from .types import RetrievedChunk, RERANKER_SCORE_THRESHOLD
+from ._types import RetrievedChunk, RERANKER_SCORE_THRESHOLD
 
 
 # ============================================================
-# 对齐 TS: RejectionReason enum
 # ============================================================
 class RejectionReason(str, Enum):
     NO_CHUNKS            = 'no_chunks'
@@ -22,7 +20,6 @@ class RejectionReason(str, Enum):
 
 
 # ============================================================
-# 对齐 TS: RejectionResult interface
 # ============================================================
 @dataclass
 class RejectionResult:
@@ -35,7 +32,7 @@ class RejectionResult:
 
 class RejectionGuard:
     """
-    拒答守卫 - 对齐 TS RejectionGuard class
+    拒答守卫
     在进入 LLM 推理之前进行多重检查
     """
 
@@ -44,7 +41,7 @@ class RejectionGuard:
 
     def evaluate(self, query: str, chunks: List[RetrievedChunk]) -> RejectionResult:
         """
-        检查是否应该拒答 - 对齐 TS evaluate()
+        检查是否应该拒答
         """
         # 1. 空查询检查
         if not query or not query.strip():
@@ -102,7 +99,7 @@ class RejectionGuard:
 
     def generate_rejection_message(self, result: RejectionResult) -> str:
         """
-        生成拒答消息 - 对齐 TS generateRejectionMessage()
+        生成拒答消息
         """
         if result.reason == RejectionReason.NO_CHUNKS:
             return (
@@ -130,14 +127,16 @@ class RejectionGuard:
 
     def get_debug_info(self, result: RejectionResult) -> str:
         """
-        获取调试信息（供评委验证检索质量）- 对齐 TS getDebugInfo()
+        获取调试信息（供评委验证检索质量）
         """
         if not result.debug_info:
             return ''
         d = result.debug_info
         top_scores_str = ', '.join(f'{s:.2f}' for s in d.get('top_scores', []))
+        # 修复：将条件表达式从格式化字符串中拆出，提高可读性
+        score_str = f"{result.max_score:.2f}" if result.max_score is not None else "N/A"
         info = '\n\n--- 调试信息（供评委验证）---\n'
-        info += f"最高检索得分: {result.max_score:.2f if result.max_score is not None else 'N/A'}\n"
+        info += f"最高检索得分: {score_str}\n"
         info += f"系统阈值: {d.get('threshold')}\n"
         info += f"检索到的文档块数: {d.get('chunk_count')}\n"
         info += f"Top 5 得分: [{top_scores_str}]\n"
@@ -145,16 +144,17 @@ class RejectionGuard:
         return info
 
     def set_threshold(self, threshold: float) -> None:
-        """设置得分阈值 - 对齐 TS setThreshold()"""
+        """设置得分阈值"""
         self.score_threshold = threshold
 
     def get_threshold(self) -> float:
-        """获取当前阈值 - 对齐 TS getThreshold()"""
+        """获取当前阈值"""
         return self.score_threshold
 
 
 def create_rejection_guard(score_threshold: float = None) -> RejectionGuard:
-    """创建拒答守卫 - 对齐 TS createRejectionGuard()"""
+    """创建拒答守卫，默认阈值来自 reasoning_config.yaml"""
     if score_threshold is not None:
         return RejectionGuard(score_threshold)
-    return RejectionGuard()
+    from .config_loader import load_reasoning_config
+    return RejectionGuard(load_reasoning_config().score_threshold)

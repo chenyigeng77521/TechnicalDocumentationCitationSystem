@@ -8,12 +8,10 @@ Layer 3: 上下文注入 → LLM 推理 → 引用验证 Pipeline
 3. 动态治理（清理）- 实时剔除冗余或冲突信息
 4. 边界严控（拒答）- 严格限制推理范围，杜绝模型幻觉
 5. 效能平衡（分级）- 通过异步校对与分级验证实现最优解
-
-对齐 TypeScript: backend/chunking-rag/src/Reasoning/index.ts
 """
 
-# 导出类型 - 对齐 TS: export * from './types.js'
-from .types import (
+# 导出类型
+from ._types import (
     VerificationStatus,
     RetrievedChunk,
     ContextBlock,
@@ -33,7 +31,7 @@ from .types import (
     StreamEventError,
 )
 
-# 导出组件 - 对齐 TS 各 export
+# 导出组件
 from .context_injector import ContextInjector, create_context_injector
 from .prompt_builder import PromptBuilder, create_prompt_builder
 from .citation_verifier import CitationVerifier, create_citation_verifier
@@ -47,7 +45,7 @@ from .reasoning_pipeline import (
 )
 from .webui import ReasoningWebUI, create_reasoning_web_ui
 
-# 主类别名 - 对齐 TS: export { ReasoningPipeline as ReasoningEngine }
+# 主类别名
 ReasoningEngine = ReasoningPipeline
 
 __all__ = [

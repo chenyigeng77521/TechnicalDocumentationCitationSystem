@@ -1,7 +1,11 @@
 """
 推理与引用层 (Reasoning Layer)
 服务启动入口
-对齐 TypeScript: backend/chunking-rag/src/server.ts（部分）
+
+v2 变更：
+  - LLM 配置改由 .env 统一管理
+  - 命令行新增 --provider 参数，可覆盖 yaml 中的 active_provider
+  - 环境变量（LLM_API_KEY / LLM_MODEL / LLM_BASE_URL）优先级最高
 """
 
 from __future__ import annotations
@@ -9,6 +13,17 @@ import os
 import sys
 import argparse
 import logging
+
+try:
+    from dotenv import load_dotenv
+    _DOTENV_AVAILABLE = True
+except ImportError:
+    load_dotenv = None  # type: ignore
+    _DOTENV_AVAILABLE = False
+
+from pathlib import Path
+if _DOTENV_AVAILABLE:
+    load_dotenv(Path(__file__).parent / '.env')
 
 from flask import Flask
 
@@ -23,38 +38,51 @@ def create_app(
     llm_api_key: str = None,
     llm_base_url: str = None,
     llm_model: str = None,
+    llm_provider: str = None,
     score_threshold: float = None,
     fake_llm: bool = False,
 ) -> Flask:
-    """创建 Flask 应用"""
+    """
+    创建 Flask 应用。
+
+    LLM 配置优先级（从高到低）：
+      1. 本函数的显式参数（llm_api_key / llm_model / llm_base_url）
+      2. 环境变量（LLM_API_KEY / LLM_MODEL / LLM_BASE_URL / LLM_PROVIDER）
+      3. .env 中 LLM_ACTIVE_PROVIDER 对应的配置块
+
+    参数：
+      llm_provider: 指定 provider 名称（glm5 / kimi / minimax / qwen / openai）
+    """
     from .reasoning_pipeline import ReasoningPipelineConfig, LLMConfig
     from .webui import create_reasoning_web_ui
 
     cfg = ReasoningPipelineConfig()
 
-    # LLM 配置
     if fake_llm:
         logger.info("🧪 使用 Fake LLM 模式（不调用真实 API）")
         cfg.llm = None  # 使用内置 no-LLM 响应
     elif llm_api_key:
+        # 显式传入 API KEY → 直接构造（跳过 yaml）
         cfg.llm = LLMConfig(
             api_key=llm_api_key,
-            base_url=llm_base_url,
+            base_url=llm_base_url or '',
             model=llm_model or 'gpt-4-turbo',
+            provider=llm_provider or 'custom',
         )
+        logger.info(f"🤖 使用显式传入的 LLM 配置: model={cfg.llm.model!r}")
+    else:
+        # 从 .env 加载（provider 参数可覆盖 LLM_ACTIVE_PROVIDER）
+        cfg.llm = LLMConfig.from_file(provider=llm_provider)
 
     if score_threshold is not None:
         cfg.score_threshold = score_threshold
 
-    # 创建应用
     app = Flask(__name__)
     app.config['JSON_ENSURE_ASCII'] = False
 
     webui = create_reasoning_web_ui(cfg)
     bp = webui.create_blueprint()
     app.register_blueprint(bp)
-
-    # 注册 WebSocket（依赖 flask-sock）
     webui.register_websocket(app)
 
     return app
@@ -63,7 +91,7 @@ def create_app(
 def run_test(fake_llm: bool = False):
     """运行测试查询"""
     from .reasoning_pipeline import create_reasoning_pipeline, ReasoningPipelineConfig
-    from .types import ReasoningRequest
+    from ._types import ReasoningRequest
 
     logger.info("🧪 运行测试查询...")
     pipeline = create_reasoning_pipeline()
@@ -94,9 +122,14 @@ def main():
     parser.add_argument('--fake-llm', action='store_true', help='使用 Fake LLM（测试模式）')
     parser.add_argument('--test', action='store_true', help='运行测试查询后退出')
     parser.add_argument('--score-threshold', type=float, default=None, help='拒答分数阈值')
+    parser.add_argument(
+        '--provider',
+        default=None,
+        help='指定 LLM provider（glm5/kimi/minimax/qwen/openai），覆盖 .env 中的 LLM_ACTIVE_PROVIDER',
+    )
     args = parser.parse_args()
 
-    # 从环境变量读取 LLM 配置
+    # 环境变量（向后兼容，优先于 yaml，但低于 --provider 参数）
     llm_api_key = os.environ.get('LLM_API_KEY') or os.environ.get('OPENAI_API_KEY')
     llm_base_url = os.environ.get('LLM_BASE_URL') or os.environ.get('OPENAI_BASE_URL')
     llm_model = os.environ.get('LLM_MODEL')
@@ -109,6 +142,7 @@ def main():
         llm_api_key=llm_api_key,
         llm_base_url=llm_base_url,
         llm_model=llm_model,
+        llm_provider=args.provider,
         score_threshold=args.score_threshold,
         fake_llm=args.fake_llm,
     )

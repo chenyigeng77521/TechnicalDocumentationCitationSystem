@@ -1,6 +1,5 @@
 """
 推理与引用层 - 类型定义
-严格对齐 TypeScript 层: backend/chunking-rag/src/Reasoning/types.ts
 Layer 3: 上下文注入 → LLM 推理 → 引用验证 Pipeline
 """
 
@@ -11,8 +10,6 @@ from enum import Enum
 
 
 # ============================================================
-# 对齐 TS: VerificationStatus (string union type)
-# ============================================================
 class VerificationStatus(str, Enum):
     PENDING   = 'pending'
     VERIFIED  = 'verified'
@@ -21,11 +18,9 @@ class VerificationStatus(str, Enum):
 
 
 # ============================================================
-# 对齐 TS: RetrievedChunk interface
-# ============================================================
 @dataclass
 class RetrievedChunk:
-    """检索到的文档块（带完整元数据）- 对齐 TS RetrievedChunk"""
+    """检索到的文档块（带完整元数据）"""
     chunk_id: str                        # sha256(file_path + chunk_index + content[:100])
     file_path: str                       # 文件路径
     file_hash: str                       # 文件哈希
@@ -45,11 +40,9 @@ class RetrievedChunk:
 
 
 # ============================================================
-# 对齐 TS: ContextBlock interface
-# ============================================================
 @dataclass
 class ContextBlock:
-    """上下文块（注入格式）- 对齐 TS ContextBlock"""
+    """上下文块（注入格式）"""
     id: int                              # 从 1 开始的序号
     source: str                          # Source: file_path | title_path
     content: str                         # 块内容
@@ -60,26 +53,22 @@ class ContextBlock:
 
 
 # ============================================================
-# 对齐 TS: CitationSource interface
-# ============================================================
 @dataclass
 class CitationSource:
-    """引用来源（用于前端展示）- 对齐 TS CitationSource"""
+    """引用来源（用于前端展示）"""
     id: int                                         # 引用 ID（与 ContextBlock.id 对应）
     anchor_id: str                                  # 锚点 ID
     title_path: Optional[str]                       # 可读标题路径
     score: float                                    # 检索得分
     verification_status: VerificationStatus         # 验证状态
     file_path: str                                  # 文件路径
-    snippet: str                                    # 内容摘要（前 100 字符）
+    snippet: str                                    # 内容摘要（前 N 字符）
 
 
-# ============================================================
-# 对齐 TS: VerificationResult interface
 # ============================================================
 @dataclass
 class VerificationResult:
-    """验证结果 - 对齐 TS VerificationResult"""
+    """验证结果"""
     citation_id: int
     key_tokens: List[str]                # 关键 token（名词、数字、版本号）
     matched_tokens: List[str]            # 匹配到的 token
@@ -88,22 +77,18 @@ class VerificationResult:
 
 
 # ============================================================
-# 对齐 TS: ClaimedCitation interface
-# ============================================================
 @dataclass
 class ClaimedCitation:
-    """声称的引用（从 LLM 回答中提取）- 对齐 TS ClaimedCitation"""
+    """声称的引用（从 LLM 回答中提取）"""
     citation_id: int                     # 引用的 [n] ID
     claim_text: str                      # 声称的内容
     key_tokens: List[str]                # 关键 token
 
 
 # ============================================================
-# 对齐 TS: ReasoningRequest interface
-# ============================================================
 @dataclass
 class ReasoningRequest:
-    """推理请求 - 对齐 TS ReasoningRequest"""
+    """推理请求"""
     query: str                           # 用户问题
     chunks: List[RetrievedChunk]         # 检索到的 chunks
     max_tokens: Optional[int] = None     # 最大 token 数
@@ -112,11 +97,9 @@ class ReasoningRequest:
 
 
 # ============================================================
-# 对齐 TS: ReasoningResponse interface
-# ============================================================
 @dataclass
 class ReasoningResponse:
-    """推理响应 - 对齐 TS ReasoningResponse"""
+    """推理响应"""
     answer: str                                          # 回答内容
     citations: List[CitationSource]                      # 引用的来源列表
     no_evidence: bool                                    # 是否无证据拒答
@@ -124,23 +107,20 @@ class ReasoningResponse:
     confidence: float                                    # 置信度
     context_truncated: bool                              # 上下文是否被截断
     rejected_reason: Optional[str] = None               # 拒答原因（如果有）
-    verification_results: Optional[List[VerificationResult]] = None  # 验证结果（同步）
+    verification_results: Optional[List[VerificationResult]] = None  # 验证结果
 
 
-# ============================================================
-# 对齐 TS: GovernanceConfig interface
 # ============================================================
 @dataclass
 class GovernanceConfig:
-    """上下文治理配置 - 对齐 TS GovernanceConfig"""
+    """上下文治理配置"""
     max_context_tokens: int = 6000
     conflict_resolution: Literal['keep_both', 'keep_higher_score', 'merge'] = 'keep_higher_score'
     deduplication_threshold: float = 0.95
 
 
 # ============================================================
-# 对齐 TS: ReasoningStreamEvent union type
-# Python 用 TypedDict / dataclass 表示各 event 类型
+# 流式事件类型
 # ============================================================
 @dataclass
 class StreamEventToken:
@@ -173,18 +153,15 @@ class StreamEventError:
 
 
 # ============================================================
-# 常量 - 对齐 TS 常量定义
+# 常量（默认值，可由 reasoning_config.yaml 覆盖）
 # ============================================================
 
-# 对齐 TS: DEFAULT_GOVERNANCE_CONFIG
 DEFAULT_GOVERNANCE_CONFIG = GovernanceConfig(
     max_context_tokens=6000,
     conflict_resolution='keep_higher_score',
     deduplication_threshold=0.95,
 )
 
-# 对齐 TS: RERANKER_SCORE_THRESHOLD
 RERANKER_SCORE_THRESHOLD: float = 0.4
 
-# 对齐 TS: DEFAULT_MAX_TOKENS
 DEFAULT_MAX_TOKENS: int = 6000
