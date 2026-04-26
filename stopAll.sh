@@ -31,9 +31,33 @@ else
     echo "   ⚠️  前端未运行"
 fi
 
+# 停止知识库查询服务
+echo ""
+echo "3️⃣ 停止知识库查询服务 (18020)..."
+KNOWLEDGE_PID=$(lsof -ti:18020 2>/dev/null)
+if [ -n "$KNOWLEDGE_PID" ]; then
+    kill -9 $KNOWLEDGE_PID 2>/dev/null
+    sleep 1
+    echo "   ✅ 知识库查询服务已停止 (PID: $KNOWLEDGE_PID)"
+else
+    echo "   ⚠️  知识库查询服务未运行"
+fi
+
+# 停止 Wiki 更新服务
+echo ""
+echo "4️⃣ 停止 Wiki 更新服务 (18010)..."
+WIKI_PID=$(lsof -ti:18010 2>/dev/null)
+if [ -n "$WIKI_PID" ]; then
+    kill -9 $WIKI_PID 2>/dev/null
+    sleep 1
+    echo "   ✅ Wiki 更新服务已停止 (PID: $WIKI_PID)"
+else
+    echo "   ⚠️  Wiki 更新服务未运行"
+fi
+
 # 停止后端
 echo ""
-echo "3️⃣ 停止后端服务 (3002)..."
+echo "5️⃣ 停止后端服务 (3002)..."
 BACKEND_PID=$(lsof -ti:3002 2>/dev/null)
 if [ -n "$BACKEND_PID" ]; then
     kill -9 $BACKEND_PID 2>/dev/null
@@ -45,7 +69,7 @@ fi
 
 # 停止 Nginx
 echo ""
-echo "4️⃣ 停止 Nginx..."
+echo "6️⃣ 停止 Nginx..."
 NGINX_PID=$(pgrep -x "nginx" 2>/dev/null)
 if [ -n "$NGINX_PID" ]; then
     /usr/local/nginx/sbin/nginx -s stop 2>/dev/null
@@ -64,5 +88,7 @@ echo "📊 最终状态:"
 echo "  Nginx: $(pgrep -x 'nginx' > /dev/null 2>&1 && echo '✅ 运行中' || echo '❌ 已停止')"
 echo "  FirstLayer: $(lsof -i:3004 2>/dev/null | grep -q LISTEN && echo '✅ 运行中' || echo '❌ 已停止')"
 echo "  后端：$(lsof -i:3002 2>/dev/null | grep -q LISTEN && echo '✅ 运行中' || echo '❌ 已停止')"
+echo "  Wiki更新：$(lsof -i:18010 2>/dev/null | grep -q LISTEN && echo '✅ 运行中' || echo '❌ 已停止')"
+echo "  知识库查询：$(lsof -i:18020 2>/dev/null | grep -q LISTEN && echo '✅ 运行中' || echo '❌ 已停止')"
 echo "  前端：$(lsof -i:3000 2>/dev/null | grep -q LISTEN && echo '✅ 运行中' || echo '❌ 已停止')"
 echo ""
