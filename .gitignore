@@ -12,3 +12,19 @@ eval/report-*.md
 
 # 个人本地归档（不提交）
 backend/back/
+
+# 用户上传的原始文件 / 系统生成的索引数据（不提交，每个开发者本地独立）
+backend/storage/raw/*
+backend/storage/index/*.db*
+# 但保留目录结构（让 git 知道该有这俩目录）
+!backend/storage/raw/.gitkeep
+!backend/storage/index/.gitkeep
+
+# Ingestion 运行时产物（log / pid 等动态生成）
+backend/ingestion/logs/*
+!backend/ingestion/logs/.gitkeep
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+
