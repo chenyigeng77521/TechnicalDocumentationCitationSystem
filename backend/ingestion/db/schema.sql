@@ -40,11 +40,14 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS idx_chunks_file    ON chunks(file_path);
 CREATE INDEX IF NOT EXISTS idx_chunks_version ON chunks(index_version);
 
+-- tokenize='trigram' 让中文按 3 字符分词，支持中文子串匹配
+-- （unicode61 默认按空格切，中文连续没空格会被当成单一 token，搜不到）
+-- 代价：索引体积约 3x，对短英文词（< 3 字符）失效（BM25 本来对短词也没意义）
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     chunk_id UNINDEXED,
     content,
     title_path,
-    tokenize = 'unicode61 remove_diacritics 2'
+    tokenize = 'trigram'
 );
 
 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
