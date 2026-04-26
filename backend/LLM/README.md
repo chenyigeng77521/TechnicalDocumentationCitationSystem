@@ -39,8 +39,13 @@
 └─────────────────────────────────────────────────────────────┘
 ↓
 ┌─────────────────────────────────────────────────────────────┐
+│ 上下文扩展 (Context Expansion, 可选)                         │
+│ 为每个 chunk 补全同文件相邻 chunk，拼接后重排序               │
+└─────────────────────────────────────────────────────────────┘
+↓
+┌─────────────────────────────────────────────────────────────┐
 │ 重排序 (Reranker)                                            │
-│ CrossEncoder 精细打分排序                                    │
+│ CrossEncoder 对扩展后的上下文精细打分排序                    │
 └─────────────────────────────────────────────────────────────┘
 ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -85,8 +90,15 @@
 
 ### 7. CrossEncoder 重排序
 - 使用 `bge-reranker-base` 对候选结果精细打分
+- **上下文扩展**：重排序前自动补合同文件前后相邻 chunk，CrossEncoder 基于更大上下文打分更准确
+- 可通过 `RERANK_CONTEXT_WINDOW` 控制扩展窗口大小（0 关闭，默认 1）
 - 支持惰性加载，首次使用时才初始化模型
 - 可通过 `use_rerank=False` 禁用，提升速度
+
+### 8. 可调超时与边界配置
+- `SEARCH_TIMEOUT` / `HEALTH_TIMEOUT`：控制 API 超时（默认 30s / 5s）
+- `ADAPTIVE_TOPK_MIN` / `ADAPTIVE_TOPK_MAX`：控制自适应 TopK 返回数量边界（默认 5 / 25）
+- `RERANK_TOP_N`：控制重排序后最终返回文档数（默认 3）
 
 ## 安装配置
 
@@ -149,6 +161,18 @@ QUERY_EXPANSION_NUM=3
 # LLM API 配置（查询扩展必需）
 OPENAI_API_KEY=sk-xxx
 # OPENAI_API_BASE=https://api.openai.com/v1   # 可选，用于代理
+
+# ==================== 重排序配置 ====================
+RERANK_TOP_N=3              # 重排序后返回文档数
+RERANK_CONTEXT_WINDOW=1     # 上下文扩展窗口（0 关闭）
+
+# ==================== API 超时配置 ====================
+SEARCH_TIMEOUT=30           # 向量/BM25 检索超时（秒）
+HEALTH_TIMEOUT=5            # 健康检查超时（秒）
+
+# ==================== 自适应 TopK 边界 ====================
+ADAPTIVE_TOPK_MIN=5         # 最小返回数量
+ADAPTIVE_TOPK_MAX=25        # 最大返回数量
 ```
 
 或在命令行设置：
@@ -248,7 +272,7 @@ print(f"推荐返回数量: {k}")
 # pipeline 内部会自动调用 adaptive_topk_simple，无需手动处理
 ```
 
-#### 5. 只使用重排序
+#### 5. 只使用重排序（支持上下文扩展）
 
 ```python
 from retrieval import get_reranker
@@ -256,8 +280,8 @@ from retrieval import get_reranker
 # 获取重排序器（惰性加载，首次调用时才初始化）
 reranker = get_reranker()
 
-# 对已有结果重排序
-docs = [...]  # 已有的 Document 列表
+# 对已有结果重排序（内部自动按 file_path 补全相邻 chunk 作为上下文）
+docs = [...]  # 已有的 Document 列表，需包含 file_path 和 char_offset_start
 reranked_docs = reranker.rerank("查询内容", docs)
 ```
 
@@ -306,6 +330,12 @@ RERANKER_MODEL = "BAAI/bge-reranker-base"
 | `use_bm25` | bool | True | 是否启用 BM25 API 检索 |
 | `use_rerank` | bool | True | 是否启用 CrossEncoder 重排序 |
 | `use_query_expansion` | bool | False | 是否启用查询扩展 |
+| `RERANK_TOP_N` | int | 3 | 重排序后返回文档数 |
+| `RERANK_CONTEXT_WINDOW` | int | 1 | 重排序上下文扩展窗口（0 关闭） |
+| `SEARCH_TIMEOUT` | int | 30 | API 检索超时（秒） |
+| `HEALTH_TIMEOUT` | int | 5 | 健康检查超时（秒） |
+| `ADAPTIVE_TOPK_MIN` | int | 5 | 自适应 TopK 最小值 |
+| `ADAPTIVE_TOPK_MAX` | int | 25 | 自适应 TopK 最大值 |
 
 ```python
 # 在代码中调用时传入
@@ -506,6 +536,7 @@ python3 test_retrieval_mock.py
 - Pipeline 混合检索（向量 + BM25 合并去重）
 - 查询扩展降级（无 LLM 配置）
 - Pipeline 查询扩展多路检索
+- 重排序上下文扩展（相邻 chunk 补全）
 
 ### 快速测试脚本
 
@@ -544,8 +575,9 @@ if __name__ == "__main__":
 2. **API 依赖**：系统完全依赖远程向量库 API（默认 `http://localhost:18082`），确保向量库服务正常运行
 3. **内存使用**：重排序模型约占用 2-3GB 内存，向量模型约 1-2GB，可通过 `use_rerank=False` 减少内存占用
 4. **查询扩展成本**：启用查询扩展后，每个变体会增加 2 次 API 调用（向量 + BM25）和 1 次 LLM 调用，请根据实际场景权衡召回率与成本
-5. **惰性加载**：`import retrieval` 时不会加载任何模型，首次调用 `get_embedding_model()` 或 `pipeline()` 时才初始化
-6. **无需本地数据文件**：系统不再依赖 `doc_chunks.pkl`、本地 SQLite 或 BM25 索引，所有检索均走 API
+5. **上下文扩展要求**：重排序上下文扩展依赖 `file_path` 和 `char_offset_start` metadata，如果向量库返回结果不包含这些字段，扩展将自动回退为不扩展
+6. **惰性加载**：`import retrieval` 时不会加载任何模型，首次调用 `get_embedding_model()` 或 `pipeline()` 时才初始化
+7. **无需本地数据文件**：系统不再依赖 `doc_chunks.pkl`、本地 SQLite 或 BM25 索引，所有检索均走 API
 
 ## 故障排查
 
@@ -583,6 +615,12 @@ print(f"前5个值: {vec[:5]}")
 
 ## 版本历史
 
+- **v2.1.0** (2026-04-25): 重排序增强与配置优化
+  - 新增重排序上下文扩展：按 file_path 补全相邻 chunk 作为 CrossEncoder 输入
+  - 新增 `RERANK_CONTEXT_WINDOW` 环境变量控制上下文窗口
+  - 新增 `RERANK_TOP_N`、`SEARCH_TIMEOUT`、`HEALTH_TIMEOUT`、`ADAPTIVE_TOPK_MIN`/`MAX` 等环境变量
+  - 所有环境变量统一提取到配置代码块，支持模块级统一管理
+  - 测试覆盖扩展至 32 项（新增上下文扩展测试）
 - **v2.0.0** (2026-04-25): 架构重构为纯 API 双路检索模式
   - 向量检索改为调用 `/chunks/vector-search` API
   - BM25 检索改为调用 `/chunks/text-search` API
