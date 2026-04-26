@@ -73,7 +73,7 @@ else
     echo "   🔄 启动 FirstLayer 服务..."
     cd "$current_path/backend/firstlayer/category_classifier"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
-    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/firstlayer.log" 2>&1 &
+    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/category_classifier.log" 2>&1 &
     FIRSTLAYER_PID=$!
     echo "   进程 PID: $FIRSTLAYER_PID"
     # 使用循环检测服务是否启动成功
