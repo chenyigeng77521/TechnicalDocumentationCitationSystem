@@ -30,21 +30,6 @@ else
     fi
 fi
 
-# 启动 Wiki 更新服务 (update_wiki.py, 端口 18010)
-echo ""
-echo "2️⃣ 启动 Wiki 更新服务 (18010)..."
-if lsof -i:18010 2>/dev/null | grep -q LISTEN; then
-    echo "   ✅ Wiki 更新服务已运行"
-else
-    cd "$current_path/UpdateWiki"
-    nohup python3 update_wiki.py --serve --port 18010 > "$LOGS_DIR/update_wiki.log" 2>&1 &
-    sleep 3
-    if lsof -i:18010 2>/dev/null | grep -q LISTEN; then
-        echo "   ✅ Wiki 更新服务已启动"
-    else
-        echo "   ❌ Wiki 更新服务启动失败，请检查日志: $LOGS_DIR/update_wiki.log"
-    fi
-fi
 
 echo ""
 echo "========================================"
@@ -53,13 +38,10 @@ echo "========================================"
 echo ""
 echo "📊 服务状态:"
 echo "  知识库查询：$(lsof -i:18020 2>/dev/null | grep -q LISTEN && echo '✅ 运行中' || echo '❌ 未启动')  端口 18020"
-echo "  Wiki 更新：$(lsof -i:18010 2>/dev/null | grep -q LISTEN && echo '✅ 运行中' || echo '❌ 未启动')  端口 18010"
 echo ""
 echo "🌐 访问地址:"
 echo "  知识库查询: http://localhost:18020/docs"
-echo "  Wiki 更新:  http://localhost:18010/docs"
 echo ""
 echo "📝 日志文件:"
 echo "  知识库查询: $LOGS_DIR/knowledge_api.log"
-echo "  Wiki 更新:  $LOGS_DIR/update_wiki.log"
 echo ""
