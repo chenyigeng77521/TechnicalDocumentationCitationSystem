@@ -2,6 +2,9 @@
 > knowledge-qa-system@1.0.0 start
 > node dist/server.js
 
+📝 已加载环境变量：/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/.env
+🔧 ENABLE_QUESTION_CLASSIFICATION: true
+🔧 Config loaded: firstlayer.enabled = true
 
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
@@ -18,5 +21,171 @@
    GET    /api/qa/stats         - 统计信息
    DELETE /api/qa/files/:name  - 删除文件
 
-📤 上传文件：FINAL-REPORT.md
-✅ 上传完成：FINAL-REPORT.md
+📥 收到问题（流式）: ddd
+❌ 语言错误：中文比例 0% < 30%
+📥 收到问题（流式）: 你好
+🔄 正在对问题分类：你好...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 你是
+🔄 正在对问题分类：你是...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 你是谁
+🔄 正在对问题分类：你是谁...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 你谁
+🔄 正在对问题分类：你谁...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 公司差旅报销的标准是什么？
+🔄 正在对问题分类：公司差旅报销的标准是什么？...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 如何申请年假？
+🔄 正在对问题分类：如何申请年假？...
+✅ 分类完成：PROC (置信度：0.7)
+📥 收到问题（流式）: 新员工入职需要准备哪些材料？
+🔄 正在对问题分类：新员工入职需要准备哪些材料？...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 产品发布流程是怎样的？
+🔄 正在对问题分类：产品发布流程是怎样的？...
+✅ 分类完成：PROC (置信度：0.8)
+📥 收到问题（流式）: 新员工入职需要准备哪些材料？
+🔄 正在对问题分类：新员工入职需要准备哪些材料？...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 测试
+🔄 正在对问题分类：测试...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 测试
+🔄 正在对问题分类：测试...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 你怎么知道的
+🔄 正在对问题分类：你怎么知道的...
+✅ 分类完成：PROC (置信度：0.7)
+📥 收到问题（流式）: 新生入职
+🔄 正在对问题分类：新生入职...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 新生入职需要准备什么
+🔄 正在对问题分类：新生入职需要准备什么...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 新员工入职需要准备哪些材料？
+🔄 正在对问题分类：新员工入职需要准备哪些材料？...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 新员工入职需要准备什么？
+🔄 正在对问题分类：新员工入职需要准备什么？...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 新生入职需要准备什么资料
+🔄 正在对问题分类：新生入职需要准备什么资料...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 新生入职需要准备哪些资料
+🔄 正在对问题分类：新生入职需要准备哪些资料...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 啥
+🔄 正在对问题分类：啥...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 你
+🔄 正在对问题分类：你...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 咋滴
+🔄 正在对问题分类：咋滴...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 咋整啊
+🔄 正在对问题分类：咋整啊...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 这个问题咋整啊
+🔄 正在对问题分类：这个问题咋整啊...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 测试
+🔄 正在对问题分类：测试...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 测试系统
+🔄 正在对问题分类：测试系统...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 我想测试
+🔄 正在对问题分类：我想测试...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 我想测试你的
+🔄 正在对问题分类：我想测试你的...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 并不在
+🔄 正在对问题分类：并不在...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 您在干涩很美
+🔄 正在对问题分类：您在干涩很美...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 你在干什么
+🔄 正在对问题分类：你在干什么...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 了就放辣椒发了发
+🔄 正在对问题分类：了就放辣椒发了发...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 从哪里来
+🔄 正在对问题分类：从哪里来...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 您从哪里来
+🔄 正在对问题分类：您从哪里来...
+✅ 分类完成：FACT (置信度：0.7)
+📥 收到问题（流式）: 找一下964配置
+🔄 正在对问题分类：找一下964配置...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📥 收到问题（流式）: 964业务怎么配置
+🔄 正在对问题分类：964业务怎么配置...
+✅ 分类完成：PROC (置信度：0.7)
+📥 收到问题（流式）: 请找一下这个配置
+🔄 正在对问题分类：请找一下这个配置...
+❌ 问题分类失败: connect ECONNREFUSED 127.0.0.1:3004
+📥 收到问题（流式）: 电动的
+🔄 正在对问题分类：电动的...
+✅ 分类完成：COMP (置信度：0.7)
+📥 收到问题（流式）: 新员工入职需要准备哪些材料？
+🔄 正在对问题分类：新员工入职需要准备哪些材料？...
+❌ 问题分类失败: connect ECONNREFUSED 127.0.0.1:3004
+
+> knowledge-qa-system@1.0.0 start
+> node dist/server.js
+
+📝 已加载环境变量：/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/.env
+🔧 ENABLE_QUESTION_CLASSIFICATION: true
+🔧 Config loaded: firstlayer.enabled = true
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3002
+    at Server.setupListenHandle [as _listen2] (node:net:1897:16)
+    at listenInCluster (node:net:1945:12)
+    at doListen (node:net:2109:7)
+    at process.processTicksAndRejections (node:internal/process/task_queues:83:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1924:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3002
+}
+
+Node.js v20.12.2
+
+> knowledge-qa-system@1.0.0 start
+> node dist/server.js
+
+📝 已加载环境变量：/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/.env
+🔧 ENABLE_QUESTION_CLASSIFICATION: true
+🔧 Config loaded: firstlayer.enabled = true
+
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║     📁 文件上传服务 已启动                               ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+
+📡 服务器地址：http://0.0.0.0:3002
+📊 健康检查：http://0.0.0.0:3002/health
+
+📚 API 端点:
+   POST   /api/upload          - 上传文件
+   GET    /api/qa/files         - 文件列表
+   GET    /api/qa/stats         - 统计信息
+   DELETE /api/qa/files/:name  - 删除文件
+
+
+👋 正在关闭服务器...

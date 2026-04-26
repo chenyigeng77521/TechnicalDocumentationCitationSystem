@@ -2,6 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 
+// 🔥 调试日志 - 页面加载时立即输出
+console.log('🔥🔥🔥 页面已加载 - TechnicalDocumentationCitationSystem Frontend 🔥🔥🔥');
+console.log('📍 当前 URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+
 interface Message {
   role: 'user' | 'bot';
   text: string;
@@ -223,31 +227,96 @@ export default function Home() {
       const decoder = new TextDecoder();
       let answer = '';
       let sources: string[] = [];
+      let classification: any = null;
+
+      console.log('📡 开始接收流式响应...');
 
       while (true) {
         const { done, value } = await reader!.read();
-        if (done) break;
+        if (done) {
+          console.log('✅ 流式响应结束');
+          break;
+        }
 
         const chunk = decoder.decode(value);
         const lines = chunk.split('\n');
 
         for (const line of lines) {
+          if (line.trim() === '') continue;
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.answer) answer += data.answer;
-              if (data.sources) sources = data.sources;
-            } catch {
-              // 忽略解析错误
+              console.log('📨 收到事件:', data.type, data);
+              
+              // 处理不同类型的事件
+              if (data.type === 'start') {
+                console.log('🚀 开始处理:', data.message);
+                // 显示加载状态
+              } else if (data.type === 'classification') {
+                // 保存分类结果
+                classification = {
+                  category: data.category,
+                  confidence: data.confidence,
+                  description: data.description,
+                  searchStrategy: data.searchStrategy
+                };
+                console.log('📊 分类结果:', classification);
+              } else if (data.type === 'answer') {
+                answer += data.text;
+                // 实时更新（可选）
+              } else if (data.type === 'sources') {
+                sources = data.sources;
+              } else if (data.type === 'end') {
+                console.log('🏁 问答完成:', data.classification);
+              } else if (data.type === 'error') {
+                // 处理错误 - 立即显示并停止
+                console.error('❌ 发生错误:', data.message);
+                setIsLoading(false);
+                setMessages(prev => [...prev, { 
+                  role: 'bot', 
+                  text: `❌ ${data.message || '发生错误'}`,
+                  sources: []
+                }]);
+                return; // 立即返回，不继续处理
+              }
+            } catch (e) {
+              console.error('❌ JSON 解析错误:', e, '原始行:', line);
             }
           }
         }
       }
 
-      // 添加 AI 回复
+      // 如果没有收到任何答案，显示错误
+      if (!answer && !classification) {
+        console.error('❌ 未收到任何有效响应');
+        setIsLoading(false);
+        setMessages(prev => [...prev, { 
+          role: 'bot', 
+          text: '❌ 抱歉，无法连接到服务，请稍后再试。',
+          sources: []
+        }]);
+        return;
+      }
+
+      console.log('📝 最终答案:', answer);
+      console.log('📊 最终分类:', classification);
+
+      // 添加 AI 回复（包含分类信息）
+      const categoryEmoji: Record<string, string> = {
+        'FACT': '📊',
+        'PROC': '🔄',
+        'EXPL': '💡',
+        'COMP': '⚖️',
+        'META': '🤔',
+        'UNKNOWN': '❓'
+      };
+
+      const categoryInfo = classification ? 
+        `${categoryEmoji[classification.category] || '❓'} **${classification.category}** (${Math.round(classification.confidence * 100)}% 置信度)\n\n` : '';
+      
       setMessages(prev => [...prev, { 
         role: 'bot', 
-        text: answer,
+        text: categoryInfo + answer,
         sources: sources.length > 0 ? sources : ['知识库文档']
       }]);
     } catch (error) {

@@ -2,16 +2,32 @@
  * 智能问答系统 - 主入口
  */
 
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// ES Module 兼容
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ⚠️ 必须在导入任何使用 process.env 的模块之前加载环境变量！
+const envPath = path.join(__dirname, '../.env');
+dotenv.config({ path: envPath });
+console.log(`📝 已加载环境变量：${envPath}`);
+console.log(`🔧 ENABLE_QUESTION_CLASSIFICATION: ${process.env.ENABLE_QUESTION_CLASSIFICATION}`);
+
+// 延迟导入 config，确保 dotenv 已加载
+const configModule = await import('./config.js');
+const config = configModule.config;
+
+// 调试输出 config
+console.log(`🔧 Config loaded: firstlayer.enabled = ${config.firstlayer.enabled}`);
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import * as path from 'path';
 import multer from 'multer';
 import uploadRoutes from './routes/upload.js';
 import qaRoutes from './routes/qa.js';
-
-// 加载环境变量
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
