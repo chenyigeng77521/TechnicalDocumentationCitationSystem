@@ -20,6 +20,11 @@ RERANKER_MODEL = "BAAI/bge-reranker-base"  # 重排序模型
 # Score 阈值配置（低于此值的检索结果会被过滤，0.0 表示不过滤）
 MAX_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
 
+# 查询扩展配置
+QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
+QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "gpt-3.5-turbo")
+QUERY_EXPANSION_NUM = int(os.getenv("QUERY_EXPANSION_NUM", "3"))
+
 # ==================== 惰性加载嵌入模型 ====================
 _embedding_model = None
 
@@ -288,42 +293,106 @@ def _merge_results(vec_docs: List[Document], bm25_docs: List[Document]) -> List[
     return list(all_docs.values())
 
 
-# ==================== Pipeline（API 向量 + API BM25 + 重排序）====================
-def pipeline(query: str, top_k: int = 20, use_bm25: bool = True, use_rerank: bool = True):
+# ==================== 查询扩展 ====================
+def expand_query(query: str, num_variants: int = QUERY_EXPANSION_NUM) -> List[str]:
     """
-    检索管道（双路 API 检索 + 重排序）
+    查询扩展：基于 LLM 生成语义相关的查询变体，提升检索召回率。
+
+    如果未配置 OPENAI_API_KEY，则直接返回原查询（降级处理）。
+    """
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        return [query]
+
+    try:
+        import openai
+        client = openai.OpenAI(
+            api_key=openai_api_key,
+            base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+        )
+
+        system_prompt = (
+            "你是一个查询扩展助手。请基于用户查询生成语义等价或相近的查询变体，"
+            "用于提高文档检索召回率。只输出查询列表，每行一个，不要编号和解释。"
+        )
+        user_prompt = f"请为以下查询生成 {num_variants} 个查询变体：\n\n{query}"
+
+        response = client.chat.completions.create(
+            model=QUERY_EXPANSION_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=200
+        )
+
+        variants = [
+            line.strip()
+            for line in response.choices[0].message.content.split("\n")
+            if line.strip()
+        ]
+        # 确保原查询在首位
+        if query not in variants:
+            variants.insert(0, query)
+        return variants[:num_variants + 1]
+
+    except Exception as e:
+        print(f"查询扩展失败，使用原查询: {e}")
+        return [query]
+
+
+# ==================== Pipeline（API 向量 + API BM25 + 重排序）====================
+def pipeline(query: str, top_k: int = 20, use_bm25: bool = True,
+             use_rerank: bool = True, use_query_expansion: bool = False):
+    """
+    检索管道（双路 API 检索 + 查询扩展 + 重排序）
 
     Args:
         query: 查询字符串
         top_k: 每路检索返回数量
         use_bm25: 是否启用 BM25 API 检索
         use_rerank: 是否启用 CrossEncoder 重排序
+        use_query_expansion: 是否启用查询扩展（会调用 LLM 生成查询变体）
     """
     print("原始查询:", query)
 
     client = get_api_client()
 
-    # 1. 向量 API 检索
-    vec_docs = client.search(query, top_k=top_k)
-    print(f"向量召回: {len(vec_docs)}")
+    # 查询扩展：生成多个语义相关查询变体
+    should_expand = use_query_expansion or QUERY_EXPANSION_ENABLED
+    queries = expand_query(query) if should_expand else [query]
+    if len(queries) > 1:
+        print(f"查询扩展: {len(queries)} 个变体 -> {queries}")
 
-    docs = vec_docs
+    all_vec_docs: List[Document] = []
+    all_bm25_docs: List[Document] = []
 
-    # 2. BM25 API 检索（可选）
+    # 对每个查询变体分别检索
+    for q in queries:
+        vec_docs = client.search(q, top_k=top_k)
+        all_vec_docs.extend(vec_docs)
+
+        if use_bm25:
+            bm25_docs = client.text_search(q, top_k=top_k)
+            all_bm25_docs.extend(bm25_docs)
+
+    print(f"向量召回（含扩展）: {len(all_vec_docs)}")
+
+    # 合并去重（查询扩展时即使只有向量检索也需要去重）
+    docs = _merge_results(all_vec_docs, all_bm25_docs if use_bm25 else [])
     if use_bm25:
-        bm25_docs = client.text_search(query, top_k=top_k)
-        print(f"BM25 召回: {len(bm25_docs)}")
-        docs = _merge_results(vec_docs, bm25_docs)
-        print(f"合并去重后: {len(docs)}")
+        print(f"BM25 召回（含扩展）: {len(all_bm25_docs)}")
+    print(f"合并去重后: {len(docs)}")
 
     if not docs:
         return []
 
-    # 3. 自适应 TopK 截断
+    # 自适应 TopK 截断
     k = adaptive_topk_simple(query, docs)
     docs = docs[:k]
 
-    # 4. CrossEncoder 重排序（可选）
+    # CrossEncoder 重排序（可选）
     if use_rerank:
         reranker = get_reranker()
         docs = reranker.rerank(query, docs)

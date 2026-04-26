@@ -10,6 +10,7 @@ retrieval.py 向量检索功能模拟测试程序
     python test_retrieval_mock.py
 """
 import json
+import os
 import sys
 import time
 import threading
@@ -358,6 +359,40 @@ class TestRunner:
         self._assert(len(results) == 4,
                      f"混合检索合并去重后应为 4 个，实际 {len(results)}")
 
+    # ---------- 测试 10: 查询扩展降级（无 LLM 配置时返回原查询）----------
+    def test_expand_query_fallback(self):
+        print("\n[TEST] 查询扩展降级（无 LLM 配置）")
+        from retrieval import expand_query
+
+        # 确保没有 OPENAI_API_KEY
+        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
+            queries = expand_query("测试查询", num_variants=3)
+
+        self._assert(queries == ["测试查询"],
+                     f"无 LLM 配置时应返回原查询，实际 {queries}")
+
+    # ---------- 测试 11: Pipeline 查询扩展多路检索 ----------
+    def test_pipeline_query_expansion(self):
+        print("\n[TEST] Pipeline 查询扩展多路检索")
+        from retrieval import pipeline
+
+        mock_emb = MagicMock(embed_query=lambda q: [0.01] * 1024)
+        mock_reranker = MagicMock()
+        mock_reranker.rerank = lambda q, docs: docs
+
+        # mock expand_query 返回 2 个查询变体
+        with patch("retrieval.expand_query", MagicMock(return_value=["查询A", "查询B"])):
+            with patch("retrieval.get_embedding_model", MagicMock(return_value=mock_emb)):
+                with patch("retrieval.get_reranker", MagicMock(return_value=mock_reranker)):
+                    results = pipeline("测试查询", top_k=4,
+                                       use_bm25=False, use_rerank=False,
+                                       use_query_expansion=True)
+
+        # 每个变体检索返回 4 个，共 8 个，但 MOCK_CHUNKS 只有 4 个不同 chunk_id
+        # 所以去重后应为 4 个
+        self._assert(len(results) == 4,
+                     f"查询扩展后合并去重应为 4 个，实际 {len(results)}")
+
     # ---------- 汇总 ----------
     def run_all(self):
         print("=" * 60)
@@ -374,6 +409,8 @@ class TestRunner:
         self.test_score_threshold_filter()
         self.test_text_search_normal()
         self.test_pipeline_hybrid()
+        self.test_expand_query_fallback()
+        self.test_pipeline_query_expansion()
 
         print("\n" + "=" * 60)
         print(f"测试结果: 通过 {self.passed} 项, 失败 {self.failed} 项")
