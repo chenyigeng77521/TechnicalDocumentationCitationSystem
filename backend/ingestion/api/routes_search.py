@@ -29,6 +29,11 @@ class TextSearchRequest(BaseModel):
 
 
 def _row_to_metadata(row: dict) -> dict:
+    # doc_indexed_at 来自 search SQL 的 JOIN documents（vector/text-search 都带）
+    # by-id 没 JOIN，没这字段时 fallback null
+    last_modified = row.get("doc_indexed_at")
+    if last_modified is not None:
+        last_modified = str(last_modified)
     return {
         "file_path": row["file_path"],
         "anchor_id": row["anchor_id"],
@@ -38,7 +43,7 @@ def _row_to_metadata(row: dict) -> dict:
         "is_truncated": bool(row["is_truncated"]),
         "content_type": row["content_type"],
         "language": row["language"],
-        "last_modified": None,
+        "last_modified": last_modified,
     }
 
 

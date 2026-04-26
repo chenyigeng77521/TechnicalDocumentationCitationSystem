@@ -87,3 +87,34 @@ async def test_get_chunk_by_id(client_with_data):
 async def test_get_chunk_404(client_with_data):
     resp = await client_with_data.get("/chunks/nonexistent")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_search_returns_last_modified(client_with_data):
+    """search 响应里 last_modified 应填 documents.indexed_at（不是 null）。
+
+    给评委验证 5min SLA 用：上传文件 → search → last_modified ≥ 上传时间。
+    """
+    # 这里用 update_status 给 documents 填 indexed_at（之前 fixture 没填）
+    from datetime import datetime, timezone
+    from backend.ingestion.db.documents_repo import update_status
+    from backend.ingestion.db.connection import get_connection
+    import backend.ingestion.api.routes_search as rs
+
+    conn = get_connection(rs.DB_PATH)
+    update_status(
+        conn, "api/auth.md",
+        index_status="indexed",
+        indexed_at=datetime.now(timezone.utc),
+    )
+    conn.close()
+
+    resp = await client_with_data.post(
+        "/chunks/text-search",
+        json={"query": "OAuth2", "top_k": 3},
+    )
+    body = resp.json()
+    assert len(body["results"]) >= 1
+    last_modified = body["results"][0]["metadata"]["last_modified"]
+    assert last_modified is not None, "last_modified 应被 JOIN documents 填充"
+    assert "2026" in last_modified, f"last_modified 应是 ISO 时间字符串，实际: {last_modified}"

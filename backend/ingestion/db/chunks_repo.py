@@ -61,9 +61,17 @@ def vector_search(
     query_embedding: list[float],
     top_k: int = 50,
 ) -> list[dict]:
-    """全表 cosine 排序（MVP，~10k chunks 100ms）。"""
+    """全表 cosine 排序（MVP，~10k chunks 100ms）。
+
+    JOIN documents 取 indexed_at 作为 last_modified（给评委验证 5min SLA 用）。
+    """
     rows = conn.execute(
-        "SELECT * FROM chunks WHERE embedding IS NOT NULL"
+        """
+        SELECT c.*, d.indexed_at AS doc_indexed_at
+        FROM chunks c
+        JOIN documents d ON c.file_path = d.file_path
+        WHERE c.embedding IS NOT NULL
+        """
     ).fetchall()
     scored = []
     for r in rows:
@@ -82,12 +90,13 @@ def text_search(
     query: str,
     top_k: int = 50,
 ) -> list[dict]:
-    """FTS5 BM25。返回含 score (归一化) + bm25_rank (FTS5 原始)。"""
+    """FTS5 BM25。返回含 score (归一化) + bm25_rank (FTS5 原始) + doc_indexed_at。"""
     rows = conn.execute(
         """
-        SELECT c.*, fts.rank AS bm25_rank
+        SELECT c.*, fts.rank AS bm25_rank, d.indexed_at AS doc_indexed_at
         FROM chunks_fts fts
         JOIN chunks c ON c.chunk_id = fts.chunk_id
+        JOIN documents d ON c.file_path = d.file_path
         WHERE chunks_fts MATCH ?
         ORDER BY fts.rank
         LIMIT ?
