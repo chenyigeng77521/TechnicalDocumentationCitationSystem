@@ -307,7 +307,18 @@ class TestRunner:
 
         self._assert(len(docs) == min(5, len(MOCK_CHUNKS)), "filters 应正常透传并返回结果")
 
-    # ---------- 测试 7: health_check ----------
+    # ---------- 测试 7: score 阈值过滤 ----------
+    def test_score_threshold_filter(self):
+        print("\n[TEST] Score 阈值过滤")
+        # MOCK_CHUNKS score: 0.85, 0.78, 0.62, 0.55
+        with patch("retrieval.MAX_SCORE_THRESHOLD", 0.6):
+            with self._mock_embedding():
+                docs = self.client.search("阈值测试", top_k=4)
+
+        self._assert(len(docs) == 3,
+                     f"阈值 0.6 应过滤掉 0.55，返回 3 个，实际 {len(docs)}")
+
+    # ---------- 测试 8: health_check ----------
     def test_health_check(self):
         print("\n[TEST] 健康检查")
         ok = self.client.health_check()
@@ -360,6 +371,7 @@ class TestRunner:
         self.test_dimension_error()
         self.test_network_error()
         self.test_filters_pass_through()
+        self.test_score_threshold_filter()
         self.test_text_search_normal()
         self.test_pipeline_hybrid()
 

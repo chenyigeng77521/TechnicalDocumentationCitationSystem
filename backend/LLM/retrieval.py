@@ -17,6 +17,9 @@ VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
 VECTOR_MODEL = "BAAI/bge-m3"  # 向量嵌入模型
 RERANKER_MODEL = "BAAI/bge-reranker-base"  # 重排序模型
 
+# Score 阈值配置（低于此值的检索结果会被过滤，0.0 表示不过滤）
+MAX_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
+
 # ==================== 惰性加载嵌入模型 ====================
 _embedding_model = None
 
@@ -95,8 +98,13 @@ class VectorAPIClient:
             # 3. 解析响应（适配新字段名 chunk_id / content）
             documents = []
             for item in result.get("results", []):
+                score = item.get("score", 0.0)
+                # Score 阈值过滤
+                if score < MAX_SCORE_THRESHOLD:
+                    continue
+
                 metadata = item.get("metadata", {})
-                metadata["score"] = item.get("score", 0.0)
+                metadata["score"] = score
                 metadata["chunk_id"] = item.get("chunk_id", "")
 
                 doc = Document(
@@ -136,8 +144,13 @@ class VectorAPIClient:
 
             documents = []
             for item in result.get("results", []):
+                score = item.get("score", 0.0)
+                # Score 阈值过滤
+                if score < MAX_SCORE_THRESHOLD:
+                    continue
+
                 metadata = item.get("metadata", {})
-                metadata["score"] = item.get("score", 0.0)
+                metadata["score"] = score
                 metadata["bm25_rank"] = item.get("bm25_rank", 0.0)
                 metadata["chunk_id"] = item.get("chunk_id", "")
 
