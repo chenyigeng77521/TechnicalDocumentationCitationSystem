@@ -28,10 +28,14 @@ pip install -r requirements.txt
 
 ```bash
 # 开发模式
-python src/app.py
+python category_classifier/app.py
 
 # 或使用 uvicorn
-uvicorn src.app:app --host 0.0.0.0 --port 3004 --reload
+uvicorn category_classifier.app:app --host 0.0.0.0 --port 3004 --reload
+
+# 或使用启动脚本
+cd category_classifier
+./start.sh
 ```
 
 ### 3. 访问 API 文档
@@ -109,17 +113,22 @@ http://localhost:3004/docs
 ## 目录结构
 
 ```
-firstlayer/
-├── src/
+category_classifier/
+├── app.py              # FastAPI 应用入口
+├── classifier.py       # GLiClass 分类器
+├── config.py           # 配置文件
+├── requirements.txt    # Python 依赖
+├── start.sh            # 启动脚本
+├── routes/
 │   ├── __init__.py
-│   ├── app.py              # FastAPI 应用入口
-│   ├── classifier.py       # GLiClass 分类器
-│   └── routes/
-│       ├── __init__.py
-│       └── classify.py     # 分类 API 路由
-├── config.py               # 配置文件
-├── requirements.txt        # Python 依赖
-└── README.md              # 说明文档
+│   └── classify.py     # 分类 API 路由
+├── data/              # 数据文件
+│   └── sample_questions.json
+├── .env               # 环境变量
+├── .env.example       # 环境变量示例
+├── README.md          # 说明文档
+├── FINE_TUNING_GUIDE.md  # 微调指南
+└── __pycache__/
 ```
 
 ## 环境变量

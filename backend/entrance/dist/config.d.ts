@@ -18,6 +18,11 @@ export declare const config: {
         enabled: boolean;
         timeout: number;
     };
+    readonly questionFilter: {
+        url: string;
+        enabled: boolean;
+        timeout: number;
+    };
 };
 export default config;
 //# sourceMappingURL=config.d.ts.map

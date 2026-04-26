@@ -16,6 +16,7 @@ export default function Home() {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const [docCount, setDocCount] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -27,9 +28,11 @@ export default function Home() {
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [isServerConnected, setIsServerConnected] = useState(true);
   const [hasMounted, setHasMounted] = useState(false);
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thinkingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // API 基础 URL
   const getApiBaseUrl = () => {
@@ -120,6 +123,46 @@ export default function Home() {
     }
   }, [question]);
 
+  // 动态思考步骤动画
+  useEffect(() => {
+    if (isLoading) {
+      const steps = [
+        '🔍 正在理解您的问题...',
+        '📚 正在检索知识库...',
+        '🧠 正在分析相关信息...',
+        '🔗 正在关联知识点...',
+        '✍️ 正在组织答案...',
+        '📝 正在生成回答...'
+      ];
+      let index = 0;
+      thinkingIntervalRef.current = setInterval(() => {
+        index = (index + 1) % steps.length;
+        setThinkingStep(index);
+      }, 800);
+    } else {
+      if (thinkingIntervalRef.current) {
+        clearInterval(thinkingIntervalRef.current);
+        thinkingIntervalRef.current = null;
+      }
+      setThinkingStep(0);
+    }
+    return () => {
+      if (thinkingIntervalRef.current) {
+        clearInterval(thinkingIntervalRef.current);
+      }
+    };
+  }, [isLoading]);
+
+  // 复制成功提示自动消失
+  useEffect(() => {
+    if (copySuccess) {
+      const timer = setTimeout(() => {
+        setCopySuccess(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copySuccess]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setQuestion(e.target.value);
     setCharCount(e.target.value.length);
@@ -200,6 +243,40 @@ export default function Home() {
       .replace(/\n/g, '<br>');
   };
 
+  // 复制文本功能
+  const copyToClipboard = async (text: string, isQuestion: boolean) => {
+    try {
+      // 优先尝试现代 API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // 降级方案：使用 execCommand（兼容 HTTP 环境）
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      
+      const message = isQuestion ? '问题已复制' : '答案已复制';
+      setCopySuccess(message);
+      // 2 秒后自动消失
+      setTimeout(() => {
+        setCopySuccess(null);
+      }, 2000);
+    } catch (err) {
+      console.error('复制失败:', err);
+      setCopySuccess('复制失败');
+      setTimeout(() => {
+        setCopySuccess(null);
+      }, 2000);
+    }
+  };
+
   const handleSend = async () => {
     const q = question.trim();
     if (!q || isLoading) return;
@@ -209,6 +286,7 @@ export default function Home() {
     setQuestion('');
     setCharCount(0);
     setIsLoading(true);
+    console.log('🚀 开始思考动画');
 
     try {
       // 调用后端 API
@@ -269,12 +347,16 @@ export default function Home() {
               } else if (data.type === 'end') {
                 console.log('🏁 问答完成:', data.classification);
               } else if (data.type === 'error') {
-                // 处理错误 - 立即显示并停止
+                // 处理错误 - 区分业务提示和系统错误
+                const errorMsg = data.message || '发生错误';
+                // 如果是语言检测提示，显示为普通消息而非错误
+                const isLanguageHint = errorMsg.includes('中文') || errorMsg.includes('语言');
+                
                 console.error('❌ 发生错误:', data.message);
                 setIsLoading(false);
                 setMessages(prev => [...prev, { 
                   role: 'bot', 
-                  text: `❌ ${data.message || '发生错误'}`,
+                  text: isLanguageHint ? `💡 ${errorMsg}` : `❌ ${errorMsg}`,
                   sources: []
                 }]);
                 return; // 立即返回，不继续处理
@@ -350,6 +432,14 @@ export default function Home() {
           <p style={styles.subtitle} className="subtitle-mobile">基于企业知识库的 AI 智能检索与问答系统</p>
         </div>
 
+        {/* 复制成功提示 Toast - 屏幕中央悬浮 */}
+        {copySuccess && (
+          <div style={styles.copyToast}>
+            <span style={styles.copyToastIcon}>✅</span>
+            <span style={styles.copyToastText}>{copySuccess}</span>
+          </div>
+        )}
+
         {/* Main card */}
         <div style={styles.card} className="card-mobile">
         {/* Result area */}
@@ -373,13 +463,33 @@ export default function Home() {
                   {msg.role === 'user' ? '我' : 'AI'}
                 </div>
                 <div style={styles.bubbleBody}>
-                  <span style={styles.bubbleName}>
-                    {msg.role === 'user' ? '你' : '知识库助手'}
-                  </span>
+                  {msg.role === 'bot' && (
+                    <span style={styles.bubbleName}>
+                      知识库助手
+                    </span>
+                  )}
                   <div 
                     style={{...styles.bubbleText, ...(msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextBot)}}
                     dangerouslySetInnerHTML={{ __html: formatText(msg.text) }}
                   />
+                  {msg.role === 'user' && (
+                    <button 
+                      style={styles.copyBtn}
+                      onClick={() => copyToClipboard(msg.text, true)}
+                      title="复制问题"
+                    >
+                      📋 复制
+                    </button>
+                  )}
+                  {msg.role === 'bot' && (
+                    <button 
+                      style={{...styles.copyBtn, ...styles.copyBtnBot}}
+                      onClick={() => copyToClipboard(msg.text, false)}
+                      title="复制答案"
+                    >
+                      📋 复制
+                    </button>
+                  )}
                   {msg.sources && msg.sources.length > 0 && (
                     <div style={styles.sources}>
                       {msg.sources.map((source, idx) => (
@@ -395,6 +505,12 @@ export default function Home() {
             <div style={{...styles.bubble, ...styles.bubbleBot}}>
               <div style={{...styles.avatar, ...styles.avatarBot}}>AI</div>
               <div style={styles.bubbleBody}>
+                <div style={styles.thinkingBubble}>
+                  <span style={styles.thinkingIcon}>⏳</span>
+                  <span style={styles.thinkingText}>
+                    {['🔍 正在理解您的问题...', '📚 正在检索知识库...', '🧠 正在分析相关信息...', '🔗 正在关联知识点...', '✍️ 正在组织答案...', '📝 正在生成回答...'][thinkingStep]}
+                  </span>
+                </div>
                 <div style={styles.typing}>
                   <span></span>
                   <span></span>
@@ -1006,6 +1122,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
+    position: 'relative',
   },
   emptyState: {
     flex: 1,
@@ -1108,11 +1225,81 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
-    padding: '12px 16px',
+    padding: '8px 12px',
     background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: '16px',
     borderBottomLeftRadius: '4px',
+    marginTop: '4px',
+  },
+  copyBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 10px',
+    background: 'var(--primary-light)',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '12px',
+    color: 'var(--primary)',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+    alignSelf: 'flex-start',
+    marginTop: '6px',
+    fontWeight: 500,
+  },
+  copyBtnBot: {
+    background: 'rgba(255,255,255,0.9)',
+    color: 'var(--primary)',
+    alignSelf: 'flex-end',
+    marginTop: '8px',
+    fontWeight: 500,
+  },
+  copyToast: {
+    position: 'fixed',
+    top: '25vh',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(16, 185, 129, 0.98)',
+    color: '#fff',
+    padding: '16px 32px',
+    borderRadius: '16px',
+    fontSize: '16px',
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+    zIndex: 10000,
+    opacity: 1,
+    backdropFilter: 'blur(8px)',
+  },
+  copyToastIcon: {
+    fontSize: '14px',
+  },
+  copyToastText: {
+    fontSize: '13px',
+  },
+  thinkingBubble: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 14px',
+    background: 'linear-gradient(135deg, #f0f4ff, #e8f4f8)',
+    border: '1px solid #c9d6ff',
+    borderRadius: '16px',
+    borderBottomLeftRadius: '4px',
+    fontSize: '13px',
+    color: 'var(--text)',
+  },
+  thinkingIcon: {
+    fontSize: '16px',
+    animation: 'spin 2s linear infinite',
+  },
+  thinkingText: {
+    fontSize: '13px',
+    color: 'var(--text)',
+    fontWeight: 500,
   },
   toolbar: {
     padding: '10px 20px',

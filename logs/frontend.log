@@ -1,8 +1,40 @@
 
-> frontend@0.1.0 start
-> next start
+> frontend@0.1.0 dev
+> next dev
 
-▲ Next.js 16.2.4
+▲ Next.js 16.2.4 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://172.20.10.2:3000
-✓ Ready in 212ms
+- Environments: .env.local
+✓ Ready in 933ms
+
+🔥🔥🔥 页面已加载 - TechnicalDocumentationCitationSystem Frontend 🔥🔥🔥
+📍 当前 URL: N/A
+ GET / 200 in 523ms (next.js: 271ms, application-code: 251ms)
+ GET / 200 in 90ms (next.js: 4ms, application-code: 87ms)
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+[browser] ❌ 发生错误: 请用中文提问，系统暂不支持其他语言 
+
+Error: Turbopack build failed with 1 errors:
+./app
+Error: Next.js inferred your workspace root, but it may not be correct.
+    We couldn't find the Next.js package (next/package.json) from the project directory: /Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/frontend/app
+     To fix this, set turbopack.root in your Next.js config, or ensure the Next.js package is resolvable from this directory.
+    Note: For security and performance reasons, files outside of the project directory will not be compiled.
+    See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+
+    at ignore-listed frames
+[?25h

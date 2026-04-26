@@ -29,6 +29,14 @@ export const config = {
             timeout: parseInt(process.env.CLASSIFY_TIMEOUT || '5000'),
         };
     },
+    // Question Filter 配置（运行时读取）
+    get questionFilter() {
+        return {
+            url: process.env.QUESTION_FILTER_URL || 'http://localhost:3005',
+            enabled: process.env.ENABLE_QUESTION_FILTER !== 'false', // 默认启用
+            timeout: parseInt(process.env.FILTER_TIMEOUT || '5000'),
+        };
+    },
 };
 export default config;
 //# sourceMappingURL=config.js.map

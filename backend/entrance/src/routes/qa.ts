@@ -1,6 +1,7 @@
 /**
  * 智能问答路由
- * 集成 FirstLayer 问题分类系统
+ * 集成 Question Filter + FirstLayer 问题分类系统
+ * 调用链条：Web 层 → Question Filter (3005) → Category Classifier (3004)
  */
 
 import { Router, Request, Response } from 'express';
@@ -13,6 +14,14 @@ import {
   getSearchStrategy,
   ClassificationResult 
 } from '../services/firstlayer-client.js';
+import { 
+  filterQuestion, 
+  getFilterTypes, 
+  getFilterResponse,
+  needsClassification,
+  FilterResult,
+  FilterCategory
+} from '../services/question-filter-client.js';
 
 const router = Router();
 
@@ -24,6 +33,7 @@ function getUploadDir(): string {
 /**
  * POST /api/qa/ask
  * 智能问答接口（同步版本）
+ * 调用链条：Question Filter → Category Classifier
  */
 router.post('/ask', async (req: Request, res: Response) => {
   try {
@@ -38,10 +48,35 @@ router.post('/ask', async (req: Request, res: Response) => {
 
     console.log(`📥 收到问题：${question}`);
 
-    // 1. 调用 FirstLayer 进行问题分类
+    // 1. 调用 Question Filter 进行问题过滤
+    const filterResult: FilterResult = await filterQuestion(question);
+    console.log(`🔍 过滤结果：${filterResult.category} (置信度：${filterResult.confidence})`);
+
+    // 2. 检查是否需要进一步分类
+    if (!needsClassification(filterResult.category)) {
+      // 不需要分类，直接返回过滤结果
+      const responseMsg = getFilterResponse(filterResult.category);
+      console.log(`⚠️  问题被过滤：${filterResult.category}`);
+      
+      return res.json({
+        success: true,
+        question,
+        filter: {
+          category: filterResult.category,
+          confidence: filterResult.confidence,
+          description: filterResult.description,
+          reason: filterResult.reason
+        },
+        answer: responseMsg,
+        sources: []
+      });
+    }
+
+    // 3. 需要分类，调用 FirstLayer
+    console.log(`🔄 问题有效，调用分类服务...`);
     const classification: ClassificationResult = await classifyQuestion(question);
 
-    // 检查是否语言错误（非中文问题）
+    // 检查是否语言错误
     if (!classification.success || classification.error) {
       console.log(`❌ 语言错误：${classification.error}`);
       return res.status(400).json({
@@ -53,13 +88,15 @@ router.post('/ask', async (req: Request, res: Response) => {
     console.log(`📊 分类结果：${classification.category} (置信度：${classification.confidence})`);
     console.log(`🎯 检索策略：${getSearchStrategy(classification.category)}`);
 
-    // 2. 根据分类结果选择检索策略（这里先返回分类结果）
-    // TODO: 实现不同分类的检索逻辑
-
-    // 3. 返回响应
+    // 4. 返回响应
     res.json({
       success: true,
       question,
+      filter: {
+        category: filterResult.category,
+        confidence: filterResult.confidence,
+        description: filterResult.description
+      },
       classification: {
         category: classification.category,
         confidence: classification.confidence,
@@ -67,7 +104,7 @@ router.post('/ask', async (req: Request, res: Response) => {
       },
       searchStrategy: getSearchStrategy(classification.category),
       // TODO: 添加实际回答
-      answer: '这是一个测试响应。问题已分类为 ' + classification.category + '，正在检索相关知识...',
+      answer: '这是一个测试响应。问题已通过过滤和分类，正在检索相关知识...',
       sources: []
     });
 
@@ -83,6 +120,7 @@ router.post('/ask', async (req: Request, res: Response) => {
 /**
  * POST /api/qa/ask-stream
  * 智能问答接口（流式版本）
+ * 调用链条：Question Filter → Category Classifier
  */
 router.post('/ask-stream', async (req: Request, res: Response) => {
   const { question } = req.body;
@@ -103,7 +141,7 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
   res.setHeader('X-Accel-Buffering', 'no');
 
   try {
-    // 1. 先进行语言检测（在调用 FirstLayer 之前）
+    // 1. 先进行语言检测（在调用 Question Filter 之前）
     const chineseCount = (question.match(/[\u4e00-\u9fff]/g) || []).length;
     const chineseRatio = chineseCount / question.length;
     
@@ -124,7 +162,46 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
       message: '正在处理您的问题...' 
     })}\n\n`);
 
-    // 3. 调用 FirstLayer 进行问题分类
+    // 3. 调用 Question Filter 进行问题过滤
+    const filterResult: FilterResult = await filterQuestion(question);
+    console.log(`🔍 过滤结果：${filterResult.category} (置信度：${filterResult.confidence})`);
+
+    // 4. 检查是否需要进一步分类
+    if (!needsClassification(filterResult.category)) {
+      // 不需要分类，直接返回过滤结果
+      const responseMsg = getFilterResponse(filterResult.category);
+      console.log(`⚠️  问题被过滤：${filterResult.category}`);
+      
+      res.write(`data: ${JSON.stringify({ 
+        type: 'filter',
+        category: filterResult.category,
+        confidence: filterResult.confidence,
+        description: filterResult.description,
+        reason: filterResult.reason,
+        message: responseMsg
+      })}\n\n`);
+      
+      res.write(`data: ${JSON.stringify({ 
+        type: 'answer',
+        text: responseMsg || ''
+      })}\n\n`);
+      
+      res.write(`data: ${JSON.stringify({ 
+        type: 'end',
+        filter: filterResult.category
+      })}\n\n`);
+      
+      res.end();
+      return;
+    }
+
+    // 5. 需要分类，调用 FirstLayer
+    console.log(`🔄 问题有效，调用分类服务...`);
+    res.write(`data: ${JSON.stringify({ 
+      type: 'processing',
+      message: '问题已通过过滤，正在进行分类...' 
+    })}\n\n`);
+
     const classification: ClassificationResult = await classifyQuestion(question);
 
     // 检查是否语言错误（备用检查）
@@ -138,16 +215,17 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
       return;
     }
 
-    // 4. 发送分类结果
+    // 6. 发送分类结果
     res.write(`data: ${JSON.stringify({ 
       type: 'classification',
+      filterCategory: filterResult.category,
       category: classification.category,
       confidence: classification.confidence,
       description: classification.description,
       searchStrategy: getSearchStrategy(classification.category)
     })}\n\n`);
 
-    // 5. 模拟流式回答（TODO: 替换为真实的 LLM 回答）
+    // 7. 模拟流式回答（TODO: 替换为真实的 LLM 回答）
     const answer = `根据您的提问（${classification.category}类型），我将为您查找相关知识...\n\n`;
     const words = answer.split('');
     
@@ -160,9 +238,10 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
       await new Promise(resolve => setTimeout(resolve, 30));
     }
 
-    // 6. 发送结束事件
+    // 8. 发送结束事件
     res.write(`data: ${JSON.stringify({ 
       type: 'end',
+      filter: filterResult.category,
       classification: classification.category
     })}\n\n`);
 
