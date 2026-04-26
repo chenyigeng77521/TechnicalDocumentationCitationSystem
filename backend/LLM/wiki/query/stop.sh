@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# backend/LLM/wiki/stop.sh
-# 停止 knowledge_api.py 和 update_wiki.py
+# backend/LLM/wiki/query/stop.sh
+# 停止 knowledge_api.py
 
 echo "========================================"
-echo "  停止知识库相关服务"
+echo "  停止知识库查询服务"
 echo "========================================"
 echo ""
 
@@ -21,7 +21,7 @@ fi
 
 echo ""
 echo "========================================"
-echo "  ✅ 知识库相关服务已停止"
+echo "  ✅ 知识库查询服务已停止"
 echo "========================================"
 echo ""
 echo "📊 最终状态:"

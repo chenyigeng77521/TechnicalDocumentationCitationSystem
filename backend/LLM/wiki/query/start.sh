@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# backend/LLM/wiki/start.sh
-# 启动 knowledge_api.py 和 update_wiki.py
+# backend/LLM/wiki/query/start.sh
+# 启动 knowledge_api.py
 
 echo "========================================"
-echo "  启动知识库相关服务"
+echo "  启动知识库查询服务"
 echo "========================================"
 echo ""
 
@@ -33,7 +33,7 @@ fi
 
 echo ""
 echo "========================================"
-echo "  ✅ 知识库相关服务启动完成"
+echo "  ✅ 知识库查询服务启动完成"
 echo "========================================"
 echo ""
 echo "📊 服务状态:"
