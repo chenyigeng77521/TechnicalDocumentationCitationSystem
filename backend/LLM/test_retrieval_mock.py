@@ -10,6 +10,7 @@ retrieval.py 向量检索功能模拟测试程序
     python test_retrieval_mock.py
 """
 import json
+import os
 import sys
 import time
 import threading
@@ -307,7 +308,18 @@ class TestRunner:
 
         self._assert(len(docs) == min(5, len(MOCK_CHUNKS)), "filters 应正常透传并返回结果")
 
-    # ---------- 测试 7: health_check ----------
+    # ---------- 测试 7: score 阈值过滤 ----------
+    def test_score_threshold_filter(self):
+        print("\n[TEST] Score 阈值过滤")
+        # MOCK_CHUNKS score: 0.85, 0.78, 0.62, 0.55
+        with patch("retrieval.MAX_SCORE_THRESHOLD", 0.6):
+            with self._mock_embedding():
+                docs = self.client.search("阈值测试", top_k=4)
+
+        self._assert(len(docs) == 3,
+                     f"阈值 0.6 应过滤掉 0.55，返回 3 个，实际 {len(docs)}")
+
+    # ---------- 测试 8: health_check ----------
     def test_health_check(self):
         print("\n[TEST] 健康检查")
         ok = self.client.health_check()
@@ -347,6 +359,70 @@ class TestRunner:
         self._assert(len(results) == 4,
                      f"混合检索合并去重后应为 4 个，实际 {len(results)}")
 
+    # ---------- 测试 10: 查询扩展降级（无 LLM 配置时返回原查询）----------
+    def test_expand_query_fallback(self):
+        print("\n[TEST] 查询扩展降级（无 LLM 配置）")
+        from retrieval import expand_query
+
+        # 确保没有 OPENAI_API_KEY
+        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
+            queries = expand_query("测试查询", num_variants=3)
+
+        self._assert(queries == ["测试查询"],
+                     f"无 LLM 配置时应返回原查询，实际 {queries}")
+
+    # ---------- 测试 11: Pipeline 查询扩展多路检索 ----------
+    def test_pipeline_query_expansion(self):
+        print("\n[TEST] Pipeline 查询扩展多路检索")
+        from retrieval import pipeline
+
+        mock_emb = MagicMock(embed_query=lambda q: [0.01] * 1024)
+        mock_reranker = MagicMock()
+        mock_reranker.rerank = lambda q, docs: docs
+
+        # mock expand_query 返回 2 个查询变体
+        with patch("retrieval.expand_query", MagicMock(return_value=["查询A", "查询B"])):
+            with patch("retrieval.get_embedding_model", MagicMock(return_value=mock_emb)):
+                with patch("retrieval.get_reranker", MagicMock(return_value=mock_reranker)):
+                    results = pipeline("测试查询", top_k=4,
+                                       use_bm25=False, use_rerank=False,
+                                       use_query_expansion=True)
+
+        # 每个变体检索返回 4 个，共 8 个，但 MOCK_CHUNKS 只有 4 个不同 chunk_id
+        # 所以去重后应为 4 个
+        self._assert(len(results) == 4,
+                     f"查询扩展后合并去重应为 4 个，实际 {len(results)}")
+
+    # ---------- 测试 12: 重排序上下文扩展 ----------
+    def test_rerank_context_expansion(self):
+        print("\n[TEST] 重排序上下文扩展")
+        from retrieval import _expand_rerank_context
+        from langchain_core.documents import Document
+
+        # 构造同文件的 3 个相邻 chunk
+        docs = [
+            Document(page_content="第一段内容", metadata={"file_path": "a.md", "char_offset_start": 0}),
+            Document(page_content="第二段内容", metadata={"file_path": "a.md", "char_offset_start": 100}),
+            Document(page_content="第三段内容", metadata={"file_path": "a.md", "char_offset_start": 200}),
+            Document(page_content="孤立文档", metadata={"file_path": "b.md", "char_offset_start": 0}),
+        ]
+
+        # window=1，中间 chunk 应该包含前后各 1 个
+        texts = _expand_rerank_context(docs, window=1)
+
+        self._assert(len(texts) == 4, f"扩展后文本数量应为 4，实际 {len(texts)}")
+        self._assert("第一段内容" in texts[1] and "第三段内容" in texts[1],
+                     "中间 chunk 应包含前后相邻 chunk")
+        self._assert(texts[0] == "第一段内容\n第二段内容",
+                     "第一个 chunk 应只包含自身和下一个")
+        self._assert(texts[3] == "孤立文档",
+                     "孤立文件应保持不变")
+
+        # window=0 应退化为原内容
+        texts_no_expand = _expand_rerank_context(docs, window=0)
+        self._assert(texts_no_expand[1] == "第二段内容",
+                     "window=0 时不应扩展")
+
     # ---------- 汇总 ----------
     def run_all(self):
         print("=" * 60)
@@ -360,8 +436,12 @@ class TestRunner:
         self.test_dimension_error()
         self.test_network_error()
         self.test_filters_pass_through()
+        self.test_score_threshold_filter()
         self.test_text_search_normal()
         self.test_pipeline_hybrid()
+        self.test_expand_query_fallback()
+        self.test_pipeline_query_expansion()
+        self.test_rerank_context_expansion()
 
         print("\n" + "=" * 60)
         print(f"测试结果: 通过 {self.passed} 项, 失败 {self.failed} 项")

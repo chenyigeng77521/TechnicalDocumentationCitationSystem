@@ -9,6 +9,25 @@ from sentence_transformers import CrossEncoder
 # ==================== 配置 ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ------------------------------------------------------------------
+# 环境变量说明（请在 .env 或系统环境中配置）
+# ------------------------------------------------------------------
+# VECTOR_API_URL           向量库 API 地址，默认 http://localhost:18082
+# VECTOR_API_KEY           向量库 API 密钥（可选）
+# RETRIEVAL_SCORE_THRESHOLD  检索结果最低 score，低于此值过滤，默认 0.0
+# QUERY_EXPANSION_ENABLED  是否启用查询扩展，默认 false
+# QUERY_EXPANSION_MODEL    查询扩展用 LLM 模型，默认 gpt-3.5-turbo
+# QUERY_EXPANSION_NUM      扩展变体数量，默认 3
+# OPENAI_API_KEY           查询扩展用 LLM API Key（启用查询扩展时必需）
+# OPENAI_API_BASE          查询扩展用 LLM API 基础地址，默认 https://api.openai.com/v1
+# RERANK_TOP_N             重排序后返回的文档数量，默认 3
+# RERANK_CONTEXT_WINDOW    重排序上下文扩展窗口，前后各取 N 个相邻 chunk，默认 1
+# SEARCH_TIMEOUT           向量/BM25 检索 API 超时时间（秒），默认 30
+# HEALTH_TIMEOUT           健康检查 API 超时时间（秒），默认 5
+# ADAPTIVE_TOPK_MIN        自适应 TopK 最小返回数量，默认 5
+# ADAPTIVE_TOPK_MAX        自适应 TopK 最大返回数量，默认 25
+# ------------------------------------------------------------------
+
 # 向量库 API 配置
 VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://localhost:18082")
 VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
@@ -16,6 +35,30 @@ VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
 # 模型配置
 VECTOR_MODEL = "BAAI/bge-m3"  # 向量嵌入模型
 RERANKER_MODEL = "BAAI/bge-reranker-base"  # 重排序模型
+
+# Score 阈值配置（低于此值的检索结果会被过滤，0.0 表示不过滤）
+MAX_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
+
+# 查询扩展配置
+QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
+QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "gpt-3.5-turbo")
+QUERY_EXPANSION_NUM = int(os.getenv("QUERY_EXPANSION_NUM", "3"))
+
+# LLM API 配置（查询扩展用）
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+
+# 重排序配置
+RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "3"))
+RERANK_CONTEXT_WINDOW = int(os.getenv("RERANK_CONTEXT_WINDOW", "1"))
+
+# API 超时配置（秒）
+SEARCH_TIMEOUT = int(os.getenv("SEARCH_TIMEOUT", "30"))
+HEALTH_TIMEOUT = int(os.getenv("HEALTH_TIMEOUT", "5"))
+
+# 自适应 TopK 边界
+ADAPTIVE_TOPK_MIN = int(os.getenv("ADAPTIVE_TOPK_MIN", "5"))
+ADAPTIVE_TOPK_MAX = int(os.getenv("ADAPTIVE_TOPK_MAX", "25"))
 
 # ==================== 惰性加载嵌入模型 ====================
 _embedding_model = None
@@ -87,7 +130,7 @@ class VectorAPIClient:
                     "top_k": top_k,
                     "filters": filters
                 },
-                timeout=30
+                timeout=SEARCH_TIMEOUT
             )
             response.raise_for_status()
             result = response.json()
@@ -95,8 +138,13 @@ class VectorAPIClient:
             # 3. 解析响应（适配新字段名 chunk_id / content）
             documents = []
             for item in result.get("results", []):
+                score = item.get("score", 0.0)
+                # Score 阈值过滤
+                if score < MAX_SCORE_THRESHOLD:
+                    continue
+
                 metadata = item.get("metadata", {})
-                metadata["score"] = item.get("score", 0.0)
+                metadata["score"] = score
                 metadata["chunk_id"] = item.get("chunk_id", "")
 
                 doc = Document(
@@ -129,15 +177,20 @@ class VectorAPIClient:
                     "top_k": top_k,
                     "filters": filters
                 },
-                timeout=30
+                timeout=SEARCH_TIMEOUT
             )
             response.raise_for_status()
             result = response.json()
 
             documents = []
             for item in result.get("results", []):
+                score = item.get("score", 0.0)
+                # Score 阈值过滤
+                if score < MAX_SCORE_THRESHOLD:
+                    continue
+
                 metadata = item.get("metadata", {})
-                metadata["score"] = item.get("score", 0.0)
+                metadata["score"] = score
                 metadata["bm25_rank"] = item.get("bm25_rank", 0.0)
                 metadata["chunk_id"] = item.get("chunk_id", "")
 
@@ -156,7 +209,7 @@ class VectorAPIClient:
     def health_check(self) -> bool:
         """健康检查"""
         try:
-            response = self.session.get(f"{self.api_url}/health", timeout=5)
+            response = self.session.get(f"{self.api_url}/health", timeout=HEALTH_TIMEOUT)
             return response.status_code == 200
         except:
             return False
@@ -243,12 +296,64 @@ def adaptive_topk_simple(query: str, initial_results: List = None) -> int:
         k += 3
 
     # 限制范围
-    return min(max(k, 5), 25)
+    return min(max(k, ADAPTIVE_TOPK_MIN), ADAPTIVE_TOPK_MAX)
+
+
+# ==================== 重排序上下文扩展 ====================
+def _expand_rerank_context(docs: List[Document], window: int = RERANK_CONTEXT_WINDOW) -> List[str]:
+    """
+    为重排序构建扩展上下文。
+
+    对每个 doc，在同文件的检索结果中查找前后相邻的 chunk，
+    将它们的内容拼接作为重排序时的输入文本。
+
+    返回与 docs 一一对应的扩展后文本列表。
+    """
+    if not docs or window <= 0:
+        return [d.page_content for d in docs]
+
+    # 按 file_path 分组并排序
+    by_file: dict = {}
+    for doc in docs:
+        fp = doc.metadata.get("file_path", "")
+        by_file.setdefault(fp, []).append(doc)
+
+    for fp in by_file:
+        by_file[fp].sort(key=lambda d: d.metadata.get("char_offset_start", 0))
+
+    # 构建 (file_path, char_offset_start) -> 在排序后列表中的索引
+    index_map = {}
+    for fp, file_docs in by_file.items():
+        for idx, d in enumerate(file_docs):
+            key = (fp, d.metadata.get("char_offset_start", 0))
+            index_map[key] = (fp, idx)
+
+    expanded_texts = []
+    for doc in docs:
+        fp = doc.metadata.get("file_path", "")
+        start = doc.metadata.get("char_offset_start", 0)
+        key = (fp, start)
+
+        if key not in index_map:
+            expanded_texts.append(doc.page_content)
+            continue
+
+        _, idx = index_map[key]
+        file_docs = by_file.get(fp, [])
+
+        # 收集前后 window 个相邻 chunk
+        parts = []
+        for j in range(max(0, idx - window), min(len(file_docs), idx + window + 1)):
+            parts.append(file_docs[j].page_content)
+
+        expanded_texts.append("\n".join(parts))
+
+    return expanded_texts
 
 
 # ==================== Reranker（保持不变）====================
 class Reranker:
-    def __init__(self, model_name=RERANKER_MODEL, top_n=3):
+    def __init__(self, model_name=RERANKER_MODEL, top_n=RERANK_TOP_N):
         print(f"正在加载重排序模型: {model_name}...")
         self.model = CrossEncoder(model_name)
         self.top_n = top_n
@@ -258,7 +363,12 @@ class Reranker:
         if not docs:
             return []
 
-        pairs = [[query, d.page_content] for d in docs]
+        # 上下文扩展：用相邻 chunk 补全后打分
+        expanded_texts = _expand_rerank_context(docs)
+        if RERANK_CONTEXT_WINDOW > 0:
+            print(f"重排序上下文扩展: window={RERANK_CONTEXT_WINDOW}")
+
+        pairs = [[query, text] for text in expanded_texts]
         scores = self.model.predict(pairs)
 
         sorted_idx = np.argsort(scores)[::-1]
@@ -275,42 +385,105 @@ def _merge_results(vec_docs: List[Document], bm25_docs: List[Document]) -> List[
     return list(all_docs.values())
 
 
-# ==================== Pipeline（API 向量 + API BM25 + 重排序）====================
-def pipeline(query: str, top_k: int = 20, use_bm25: bool = True, use_rerank: bool = True):
+# ==================== 查询扩展 ====================
+def expand_query(query: str, num_variants: int = QUERY_EXPANSION_NUM) -> List[str]:
     """
-    检索管道（双路 API 检索 + 重排序）
+    查询扩展：基于 LLM 生成语义相关的查询变体，提升检索召回率。
+
+    如果未配置 OPENAI_API_KEY，则直接返回原查询（降级处理）。
+    """
+    if not OPENAI_API_KEY:
+        return [query]
+
+    try:
+        import openai
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_API_BASE
+        )
+
+        system_prompt = (
+            "你是一个查询扩展助手。请基于用户查询生成语义等价或相近的查询变体，"
+            "用于提高文档检索召回率。只输出查询列表，每行一个，不要编号和解释。"
+        )
+        user_prompt = f"请为以下查询生成 {num_variants} 个查询变体：\n\n{query}"
+
+        response = client.chat.completions.create(
+            model=QUERY_EXPANSION_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=200
+        )
+
+        variants = [
+            line.strip()
+            for line in response.choices[0].message.content.split("\n")
+            if line.strip()
+        ]
+        # 确保原查询在首位
+        if query not in variants:
+            variants.insert(0, query)
+        return variants[:num_variants + 1]
+
+    except Exception as e:
+        print(f"查询扩展失败，使用原查询: {e}")
+        return [query]
+
+
+# ==================== Pipeline（API 向量 + API BM25 + 重排序）====================
+def pipeline(query: str, top_k: int = 20, use_bm25: bool = True,
+             use_rerank: bool = True, use_query_expansion: bool = False):
+    """
+    检索管道（双路 API 检索 + 查询扩展 + 重排序）
 
     Args:
         query: 查询字符串
         top_k: 每路检索返回数量
         use_bm25: 是否启用 BM25 API 检索
         use_rerank: 是否启用 CrossEncoder 重排序
+        use_query_expansion: 是否启用查询扩展（会调用 LLM 生成查询变体）
     """
     print("原始查询:", query)
 
     client = get_api_client()
 
-    # 1. 向量 API 检索
-    vec_docs = client.search(query, top_k=top_k)
-    print(f"向量召回: {len(vec_docs)}")
+    # 查询扩展：生成多个语义相关查询变体
+    should_expand = use_query_expansion or QUERY_EXPANSION_ENABLED
+    queries = expand_query(query) if should_expand else [query]
+    if len(queries) > 1:
+        print(f"查询扩展: {len(queries)} 个变体 -> {queries}")
 
-    docs = vec_docs
+    all_vec_docs: List[Document] = []
+    all_bm25_docs: List[Document] = []
 
-    # 2. BM25 API 检索（可选）
+    # 对每个查询变体分别检索
+    for q in queries:
+        vec_docs = client.search(q, top_k=top_k)
+        all_vec_docs.extend(vec_docs)
+
+        if use_bm25:
+            bm25_docs = client.text_search(q, top_k=top_k)
+            all_bm25_docs.extend(bm25_docs)
+
+    print(f"向量召回（含扩展）: {len(all_vec_docs)}")
+
+    # 合并去重（查询扩展时即使只有向量检索也需要去重）
+    docs = _merge_results(all_vec_docs, all_bm25_docs if use_bm25 else [])
     if use_bm25:
-        bm25_docs = client.text_search(query, top_k=top_k)
-        print(f"BM25 召回: {len(bm25_docs)}")
-        docs = _merge_results(vec_docs, bm25_docs)
-        print(f"合并去重后: {len(docs)}")
+        print(f"BM25 召回（含扩展）: {len(all_bm25_docs)}")
+    print(f"合并去重后: {len(docs)}")
 
     if not docs:
         return []
 
-    # 3. 自适应 TopK 截断
+    # 自适应 TopK 截断
     k = adaptive_topk_simple(query, docs)
     docs = docs[:k]
 
-    # 4. CrossEncoder 重排序（可选）
+    # CrossEncoder 重排序（可选）
     if use_rerank:
         reranker = get_reranker()
         docs = reranker.rerank(query, docs)

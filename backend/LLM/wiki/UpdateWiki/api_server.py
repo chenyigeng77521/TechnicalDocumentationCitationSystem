@@ -109,7 +109,7 @@ async def update_files_stream(request: UpdateRequest):
     ```bash
     curl -N -H "Accept: text/event-stream" \
          -H "Content-Type: application/json" \
-         -X POST http://localhost:8080/api/v1/update/stream \
+         -X POST http://localhost:18010/api/v1/update/stream \
          -d '{"files":["raw/接口全业务整理.xls"]}'
     ```
     """
@@ -188,7 +188,7 @@ async def update_single_file(file_name: str):
     return UpdateResponse(**result)
 
 
-def start_server(updater, host: str = "0.0.0.0", port: int = 8080):
+def start_server(updater, host: str = "0.0.0.0", port: int = 18010):
     """启动 HTTP 服务
 
     Args:
