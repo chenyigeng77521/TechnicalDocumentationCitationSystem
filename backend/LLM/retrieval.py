@@ -9,6 +9,19 @@ from sentence_transformers import CrossEncoder
 # ==================== 配置 ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ------------------------------------------------------------------
+# 环境变量说明（请在 .env 或系统环境中配置）
+# ------------------------------------------------------------------
+# VECTOR_API_URL           向量库 API 地址，默认 http://localhost:18082
+# VECTOR_API_KEY           向量库 API 密钥（可选）
+# RETRIEVAL_SCORE_THRESHOLD  检索结果最低 score，低于此值过滤，默认 0.0
+# QUERY_EXPANSION_ENABLED  是否启用查询扩展，默认 false
+# QUERY_EXPANSION_MODEL    查询扩展用 LLM 模型，默认 gpt-3.5-turbo
+# QUERY_EXPANSION_NUM      扩展变体数量，默认 3
+# OPENAI_API_KEY           查询扩展用 LLM API Key（启用查询扩展时必需）
+# OPENAI_API_BASE          查询扩展用 LLM API 基础地址，默认 https://api.openai.com/v1
+# ------------------------------------------------------------------
+
 # 向量库 API 配置
 VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://localhost:18082")
 VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
@@ -24,6 +37,10 @@ MAX_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
 QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
 QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "gpt-3.5-turbo")
 QUERY_EXPANSION_NUM = int(os.getenv("QUERY_EXPANSION_NUM", "3"))
+
+# LLM API 配置（查询扩展用）
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
 
 # ==================== 惰性加载嵌入模型 ====================
 _embedding_model = None
@@ -300,15 +317,14 @@ def expand_query(query: str, num_variants: int = QUERY_EXPANSION_NUM) -> List[st
 
     如果未配置 OPENAI_API_KEY，则直接返回原查询（降级处理）。
     """
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
+    if not OPENAI_API_KEY:
         return [query]
 
     try:
         import openai
         client = openai.OpenAI(
-            api_key=openai_api_key,
-            base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_API_BASE
         )
 
         system_prompt = (
