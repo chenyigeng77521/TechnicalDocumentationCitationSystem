@@ -11,6 +11,8 @@ echo ""
 current_path=$(pwd)
 echo $current_path
 
+bash "$current_path/buildAll.sh"
+
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）
 echo "🔍 获取本机 IP 地址..."
 # 优先获取 en0（无线网卡）的 IP
@@ -37,27 +39,68 @@ else
     echo "   ✅ Nginx 已启动"
 fi
 
+# 检查并启动 Question Filter 问题过滤服务
+echo ""
+echo "2️⃣ 检查 Question Filter 问题过滤服务状态..."
+FILTER_CHECK=$(lsof -i:3005 2>/dev/null | grep LISTEN)
+if [ -n "$FILTER_CHECK" ]; then
+    echo "   ✅ Question Filter 已运行 (3005)"
+else
+    echo "   🔄 启动 Question Filter 服务..."
+    cd "$current_path/backend/firstlayer/question_filter"
+    # 使用 Python 直接启动 app.py（解决相对导入问题）
+    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/question_filter.log" 2>&1 &
+    FILTER_PID=$!
+    echo "   进程 PID: $FILTER_PID"
+    # 等待服务完全启动
+    echo "   ⏳ 等待服务启动..."
+    sleep 10
+    FILTER_CHECK2=$(lsof -i:3005 2>/dev/null | grep LISTEN)
+    if [ -n "$FILTER_CHECK2" ]; then
+        echo "   ✅ Question Filter 已启动 (3005)"
+    else
+        echo "   ❌ Question Filter 启动失败，请检查日志"
+        echo "   💡 日志路径：$current_path/logs/question_filter.log"
+    fi
+fi
+
 # 检查并启动 FirstLayer 问题分类服务
 echo ""
-echo "2️⃣ 检查 FirstLayer 问题分类服务状态..."
-if lsof -i:3004 | grep -q LISTEN; then
+echo "3️⃣ 检查 FirstLayer 问题分类服务状态..."
+FIRSTLAYER_CHECK=$(lsof -i:3004 2>/dev/null | grep LISTEN)
+if [ -n "$FIRSTLAYER_CHECK" ]; then
     echo "   ✅ FirstLayer 已运行 (3004)"
 else
     echo "   🔄 启动 FirstLayer 服务..."
-    cd "$current_path/backend/firstlayer"
-    # 使用 Python 3.11 启动（后台运行，脱离终端）
-    sh -c "nohup /usr/local/Homebrew/Cellar/python@3.11/3.11.13/bin/python3.11 src/app.py > '$current_path/logs/firstlayer.log' 2>&1 & disown"
-    sleep 5
-    if lsof -i:3004 | grep -q LISTEN; then
-        echo "   ✅ FirstLayer 已启动 (3004)"
-    else
-        echo "   ❌ FirstLayer 启动失败，请检查日志"
+    cd "$current_path/backend/firstlayer/category_classifier"
+    # 使用 Python 直接启动 app.py（解决相对导入问题）
+    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/firstlayer.log" 2>&1 &
+    FIRSTLAYER_PID=$!
+    echo "   进程 PID: $FIRSTLAYER_PID"
+    # 使用循环检测服务是否启动成功
+    echo "   ⏳ 等待服务启动..."
+    MAX_RETRIES=20
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        sleep 3
+        FIRSTLAYER_CHECK2=$(lsof -i:3004 2>/dev/null | grep LISTEN)
+        if [ -n "$FIRSTLAYER_CHECK2" ]; then
+            echo "   ✅ FirstLayer 已启动 (3004)"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        echo "   ⏳ 等待中... ($RETRY_COUNT/$MAX_RETRIES)"
+    done
+    
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "   ❌ FirstLayer 启动超时，请检查日志"
+        echo "   💡 日志路径：$current_path/logs/firstlayer.log"
     fi
 fi
 
 # 检查并启动后端
 echo ""
-echo "3️⃣ 检查后端服务状态..."
+echo "4️⃣ 检查后端服务状态..."
 if lsof -i:3002 | grep -q LISTEN; then
     echo "   ✅ 后端已运行 (3002)"
 else
@@ -70,7 +113,7 @@ fi
 
 # 检查并启动前端
 echo ""
-echo "4️⃣ 检查前端服务状态..."
+echo "5️⃣ 检查前端服务状态..."
 if lsof -i:3000 | grep -q LISTEN; then
     echo "   ✅ 前端已运行 (3000)"
 else
@@ -110,7 +153,8 @@ echo "  ────────────────────────
 echo ""
 echo "📝 日志文件:"
 echo "  Nginx:    /usr/local/nginx/logs/"
-echo "  FirstLayer: ./logs/firstlayer.log"
+echo "  FirstLayer: ./logs/category_classifier.log"
+echo "  Question Filter: ./logs/question_filter.log"
 echo "  后端：    ./logs/backend.log"
 echo "  前端：    ./logs/frontend.log"
 echo ""
