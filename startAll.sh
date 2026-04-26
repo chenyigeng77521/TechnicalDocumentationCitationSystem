@@ -54,22 +54,33 @@ else
     echo "   进程 PID: $FILTER_PID"
     # 等待服务完全启动
     echo "   ⏳ 等待服务启动..."
-    sleep 10
-    FILTER_CHECK2=$(lsof -i:3005 2>/dev/null | grep LISTEN)
-    if [ -n "$FILTER_CHECK2" ]; then
-        echo "   ✅ Question Filter 已启动 (3005)"
-    else
-        echo "   ❌ Question Filter 启动失败，请检查日志"
+    MAX_RETRIES=20
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        sleep 3
+        FILTER_CHECK2=$(lsof -i:3005 2>/dev/null | grep LISTEN)
+        if [ -n "$FILTER_CHECK2" ]; then
+            echo "   ✅ Question Filter 已启动 (3005)"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        echo "   ⏳ 等待中... ($RETRY_COUNT/$MAX_RETRIES)"
+    done
+
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "   ❌ Question Filter 启动超时，请检查日志"
         echo "   💡 日志路径：$current_path/logs/question_filter.log"
     fi
+
+
 fi
 
-# 检查并启动 FirstLayer 问题分类服务
+# 检查并启动 Category_classifier 问题分类服务
 echo ""
-echo "3️⃣ 检查 FirstLayer 问题分类服务状态..."
+echo "3️⃣ 检查 Category_classifier 问题分类服务状态..."
 FIRSTLAYER_CHECK=$(lsof -i:3004 2>/dev/null | grep LISTEN)
 if [ -n "$FIRSTLAYER_CHECK" ]; then
-    echo "   ✅ FirstLayer 已运行 (3004)"
+    echo "   ✅ Category_classifier 已运行 (3004)"
 else
     echo "   🔄 启动 FirstLayer 服务..."
     cd "$current_path/backend/firstlayer/category_classifier"
@@ -85,7 +96,7 @@ else
         sleep 3
         FIRSTLAYER_CHECK2=$(lsof -i:3004 2>/dev/null | grep LISTEN)
         if [ -n "$FIRSTLAYER_CHECK2" ]; then
-            echo "   ✅ FirstLayer 已启动 (3004)"
+            echo "   ✅ Category_classifier 已启动 (3004)"
             break
         fi
         RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -93,8 +104,8 @@ else
     done
     
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo "   ❌ FirstLayer 启动超时，请检查日志"
-        echo "   💡 日志路径：$current_path/logs/firstlayer.log"
+        echo "   ❌ Category_classifier 启动超时，请检查日志"
+        echo "   💡 日志路径：$current_path/logs/Category_classifier.log"
     fi
 fi
 
