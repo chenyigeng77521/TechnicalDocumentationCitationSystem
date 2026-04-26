@@ -1,5 +1,5 @@
 """测试 chunks 表 CRUD + 向量/全文检索。"""
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import pytest
 from backend.ingestion.db.connection import init_db, get_connection
@@ -13,7 +13,7 @@ from backend.ingestion.db.chunks_repo import (
 def _seed_doc(conn, file_path="a.md"):
     upsert_document(conn, file_path=file_path, file_name=file_path,
                     file_hash="h", file_size=10, format="md",
-                    index_version="v1", last_modified=datetime.utcnow())
+                    index_version="v1", last_modified=datetime.now(timezone.utc))
 
 
 @pytest.fixture

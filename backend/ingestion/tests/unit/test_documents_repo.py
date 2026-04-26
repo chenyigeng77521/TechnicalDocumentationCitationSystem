@@ -1,5 +1,5 @@
 """测试 documents 表 CRUD。"""
-from datetime import datetime
+from datetime import datetime, timezone
 import pytest
 from backend.ingestion.db.connection import init_db, get_connection
 from backend.ingestion.db.documents_repo import (
@@ -29,10 +29,10 @@ def test_upsert_and_get(conn):
 def test_upsert_overwrites(conn):
     upsert_document(conn, file_path="a.md", file_name="a.md", file_hash="h1",
                     file_size=10, format="md", index_version="v1",
-                    last_modified=datetime.utcnow())
+                    last_modified=datetime.now(timezone.utc))
     upsert_document(conn, file_path="a.md", file_name="a.md", file_hash="h2",
                     file_size=20, format="md", index_version="v1",
-                    last_modified=datetime.utcnow())
+                    last_modified=datetime.now(timezone.utc))
     doc = get_document(conn, "a.md")
     assert doc["file_hash"] == "h2"
     assert doc["file_size"] == 20
@@ -45,9 +45,9 @@ def test_get_returns_none_when_missing(conn):
 def test_update_status(conn):
     upsert_document(conn, file_path="a.md", file_name="a.md", file_hash="h",
                     file_size=10, format="md", index_version="v1",
-                    last_modified=datetime.utcnow())
+                    last_modified=datetime.now(timezone.utc))
     update_status(conn, "a.md", index_status="indexed",
-                  chunk_count=5, indexed_at=datetime.utcnow())
+                  chunk_count=5, indexed_at=datetime.now(timezone.utc))
     doc = get_document(conn, "a.md")
     assert doc["index_status"] == "indexed"
     assert doc["chunk_count"] == 5
@@ -56,7 +56,7 @@ def test_update_status(conn):
 def test_delete_document(conn):
     upsert_document(conn, file_path="a.md", file_name="a.md", file_hash="h",
                     file_size=10, format="md", index_version="v1",
-                    last_modified=datetime.utcnow())
+                    last_modified=datetime.now(timezone.utc))
     delete_document(conn, "a.md")
     assert get_document(conn, "a.md") is None
 
@@ -65,6 +65,6 @@ def test_list_all_paths(conn):
     for p in ["a.md", "b.md", "sub/c.md"]:
         upsert_document(conn, file_path=p, file_name=p.split("/")[-1],
                         file_hash="h", file_size=10, format="md",
-                        index_version="v1", last_modified=datetime.utcnow())
+                        index_version="v1", last_modified=datetime.now(timezone.utc))
     paths = list_all_paths(conn)
     assert set(paths) == {"a.md", "b.md", "sub/c.md"}
