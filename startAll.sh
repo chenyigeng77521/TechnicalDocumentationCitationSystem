@@ -82,7 +82,7 @@ FIRSTLAYER_CHECK=$(lsof -i:3004 2>/dev/null | grep LISTEN)
 if [ -n "$FIRSTLAYER_CHECK" ]; then
     echo "   ✅ Category_classifier 已运行 (3004)"
 else
-    echo "   🔄 启动 FirstLayer 服务..."
+    echo "   🔄 启动 Category_classifier 服务..."
     cd "$current_path/backend/firstlayer/category_classifier"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
     nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/category_classifier.log" 2>&1 &
