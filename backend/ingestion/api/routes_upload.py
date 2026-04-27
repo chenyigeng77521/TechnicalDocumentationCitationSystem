@@ -13,6 +13,8 @@ MAX_FILENAME_LEN = 255
 ILLEGAL_CHARS_RE = re.compile(r'[<>:"|?*\x00-\x1f]')
 
 ALLOWED_EXTS = {".docx", ".pdf", ".xlsx", ".pptx", ".md", ".txt"}
+MAX_FILES = 10
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 # 测试用环境变量覆盖
 RAW_DIR = Path(os.getenv(
@@ -54,6 +56,11 @@ async def post_upload(
 ):
     if not files:
         raise HTTPException(status_code=400, detail="no_files_provided")
+    if len(files) > MAX_FILES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"too_many_files: {len(files)} > {MAX_FILES}",
+        )
 
     # 请求级安全检查（路径穿越 → 整批 400）
     for f in files:
@@ -91,8 +98,17 @@ async def post_upload(
             })
             continue
 
-        target = RAW_DIR / safe_name
         content = await f.read()
+        if len(content) > MAX_FILE_SIZE:
+            uploaded.append({
+                "filename": safe_name,
+                "status": "error",
+                "error_type": "oversized",
+                "detail": f"size {len(content)} > {MAX_FILE_SIZE}",
+            })
+            continue
+
+        target = RAW_DIR / safe_name
         target.write_bytes(content)
         uploaded.append({
             "filename": safe_name,

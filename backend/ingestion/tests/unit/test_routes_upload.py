@@ -223,3 +223,41 @@ def test_index_fail_upload_succeeds(client, tmp_path, monkeypatch):
     assert data["indexed"][0]["status"] == "error"    # 阶段 2 失败
     assert "simulated" in data["indexed"][0]["detail"]
     assert (tmp_path / "a.docx").exists()  # 磁盘文件不删
+
+
+# ============= Task 2.1: 50MB / 10 文件 限制 =============
+
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
+
+def test_50mb_boundary(client, tmp_path):
+    big = b"a" * MAX_FILE_SIZE
+    files = [("files", ("big.docx", big, "application/octet-stream"))]
+    resp = client.post("/upload", files=files)
+    assert resp.status_code == 200
+    assert resp.json()["uploaded"][0]["status"] == "saved"
+
+
+def test_oversized_rejected(client, tmp_path):
+    too_big = b"a" * (MAX_FILE_SIZE + 1)
+    files = [("files", ("big.docx", too_big, "application/octet-stream"))]
+    resp = client.post("/upload", files=files)
+    assert resp.status_code == 200  # 单文件级，不是请求级
+    u = resp.json()["uploaded"][0]
+    assert u["status"] == "error"
+    assert u["error_type"] == "oversized"
+    assert not (tmp_path / "big.docx").exists()
+
+
+def test_10_files_boundary(client, tmp_path):
+    files = [("files", (f"f{i}.docx", b"x", "application/octet-stream")) for i in range(10)]
+    resp = client.post("/upload", files=files)
+    assert resp.status_code == 200
+    assert len(resp.json()["uploaded"]) == 10
+
+
+def test_11_files_rejected(client):
+    files = [("files", (f"f{i}.docx", b"x", "application/octet-stream")) for i in range(11)]
+    resp = client.post("/upload", files=files)
+    assert resp.status_code == 400
+    assert "too_many_files" in resp.json()["detail"]
