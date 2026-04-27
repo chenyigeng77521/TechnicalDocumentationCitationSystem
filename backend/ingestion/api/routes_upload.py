@@ -2,10 +2,21 @@
 
 Spec: docs/superpowers/specs/2026-04-27-upload-endpoint-design.md
 """
+import os
 import re
+from pathlib import Path
+from fastapi import APIRouter, UploadFile, File, HTTPException
 
 MAX_FILENAME_LEN = 255
 ILLEGAL_CHARS_RE = re.compile(r'[<>:"|?*\x00-\x1f]')
+
+ALLOWED_EXTS = {".docx", ".pdf", ".xlsx", ".pptx", ".md", ".txt"}
+
+# 测试用环境变量覆盖
+RAW_DIR = Path(os.getenv(
+    "INGESTION_RAW_DIR",
+    str(Path(__file__).resolve().parents[3] / "backend" / "storage" / "raw"),
+))
 
 
 class PathTraversalError(ValueError):
@@ -29,3 +40,60 @@ def sanitize_filename(filename: str) -> str:
     # 清理（不抛错）
     cleaned = ILLEGAL_CHARS_RE.sub("_", filename)
     return cleaned
+
+
+router = APIRouter()
+
+
+@router.post("/upload")
+async def post_upload(files: list[UploadFile] = File(...)):
+    if not files:
+        raise HTTPException(status_code=400, detail="no_files_provided")
+
+    # 请求级安全检查（路径穿越 → 整批 400）
+    for f in files:
+        try:
+            sanitize_filename(f.filename or "")
+        except PathTraversalError:
+            raise HTTPException(status_code=400, detail="path_traversal_detected")
+        except InvalidFilenameError:
+            pass  # 单文件级先放过，下面 for 循环再处理
+
+    # 阶段 1：上传落地
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    uploaded = []
+
+    for f in files:
+        original_name = f.filename or ""
+        try:
+            safe_name = sanitize_filename(original_name)
+        except InvalidFilenameError as e:
+            uploaded.append({
+                "filename": original_name,
+                "status": "error",
+                "error_type": "invalid_filename",
+                "detail": str(e),
+            })
+            continue
+        # （PathTraversalError 不会到这里——前面已 400 拒绝）
+
+        ext = Path(safe_name).suffix.lower()
+        if ext not in ALLOWED_EXTS:
+            uploaded.append({
+                "filename": safe_name,
+                "status": "error",
+                "error_type": "unsupported_format",
+                "detail": f"扩展名 {ext} 不在白名单",
+            })
+            continue
+
+        target = RAW_DIR / safe_name
+        content = await f.read()
+        target.write_bytes(content)
+        uploaded.append({
+            "filename": safe_name,
+            "size": len(content),
+            "status": "saved",
+        })
+
+    return {"success": True, "uploaded": uploaded}
