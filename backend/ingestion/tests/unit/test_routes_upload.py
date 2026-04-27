@@ -180,3 +180,46 @@ def test_endpoint_enabled(monkeypatch, tmp_path):
     client = TestClient(server.app)
     resp = client.post("/upload", files=[("files", ("a.docx", b"x"))])
     assert resp.status_code == 200
+
+
+# ============= Task 1.4: ?index=true 阶段 2 =============
+
+
+def test_upload_with_index(client, tmp_path, monkeypatch):
+    """mock index_pipeline 避免真跑（依赖 bge-m3 加载慢）"""
+    from backend.ingestion.api import routes_upload
+
+    fake_calls = []
+
+    async def fake_pipeline(file_path):
+        fake_calls.append(file_path)
+        return {"status": "indexed", "chunk_count": 7, "file_hash": "abc"}
+
+    monkeypatch.setattr(routes_upload, "index_pipeline", fake_pipeline)
+
+    files = [("files", ("test.docx", b"content", "application/octet-stream"))]
+    resp = client.post("/upload?index=true", files=files)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "indexed" in data
+    assert len(data["indexed"]) == 1
+    assert data["indexed"][0]["chunks"] == 7
+    assert "test.docx" in fake_calls
+
+
+def test_index_fail_upload_succeeds(client, tmp_path, monkeypatch):
+    from backend.ingestion.api import routes_upload
+
+    async def fake_fail(file_path):
+        raise RuntimeError("simulated index failure")
+
+    monkeypatch.setattr(routes_upload, "index_pipeline", fake_fail)
+
+    files = [("files", ("a.docx", b"x", "application/octet-stream"))]
+    resp = client.post("/upload?index=true", files=files)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["uploaded"][0]["status"] == "saved"   # 阶段 1 OK
+    assert data["indexed"][0]["status"] == "error"    # 阶段 2 失败
+    assert "simulated" in data["indexed"][0]["detail"]
+    assert (tmp_path / "a.docx").exists()  # 磁盘文件不删

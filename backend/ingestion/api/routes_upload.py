@@ -4,8 +4,10 @@ Spec: docs/superpowers/specs/2026-04-27-upload-endpoint-design.md
 """
 import os
 import re
+import time
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from backend.ingestion.sync.pipeline import index_pipeline
 
 MAX_FILENAME_LEN = 255
 ILLEGAL_CHARS_RE = re.compile(r'[<>:"|?*\x00-\x1f]')
@@ -46,7 +48,10 @@ router = APIRouter()
 
 
 @router.post("/upload")
-async def post_upload(files: list[UploadFile] = File(...)):
+async def post_upload(
+    files: list[UploadFile] = File(...),
+    index: bool = False,
+):
     if not files:
         raise HTTPException(status_code=400, detail="no_files_provided")
 
@@ -59,7 +64,7 @@ async def post_upload(files: list[UploadFile] = File(...)):
         except InvalidFilenameError:
             pass  # 单文件级先放过，下面 for 循环再处理
 
-    # 阶段 1：上传落地
+    # ===== 阶段 1：上传落地 =====
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     uploaded = []
 
@@ -75,7 +80,6 @@ async def post_upload(files: list[UploadFile] = File(...)):
                 "detail": str(e),
             })
             continue
-        # （PathTraversalError 不会到这里——前面已 400 拒绝）
 
         ext = Path(safe_name).suffix.lower()
         if ext not in ALLOWED_EXTS:
@@ -96,4 +100,29 @@ async def post_upload(files: list[UploadFile] = File(...)):
             "status": "saved",
         })
 
-    return {"success": True, "uploaded": uploaded}
+    response = {"success": True, "uploaded": uploaded}
+
+    # ===== 阶段 2：可选索引（仅当 ?index=true）=====
+    if index:
+        indexed = []
+        for u in uploaded:
+            if u["status"] != "saved":
+                continue  # 单文件级失败的不索引
+            t0 = time.time()
+            try:
+                result = await index_pipeline(u["filename"])
+                indexed.append({
+                    "filename": u["filename"],
+                    "chunks": result.get("chunk_count", 0),
+                    "elapsed_s": round(time.time() - t0, 2),
+                })
+            except Exception as e:
+                indexed.append({
+                    "filename": u["filename"],
+                    "status": "error",
+                    "error_type": type(e).__name__,
+                    "detail": str(e),
+                })
+        response["indexed"] = indexed
+
+    return response
