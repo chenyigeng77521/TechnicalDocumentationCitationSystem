@@ -523,18 +523,18 @@ async def query_knowledge_base_stream(request: QueryRequest):
 
     async def generate():
         try:
-            yield f"data: {json.dumps({'type': 'start', 'query': request.query})}\n\n"
+            yield f"data: {json.dumps({'type': 'start', 'query': request.query}, ensure_ascii=False)}\n\n"
 
             # 获取 wiki 内容
             stats = wiki_reader.get_stats()
 
             if stats["files_count"] == 0:
-                yield f"data: {json.dumps({'type': 'error', 'error': 'wiki目录为空'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'error': 'wiki目录为空'}, ensure_ascii=False)}\n\n"
                 return
 
             # 检查 LLM 配置
             if not config.LLM_API_KEY:
-                yield f"data: {json.dumps({'type': 'error', 'error': '未配置大模型 API Key'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'error': '未配置大模型 API Key'}, ensure_ascii=False)}\n\n"
                 return
 
             wiki_content = wiki_reader.get_all_content()
@@ -568,13 +568,13 @@ async def query_knowledge_base_stream(request: QueryRequest):
             for chunk in stream:
                 if chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
-                    yield f"data: {json.dumps({'type': 'chunk', 'content': content})}\n\n"
+                    yield f"data: {json.dumps({'type': 'chunk', 'content': content}, ensure_ascii=False)}\n\n"
 
-            yield f"data: {json.dumps({'type': 'end', 'success': True})}\n\n"
+            yield f"data: {json.dumps({'type': 'end', 'success': True}, ensure_ascii=False)}\n\n"
 
         except Exception as e:
             logger.exception("流式查询失败")
-            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         generate(),

@@ -22,7 +22,7 @@ export const config = {
       host: process.env.HOST || '0.0.0.0',
     };
   },
-  // FirstLayer 配置（运行时读取）
+  // category_classifier 配置（运行时读取）
   get firstlayer() {
     return {
       url: process.env.FIRSTLAYER_URL || 'http://localhost:3004',

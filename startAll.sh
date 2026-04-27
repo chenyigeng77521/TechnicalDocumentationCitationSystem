@@ -82,7 +82,7 @@ FIRSTLAYER_CHECK=$(lsof -i:3004 2>/dev/null | grep LISTEN)
 if [ -n "$FIRSTLAYER_CHECK" ]; then
     echo "   ✅ Category_classifier 已运行 (3004)"
 else
-    echo "   🔄 启动 FirstLayer 服务..."
+    echo "   🔄 启动 Category_classifier 服务..."
     cd "$current_path/backend/firstlayer/category_classifier"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
     nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/category_classifier.log" 2>&1 &
@@ -109,9 +109,43 @@ else
     fi
 fi
 
+# 检查并启动 Context Memory 上下文记忆服务
+echo ""
+echo "4️⃣ 检查 Context Memory 上下文记忆服务状态..."
+CONTEXT_CHECK=$(lsof -i:3006 2>/dev/null | grep LISTEN)
+if [ -n "$CONTEXT_CHECK" ]; then
+    echo "   ✅ Context Memory 已运行 (3006)"
+else
+    echo "   🔄 启动 Context Memory 服务..."
+    cd "$current_path/backend/firstlayer/context_memory/src"
+    # 使用 uvicorn 启动（解决相对导入问题）
+    nohup /usr/local/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 3006 > "$current_path/logs/context_memory.log" 2>&1 &
+    CONTEXT_PID=$!
+    echo "   进程 PID: $CONTEXT_PID"
+    # 使用循环检测服务是否启动成功
+    echo "   ⏳ 等待服务启动..."
+    MAX_RETRIES=20
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        sleep 3
+        CONTEXT_CHECK2=$(lsof -i:3006 2>/dev/null | grep LISTEN)
+        if [ -n "$CONTEXT_CHECK2" ]; then
+            echo "   ✅ Context Memory 已启动 (3006)"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        echo "   ⏳ 等待中... ($RETRY_COUNT/$MAX_RETRIES)"
+    done
+    
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "   ❌ Context Memory 启动超时，请检查日志"
+        echo "   💡 日志路径：$current_path/logs/context_memory.log"
+    fi
+fi
+
 # 检查并启动后端
 echo ""
-echo "4️⃣ 检查后端服务状态..."
+echo "5️⃣ 检查后端服务状态..."
 if lsof -i:3002 | grep -q LISTEN; then
     echo "   ✅ 后端已运行 (3002)"
 else
@@ -123,7 +157,7 @@ else
 fi
 # 检查并启动前端
 echo ""
-echo "5️⃣ 检查前端服务状态..."
+echo "6️⃣ 检查前端服务状态..."
 if lsof -i:3000 | grep -q LISTEN; then
     echo "   ✅ 前端已运行 (3000)"
 else
@@ -142,6 +176,7 @@ echo ""
 echo "📊 服务状态:"
 echo "  Nginx: $LOCAL_IP  端口 80 (代理)"
 echo "  FirstLayer: 问题分类服务  端口 3004 (独立服务)"
+echo "  Context Memory: 上下文记忆服务  端口 3006 (独立服务)"
 echo "  后端：3002 (通过 Nginx 代理)"
 echo "  前端：3000 (通过 Nginx 代理)"
 echo ""
@@ -159,12 +194,18 @@ echo "  📊 FirstLayer 服务 (独立 3004 端口):"
 echo "     本地：http://localhost:3004"
 echo "     局域网：http://$LOCAL_IP:3004"
 echo "     文档：http://localhost:3004/docs"
+echo ""
+echo "  💾 Context Memory 服务 (独立 3006 端口):"
+echo "     本地：http://localhost:3006"
+echo "     局域网：http://$LOCAL_IP:3006"
+echo "     文档：http://localhost:3006/docs"
 echo "  ───────────────────────────────────────"
 echo ""
 echo "📝 日志文件:"
 echo "  Nginx:    /usr/local/nginx/logs/"
 echo "  FirstLayer: ./logs/category_classifier.log"
 echo "  Question Filter: ./logs/question_filter.log"
+echo "  Context Memory: ./logs/context_memory.log"
 echo "  后端：    ./logs/backend.log"
 echo "  前端：    ./logs/frontend.log"
 echo ""
