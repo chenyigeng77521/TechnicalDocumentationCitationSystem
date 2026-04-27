@@ -1,6 +1,6 @@
 
-> knowledge-qa-system@1.0.0 dev
-> tsx src/server.ts
+> knowledge-qa-system@1.0.0 start
+> node dist/server.js
 
 📝 已加载环境变量：/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/.env
 🔧 ENABLE_QUESTION_CLASSIFICATION: true
@@ -21,46 +21,25 @@
    GET    /api/qa/stats         - 统计信息
    DELETE /api/qa/files/:name  - 删除文件
 
-📥 收到问题（流式）: dddd
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: dddd
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: dddd
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: ddd
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: dddd
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: ddd
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: dadd
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: dddd
-ni
-❌ 语言错误：中文比例 0% < 30%
-📥 收到问题（流式）: 那你好久来接
-🔍 正在过滤问题：那你好久来接...
-✅ 过滤完成：CHAT (置信度：0.9)
-🔍 过滤结果：CHAT (置信度：0.9)
-⚠️  问题被过滤：CHAT
-📥 收到问题（流式）: 啦金利金利金利
-🔍 正在过滤问题：啦金利金利金利...
+❌ 服务器错误: Error: 不支持的文件格式：.xlsx，支持的格式：.json, .yaml, .yml, .cpp, .java, .py, .xml, .sql, .html, .md, .txt, .ppt, .pptx, .doc, .docx, .pdf
+    at fileFilter (file:///Users/chenyigeng/Library/Application%20Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/dist/routes/upload.js:136:12)
+    at wrappedFileFilter (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/multer/index.js:44:7)
+    at Multipart.<anonymous> (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/multer/lib/make-middleware.js:109:7)
+    at Multipart.emit (node:events:524:28)
+    at HeaderParser.cb (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:358:14)
+    at HeaderParser.push (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:162:20)
+    at SBMH.ssCb [as _cb] (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:394:37)
+    at feed (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/streamsearch/lib/sbmh.js:219:14)
+    at SBMH.push (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/streamsearch/lib/sbmh.js:104:16)
+    at Multipart._write (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:567:19) {
+  storageErrors: []
+}
+📤 上传文件：VC环境相关.pdf
+✅ 上传完成：VC环境相关.pdf
+📥 收到问题（流式）: fljljlll金利金利啦金利
+🔍 正在过滤问题：fljljlll金利金利啦金利...
 ✅ 过滤完成：VALID (置信度：0.5)
 🔍 过滤结果：VALID (置信度：0.5)
 🔄 问题有效，调用分类服务...
-🔄 正在对问题分类：啦金利金利金利...
-✅ 分类完成：UNKNOWN (置信度：0.5)
-📥 收到问题（流式）: 大姐啦金利就
-🔍 正在过滤问题：大姐啦金利就...
-✅ 过滤完成：VALID (置信度：0.5)
-🔍 过滤结果：VALID (置信度：0.5)
-🔄 问题有效，调用分类服务...
-🔄 正在对问题分类：大姐啦金利就...
-✅ 分类完成：UNKNOWN (置信度：0.5)
-📥 收到问题（流式）: 多打两份金利就
-🔍 正在过滤问题：多打两份金利就...
-✅ 过滤完成：VALID (置信度：0.5)
-🔍 过滤结果：VALID (置信度：0.5)
-🔄 问题有效，调用分类服务...
-🔄 正在对问题分类：多打两份金利就...
+🔄 正在对问题分类：fljljlll金利金利啦金利...
 ✅ 分类完成：UNKNOWN (置信度：0.5)

@@ -13,7 +13,8 @@ beautifulsoup4>=4.12.0
 markdownify>=0.11.6
 chardet>=5.2.0
 python-magic>=0.4.27
-paddleocr>=2.7.0
+paddleocr>=3.5.0,<4.0.0  # 3.x 起 API 大改（use_angle_cls/show_log 等参数删除），锁 3.x 兼容范围
+paddlepaddle>=3.3.1,<4.0.0  # PaddleOCR 的底层推理引擎，CPU 版；GPU 部署时换 paddlepaddle-gpu
 
 # Embedding
 sentence-transformers>=2.7.0

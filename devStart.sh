@@ -53,27 +53,36 @@ else
     echo "   进程 PID: $FILTER_PID"
     # 等待服务完全启动
     echo "   ⏳ 等待服务启动..."
-    sleep 10
-    FILTER_CHECK2=$(lsof -i:3005 2>/dev/null | grep LISTEN)
-    if [ -n "$FILTER_CHECK2" ]; then
-        echo "   ✅ Question Filter 已启动 (3005)"
-    else
-        echo "   ❌ Question Filter 启动失败，请检查日志"
+  MAX_RETRIES=20
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        sleep 3
+        FILTER_CHECK2=$(lsof -i:3005 2>/dev/null | grep LISTEN)
+        if [ -n "$FILTER_CHECK2" ]; then
+            echo "   ✅ Question Filter 已启动 (3005)"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        echo "   ⏳ 等待中... ($RETRY_COUNT/$MAX_RETRIES)"
+    done
+
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "   ❌ Question Filter 启动超时，请检查日志"
         echo "   💡 日志路径：$current_path/logs/question_filter.log"
     fi
 fi
 
-# 检查并启动 FirstLayer 问题分类服务
+# 检查并启动 category_classifier问题分类服务
 echo ""
-echo "3️⃣ 检查 FirstLayer 问题分类服务状态..."
+echo "3️⃣ 检查 category_classifier 问题分类服务状态..."
 FIRSTLAYER_CHECK=$(lsof -i:3004 2>/dev/null | grep LISTEN)
 if [ -n "$FIRSTLAYER_CHECK" ]; then
-    echo "   ✅ FirstLayer 已运行 (3004)"
+    echo "   ✅ category_classifier 已运行 (3004)"
 else
-    echo "   🔄 启动 FirstLayer 服务..."
+    echo "   🔄 启动 category_classifier 服务..."
     cd "$current_path/backend/firstlayer/category_classifier"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
-    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/firstlayer.log" 2>&1 &
+    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/category_classifier.log" 2>&1 &
     FIRSTLAYER_PID=$!
     echo "   进程 PID: $FIRSTLAYER_PID"
     # 使用循环检测服务是否启动成功
@@ -84,7 +93,7 @@ else
         sleep 3
         FIRSTLAYER_CHECK2=$(lsof -i:3004 2>/dev/null | grep LISTEN)
         if [ -n "$FIRSTLAYER_CHECK2" ]; then
-            echo "   ✅ FirstLayer 已启动 (3004)"
+            echo "   ✅ category_classifier 已启动 (3004)"
             break
         fi
         RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -92,7 +101,7 @@ else
     done
     
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo "   ❌ FirstLayer 启动超时，请检查日志"
+        echo "   ❌ category_classifier 启动超时，请检查日志"
         echo "   💡 日志路径：$current_path/logs/firstlayer.log"
     fi
 fi
@@ -150,7 +159,7 @@ echo "     本地：http://localhost:3005"
 echo "     局域网：http://$LOCAL_IP:3005"
 echo "     文档：http://localhost:3005/docs"
 echo ""
-echo "  📊 FirstLayer 服务 (独立 3004 端口):"
+echo "  📊 Category_classifier 服务 (独立 3004 端口):"
 echo "     本地：http://localhost:3004"
 echo "     局域网：http://$LOCAL_IP:3004"
 echo "     文档：http://localhost:3004/docs"
