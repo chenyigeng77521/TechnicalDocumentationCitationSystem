@@ -281,6 +281,78 @@ GET /chunks/81e76ae62a95e0759b6c28fe3c97b23c5692d1470d37dcdc308a0c2857d5fe95
 
 ---
 
+## 联调专用接口（开关控制）
+
+### POST `/upload`（联调用，受 INGESTION_UPLOAD_ENABLED 开关控制）
+
+⚠️ **此端点默认关闭**——`INGESTION_UPLOAD_ENABLED=true ./start.sh` 才注册。
+
+接收 multipart/form-data 文件，**两阶段分离**：阶段 1 全部落地，阶段 2 才（可选）索引。
+
+**Request**:
+
+```
+POST /upload?index=true|false
+Content-Type: multipart/form-data
+
+Form fields:
+  files: 文件数组（最多 10，单文件 ≤ 50 MB）
+
+Query parameters:
+  index: 可选，默认 false。true 表示阶段 1 完成后串行 await 索引每个 saved 文件
+         （多文件累加耗时，client timeout 应设 ≥ N×60s）
+```
+
+**Response 200**（成功，含部分单文件级 error）:
+
+```json
+{
+  "success": true,
+  "uploaded": [
+    {"filename": "doc.docx", "size": 73728, "status": "saved"},
+    {"filename": "evil.exe", "status": "error", "error_type": "unsupported_format",
+     "detail": "扩展名 .exe 不在白名单"}
+  ],
+  "indexed": [
+    {"filename": "doc.docx", "chunks": 511, "elapsed_s": 7.7}
+  ]
+}
+```
+
+**请求级错误**（HTTP 400/422，整批拒绝）：
+
+| HTTP | detail | 触发 |
+|---|---|---|
+| 422 | FastAPI 默认 unprocessable | 完全没传 `files` 字段 / 空 files 列表 |
+| 400 | `path_traversal_detected` | 任一文件名含 `..` / `/` / `\`（安全攻击）|
+| 400 | `too_many_files: {n} > 10` | 单次 > 10 文件，n 是实际数 |
+| 404 | （路由未注册）| 开关 OFF |
+
+**单文件级错误**（HTTP 200 中 status="error"）：
+
+| error_type | 触发 |
+|---|---|
+| `invalid_filename` | 空 / 长度 > 255 / 非法字符无法清理 |
+| `unsupported_format` | 扩展名不在白名单（.docx/.pdf/.xlsx/.pptx/.md/.txt）|
+| `oversized` | 单文件 > 50 MB |
+| `parse_failed` / `embedding_timeout` 等 | 阶段 2 索引失败（snake_case，参见 `common/errors.py`）|
+
+**curl 示例**：
+
+```bash
+INGESTION_UPLOAD_ENABLED=true ./start.sh
+
+# 仅上传，不索引
+curl -F "files=@/path/to/doc.pdf" http://localhost:3003/upload
+
+# 上传 + 自动索引（同步等待）
+curl -F "files=@/path/to/doc.pdf" "http://localhost:3003/upload?index=true"
+```
+
+📖 设计 spec：[`docs/superpowers/specs/2026-04-27-upload-endpoint-design.md`](../../docs/superpowers/specs/2026-04-27-upload-endpoint-design.md)
+
+---
+
 ## 监控接口
 
 ### GET `/stats`
