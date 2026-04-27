@@ -118,8 +118,8 @@ if [ -n "$CONTEXT_CHECK" ]; then
 else
     echo "   🔄 启动 Context Memory 服务..."
     cd "$current_path/backend/firstlayer/context_memory/src"
-    # 使用 Python 直接启动 app.py（解决相对导入问题）
-    nohup /usr/local/bin/python3 app.py > "$current_path/logs/context_memory.log" 2>&1 &
+    # 使用 uvicorn 启动（解决相对导入问题）
+    nohup /usr/local/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 3006 > "$current_path/logs/context_memory.log" 2>&1 &
     CONTEXT_PID=$!
     echo "   进程 PID: $CONTEXT_PID"
     # 使用循环检测服务是否启动成功
@@ -194,6 +194,11 @@ echo "  📊 FirstLayer 服务 (独立 3004 端口):"
 echo "     本地：http://localhost:3004"
 echo "     局域网：http://$LOCAL_IP:3004"
 echo "     文档：http://localhost:3004/docs"
+echo ""
+echo "  💾 Context Memory 服务 (独立 3006 端口):"
+echo "     本地：http://localhost:3006"
+echo "     局域网：http://$LOCAL_IP:3006"
+echo "     文档：http://localhost:3006/docs"
 echo "  ───────────────────────────────────────"
 echo ""
 echo "📝 日志文件:"
