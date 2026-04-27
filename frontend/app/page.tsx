@@ -78,7 +78,7 @@ export default function Home() {
   // 获取 raw 目录文档列表
   const loadRawFiles = (page: number = 1) => {
     setIsLoadingFiles(true);
-    fetch(buildApiUrl('/api/upload/raw-files?page=${page}&limit=10'))
+    fetch(buildApiUrl(`/api/upload/raw-files?page=${page}&limit=10`))
       .then(res => res.json())
       .then(data => {
         if (data.success) {
