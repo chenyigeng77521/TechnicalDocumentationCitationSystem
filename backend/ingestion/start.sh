@@ -23,6 +23,12 @@ CONDA_BIN="/opt/anaconda3/bin/conda"
 CONDA_ENV="sqllineage"
 PORT=3003
 
+# ---- 联调用：传文件接口（默认关闭，联调时设 true 启用）
+# 用法 1：改这一行 false → true
+# 用法 2：命令行覆盖 INGESTION_UPLOAD_ENABLED=true ./start.sh
+INGESTION_UPLOAD_ENABLED=${INGESTION_UPLOAD_ENABLED:-false}
+export INGESTION_UPLOAD_ENABLED
+
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_ROOT"
 

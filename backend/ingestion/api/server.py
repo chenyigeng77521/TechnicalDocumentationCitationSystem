@@ -1,4 +1,5 @@
 """FastAPI app 入口 + uvicorn 启动。"""
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.ingestion.api.routes_index import router as index_router
@@ -21,6 +22,13 @@ def create_app() -> FastAPI:
     )
     app.include_router(index_router)
     app.include_router(search_router)
+
+    # 联调用：可选注册 /upload 端点
+    if os.getenv("INGESTION_UPLOAD_ENABLED", "false").lower() == "true":
+        from backend.ingestion.api.routes_upload import router as upload_router
+        app.include_router(upload_router)
+        print("⚠️ /upload endpoint enabled (联调模式)")
+
     return app
 
 

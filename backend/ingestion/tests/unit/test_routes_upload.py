@@ -152,3 +152,31 @@ def test_duplicate_safe_name_overwrite(client, tmp_path):
     assert data["uploaded"][0]["size"] == len(b"first content")
     assert data["uploaded"][1]["size"] == len(b"second longer content")
     assert (tmp_path / "dup.docx").read_bytes() == b"second longer content"
+
+
+# ============= Task 1.3: server.py 开关 + start.sh =============
+
+
+def test_endpoint_disabled(monkeypatch):
+    monkeypatch.delenv("INGESTION_UPLOAD_ENABLED", raising=False)
+    from backend.ingestion.api import server
+    from importlib import reload
+    reload(server)
+
+    client = TestClient(server.app)
+    resp = client.post("/upload", files=[("files", ("a.docx", b"x"))])
+    assert resp.status_code == 404
+
+
+def test_endpoint_enabled(monkeypatch, tmp_path):
+    monkeypatch.setenv("INGESTION_UPLOAD_ENABLED", "true")
+    monkeypatch.setenv("INGESTION_RAW_DIR", str(tmp_path))
+
+    from backend.ingestion.api import server, routes_upload
+    from importlib import reload
+    reload(routes_upload)
+    reload(server)
+
+    client = TestClient(server.app)
+    resp = client.post("/upload", files=[("files", ("a.docx", b"x"))])
+    assert resp.status_code == 200
