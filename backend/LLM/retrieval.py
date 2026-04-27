@@ -2,6 +2,7 @@ import os
 from typing import List
 import numpy as np
 import requests
+from dotenv import load_dotenv
 
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
@@ -27,26 +28,26 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ADAPTIVE_TOPK_MIN        自适应 TopK 最小返回数量，默认 5
 # ADAPTIVE_TOPK_MAX        自适应 TopK 最大返回数量，默认 25
 # ------------------------------------------------------------------
-
+load_dotenv()
 # 向量库 API 配置
-VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://localhost:18082")
+VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://172.25.178.21:3003")
 VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
 
 # 模型配置
-VECTOR_MODEL = "BAAI/bge-m3"  # 向量嵌入模型
-RERANKER_MODEL = "BAAI/bge-reranker-base"  # 重排序模型
+VECTOR_MODEL = os.getenv("VECTOR_MODEL", "BAAI/bge-m3")  # 向量嵌入模型
+RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-base")  # 重排序模型
 
 # Score 阈值配置（低于此值的检索结果会被过滤，0.0 表示不过滤）
 MAX_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
 
 # 查询扩展配置
 QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
-QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "gpt-3.5-turbo")
+QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "deepseek-chat")
 QUERY_EXPANSION_NUM = int(os.getenv("QUERY_EXPANSION_NUM", "3"))
 
 # LLM API 配置（查询扩展用）
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY","sk-8c814e3379274286a853bde65f66ae74")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.deepseek.com/v1")
 
 # 重排序配置
 RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "3"))
