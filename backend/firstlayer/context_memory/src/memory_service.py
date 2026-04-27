@@ -102,6 +102,33 @@ class MemoryService:
                 return msg["content"]
         
         return None
+    
+    def get_latest_conversations(self, session_id: str, count: int = 2) -> Optional[List[dict]]:
+        """获取 session 中最近的 N 组问答（一问一答算一组）
+        
+        Args:
+            session_id: session ID
+            count: 获取多少组问答，默认 2 组
+        
+        Returns:
+            最近的 N 组问答列表，每组包含 user 和 assistant 消息
+        """
+        if session_id not in self.sessions:
+            return None
+        
+        messages = self.sessions[session_id]
+        # 计算实际的问答对数量
+        user_count = sum(1 for msg in messages if msg["role"] == "user")
+        assistant_count = sum(1 for msg in messages if msg["role"] == "assistant")
+        actual_pairs = min(user_count, assistant_count)
+        
+        # 如果问答对不足 count 组，返回所有问答
+        if actual_pairs <= count:
+            return messages
+        
+        # 从后往前取最近的 count 组问答（2*count 条消息）
+        start_index = max(0, len(messages) - 2 * count)
+        return messages[start_index:]
 
 
 # 全局单例

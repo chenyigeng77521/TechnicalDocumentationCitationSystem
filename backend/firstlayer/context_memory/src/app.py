@@ -195,10 +195,33 @@ async def get_latest_question(session_id: str):
         return {"success": False, "question": None, "message": str(e)}
 
 
-if __name__ == "__main__":
-    import uvicorn
-    print(f"🚀 Context Memory Service 启动中...")
-    print(f"📍 端口：{config.PORT}")
-    print(f"📍 地址：http://0.0.0.0:{config.PORT}")
-    print(f"📚 API 文档：http://localhost:{config.PORT}/docs")
-    uvicorn.run(app, host=config.HOST, port=config.PORT)
+@app.get("/api/context/get-latest-conversations/{session_id}")
+async def get_latest_conversations(session_id: str, count: int = 2):
+    """获取 session 中最近的 N 组问答（一问一答算一组）
+    
+    Args:
+        session_id: session ID
+        count: 获取多少组问答，默认 2 组
+    
+    Returns:
+        最近的 N 组问答列表
+    """
+    try:
+        conversations = memory_service.get_latest_conversations(session_id, count)
+        if conversations is None:
+            return {"success": False, "conversations": [], "message": "Session 不存在"}
+        
+        # 计算实际的问答对数量
+        conversation_count = len(conversations) // 2
+        
+        return {
+            "success": True,
+            "conversations": conversations,
+            "conversation_count": conversation_count,
+            "requested_count": count
+        }
+    except Exception as e:
+        return {"success": False, "conversations": [], "message": str(e)}
+
+
+

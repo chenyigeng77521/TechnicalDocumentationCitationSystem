@@ -21,25 +21,12 @@
    GET    /api/qa/stats         - 统计信息
    DELETE /api/qa/files/:name  - 删除文件
 
-❌ 服务器错误: Error: 不支持的文件格式：.xlsx，支持的格式：.json, .yaml, .yml, .cpp, .java, .py, .xml, .sql, .html, .md, .txt, .ppt, .pptx, .doc, .docx, .pdf
-    at fileFilter (file:///Users/chenyigeng/Library/Application%20Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/dist/routes/upload.js:136:12)
-    at wrappedFileFilter (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/multer/index.js:44:7)
-    at Multipart.<anonymous> (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/multer/lib/make-middleware.js:109:7)
-    at Multipart.emit (node:events:524:28)
-    at HeaderParser.cb (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:358:14)
-    at HeaderParser.push (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:162:20)
-    at SBMH.ssCb [as _cb] (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:394:37)
-    at feed (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/streamsearch/lib/sbmh.js:219:14)
-    at SBMH.push (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/streamsearch/lib/sbmh.js:104:16)
-    at Multipart._write (/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/entrance/node_modules/busboy/lib/types/multipart.js:567:19) {
-  storageErrors: []
-}
-📤 上传文件：VC环境相关.pdf
-✅ 上传完成：VC环境相关.pdf
-📥 收到问题（流式）: fljljlll金利金利啦金利
-🔍 正在过滤问题：fljljlll金利金利啦金利...
+📥 收到问题：什么是人工智能？
+🔍 正在过滤问题：什么是人工智能？...
 ✅ 过滤完成：VALID (置信度：0.5)
 🔍 过滤结果：VALID (置信度：0.5)
 🔄 问题有效，调用分类服务...
-🔄 正在对问题分类：fljljlll金利金利啦金利...
-✅ 分类完成：UNKNOWN (置信度：0.5)
+🔄 正在对问题分类：什么是人工智能？...
+✅ 分类完成：FACT (置信度：0.7)
+📊 分类结果：FACT (置信度：0.7)
+🎯 检索策略：精确匹配 - 查找具体事实、数据、定义
