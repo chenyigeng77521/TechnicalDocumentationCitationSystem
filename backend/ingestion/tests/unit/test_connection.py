@@ -1,7 +1,9 @@
 """测试 SQLite 连接 + schema 初始化。"""
 import sqlite3
 import pytest
-from backend.ingestion.db.connection import init_db, get_connection
+from backend.ingestion.db.connection import (
+    init_db, get_connection, jieba_tokenize, _register_sqlite_functions,
+)
 
 
 def test_init_db_creates_tables(tmp_db_path):
@@ -181,4 +183,49 @@ def test_init_db_migrates_old_unicode61_to_trigram(tmp_db_path):
     # 4. 原 chunks 表数据不应丢失
     chunk_count = conn.execute("SELECT count(*) FROM chunks").fetchone()[0]
     assert chunk_count == 1
+    conn.close()
+
+
+# === T2: jieba_tokenize SQLite UDF 单测（Task 2 新增）===
+
+def test_jieba_tokenize_chinese():
+    """中文按词切，词间用空格分隔。"""
+    assert jieba_tokenize("数据治理") == "数据 治理"
+    assert jieba_tokenize("产品功能架构") == "产品 功能 架构"
+
+
+def test_jieba_tokenize_empty_and_none():
+    """空字符串 → 空串；None → None（保留 NULL 语义给 SQLite）。"""
+    assert jieba_tokenize("") == ""
+    assert jieba_tokenize(None) is None
+
+
+def test_jieba_tokenize_deterministic():
+    """同样的输入永远返回同样的结果（UDF 注册了 deterministic=True 是合法的）。"""
+    a = jieba_tokenize("数据治理架构与体系建设")
+    b = jieba_tokenize("数据治理架构与体系建设")
+    assert a == b
+
+
+def test_jieba_tokenize_mixed_cn_en():
+    """中英混合：中文按 jieba 切，英文/数字按空格保留。"""
+    result = jieba_tokenize("如何配置 F5 DNS")
+    tokens = result.split()
+    assert "F5" in tokens
+    assert "DNS" in tokens
+    assert "如何" in tokens
+    assert "配置" in tokens
+
+
+def test_register_sqlite_functions_enables_jieba_udf(tmp_db_path):
+    """spec §6.4 AC1：_register_sqlite_functions 注册的 jieba_tokenize 在 SQL 里可调用。
+
+    本测试只验证 helper 函数本身的注册能力。"init_db 内部连接也注册了 UDF"
+    的完整集成验证在 Task 4 完成后通过 test_init_db_migrates_old_trigram_to_unicode61
+    隐式覆盖（迁移 SQL 里 INSERT...SELECT jieba_tokenize(...) 能跑通就证明 UDF 注册了）。
+    """
+    conn = sqlite3.connect(tmp_db_path)
+    _register_sqlite_functions(conn)
+    result = conn.execute("SELECT jieba_tokenize('数据治理')").fetchone()
+    assert result[0] == "数据 治理"
     conn.close()
