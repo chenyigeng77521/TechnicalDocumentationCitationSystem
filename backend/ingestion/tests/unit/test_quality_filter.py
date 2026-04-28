@@ -90,3 +90,14 @@ def test_keeps_cross_document_duplicates():
     ]
     result = filter_quality(chunks)
     assert len(result) == 2
+
+
+def test_empty_input_returns_empty():
+    """空 list 不报错，返空 list"""
+    assert filter_quality([]) == []
+
+
+def test_none_input_raises_typeerror():
+    """None 输入抛 TypeError（按 Python 惯例不静默处理 None）"""
+    with pytest.raises(TypeError):
+        filter_quality(None)
