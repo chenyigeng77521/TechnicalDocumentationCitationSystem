@@ -31,8 +31,11 @@ def _drop_too_short(chunks: list[Chunk]) -> list[Chunk]:
 
 
 def _drop_low_alphanumeric(chunks: list[Chunk]) -> list[Chunk]:
-    """规则 ②：占位，下个 task 实现。"""
-    return chunks
+    """规则 ②：字母数字（Unicode L/N 类）占比 < ALPHANUM_RATIO_THRESHOLD 的丢。"""
+    return [
+        c for c in chunks
+        if _alphanumeric_ratio(c.content) >= ALPHANUM_RATIO_THRESHOLD
+    ]
 
 
 def _dedup_within_document(chunks: list[Chunk]) -> list[Chunk]:
