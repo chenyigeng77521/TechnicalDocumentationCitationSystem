@@ -25,6 +25,9 @@ numpy>=1.26.0
 watchdog>=4.0.0
 aiofiles>=23.2.0
 
+# 中文分词（FTS5 unicode61 + jieba 预切词，修复 #1+#7 BM25 长 query/短英文问题）
+jieba>=0.42.1
+
 # 测试
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
