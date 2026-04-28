@@ -296,11 +296,13 @@ POST /upload?index=true|false
 Content-Type: multipart/form-data
 
 Form fields:
-  files: 文件数组（最多 10，单文件 ≤ 50 MB）
+  files: 文件数组（最多 50，单文件 ≤ 50 MB）
+         同名字段重复出现 = 多文件，不是逗号分隔字符串
 
 Query parameters:
   index: 可选，默认 false。true 表示阶段 1 完成后串行 await 索引每个 saved 文件
          （多文件累加耗时，client timeout 应设 ≥ N×60s）
+         ⚠️ 批量场景（>10 个）建议 index=false 后另调 /index，避免单连接长阻塞
 ```
 
 **Response 200**（成功，含部分单文件级 error）:
@@ -325,7 +327,7 @@ Query parameters:
 |---|---|---|
 | 422 | FastAPI 默认 unprocessable | 完全没传 `files` 字段 / 空 files 列表 |
 | 400 | `path_traversal_detected` | 任一文件名含 `..` / `/` / `\`（安全攻击）|
-| 400 | `too_many_files: {n} > 10` | 单次 > 10 文件，n 是实际数 |
+| 400 | `too_many_files: {n} > 50` | 单次 > 50 文件，n 是实际数 |
 | 404 | （路由未注册）| 开关 OFF |
 
 **单文件级错误**（HTTP 200 中 status="error"）：

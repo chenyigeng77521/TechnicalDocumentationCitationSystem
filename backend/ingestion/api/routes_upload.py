@@ -13,7 +13,7 @@ MAX_FILENAME_LEN = 255
 ILLEGAL_CHARS_RE = re.compile(r'[<>:"|?*\x00-\x1f]')
 
 ALLOWED_EXTS = {".docx", ".pdf", ".xlsx", ".pptx", ".md", ".txt"}
-MAX_FILES = 10
+MAX_FILES = 50
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 # 测试用环境变量覆盖

@@ -249,15 +249,15 @@ def test_oversized_rejected(client, tmp_path):
     assert not (tmp_path / "big.docx").exists()
 
 
-def test_10_files_boundary(client, tmp_path):
-    files = [("files", (f"f{i}.docx", b"x", "application/octet-stream")) for i in range(10)]
+def test_50_files_boundary(client, tmp_path):
+    files = [("files", (f"f{i}.docx", b"x", "application/octet-stream")) for i in range(50)]
     resp = client.post("/upload", files=files)
     assert resp.status_code == 200
-    assert len(resp.json()["uploaded"]) == 10
+    assert len(resp.json()["uploaded"]) == 50
 
 
-def test_11_files_rejected(client):
-    files = [("files", (f"f{i}.docx", b"x", "application/octet-stream")) for i in range(11)]
+def test_51_files_rejected(client):
+    files = [("files", (f"f{i}.docx", b"x", "application/octet-stream")) for i in range(51)]
     resp = client.post("/upload", files=files)
     assert resp.status_code == 400
     assert "too_many_files" in resp.json()["detail"]
