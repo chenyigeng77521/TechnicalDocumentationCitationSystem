@@ -2,7 +2,12 @@
 import json
 import math
 import sqlite3
+import unicodedata
 from typing import Optional
+
+import jieba
+
+# jieba.setLogLevel + initialize 已在 connection.py 模块加载时调用，这里不重复
 
 
 def insert_chunks(conn: sqlite3.Connection, chunks: list[dict]) -> None:
@@ -85,12 +90,46 @@ def vector_search(
     return results
 
 
+def _is_meaningful_token(token: str) -> bool:
+    """spec §6.4 AC3 单一规则：token 至少含一个字母/数字字符（unicode L/N category）。
+
+    过滤掉纯标点、纯空白、emoji 等无检索意义的 token。
+    """
+    return any(unicodedata.category(c)[0] in 'LN' for c in token)
+
+
+def _escape_fts_phrase(token: str) -> str:
+    """FTS5 phrase 转义：内部 " → ""，整体包 "..."。
+
+    被 phrase 包起来的 token 不会被 FTS5 识别成 boolean keyword (AND/OR/NEAR/NOT)
+    或 reserved 字符，保证任意输入都是合法 FTS5 query。
+    """
+    return '"' + token.replace('"', '""') + '"'
+
+
+def _build_fts_query(text: str) -> str:
+    """用户原始 query → FTS5 OR 查询字符串。
+
+    spec §3.2：jieba 切词 → _is_meaningful_token 过滤 → _escape_fts_phrase 包装 → OR 拼接。
+    返回空字符串表示无有效 token，调用方应据此短路返 []。
+    """
+    tokens = [t for t in jieba.cut(text) if _is_meaningful_token(t)]
+    return ' OR '.join(_escape_fts_phrase(t) for t in tokens) if tokens else ''
+
+
 def text_search(
     conn: sqlite3.Connection,
     query: str,
     top_k: int = 50,
 ) -> list[dict]:
-    """FTS5 BM25。返回含 score (归一化) + bm25_rank (FTS5 原始) + doc_indexed_at。"""
+    """FTS5 BM25。query 是用户原始字符串，内部走 jieba 切词 + sanitize。
+
+    spec §3.2 + §6.4 AC4：函数签名不变，海军接口 100% 兼容。
+    返回含 score (归一化) + bm25_rank (FTS5 原始) + doc_indexed_at。
+    """
+    fts_query = _build_fts_query(query)
+    if not fts_query:
+        return []  # 空 / 全标点 query 直接返空，不打 FTS5（防 syntax error）
     rows = conn.execute(
         """
         SELECT c.*, fts.rank AS bm25_rank, d.indexed_at AS doc_indexed_at
@@ -101,7 +140,7 @@ def text_search(
         ORDER BY fts.rank
         LIMIT ?
         """,
-        (query, top_k),
+        (fts_query, top_k),
     ).fetchall()
     results = []
     for r in rows:
