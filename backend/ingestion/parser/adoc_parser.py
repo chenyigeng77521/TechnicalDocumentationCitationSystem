@@ -30,5 +30,56 @@ def _slugify(text: str) -> str:
     return s
 
 
-# Task 3 实现：_extract_headings_with_anchors
+def _extract_headings_with_anchors(raw: str) -> list[TitleNode]:
+    """扫描 raw_text，提取标题 + 关联 anchor（spec §3.3 策略 α 升级版）。
+
+    算法：
+      1. 第 1 遍找出所有显式 [[xxx]] 单行 → {line_idx: anchor_name}
+      2. 第 2 遍扫 = 标题，看前 1-2 行（跳空行）是否有显式 [[xxx]]
+         - 有 → 用显式 anchor
+         - 无 → 用 _slugify(标题文本) 自动生成
+      3. 块级 [[xxx]] (后面跟 .Caption / 代码块 / 表格) 自动被忽略，
+         因为下一行不是 = 标题
+    """
+    lines = raw.split("\n")
+
+    # 第 1 遍：所有显式 [[xxx]] 行
+    explicit_anchors: dict[int, str] = {}
+    for i, line in enumerate(lines):
+        m = _EXPLICIT_ANCHOR_RE.match(line)
+        if m:
+            explicit_anchors[i] = m.group(1)
+
+    # 第 2 遍：扫标题
+    headings: list[TitleNode] = []
+    char_offset = 0
+    for i, line in enumerate(lines):
+        m = _HEADING_RE.match(line)
+        if m:
+            level = len(m.group(1))
+            text = m.group(2).strip()
+            # 看前 1-2 行（跳空行）有没有 [[xxx]]
+            anchor: Optional[str] = None
+            for j in (i - 1, i - 2):
+                if j < 0:
+                    break
+                if lines[j].strip() == "":
+                    continue
+                if j in explicit_anchors:
+                    anchor = explicit_anchors[j]
+                break  # 不是空行也不是显式 anchor 就停（不再往前找）
+            # 没显式 anchor → 自动生成 slug
+            if anchor is None:
+                anchor = _slugify(text)
+            headings.append(TitleNode(
+                level=level,
+                text=text,
+                char_offset=char_offset,
+                anchor=anchor,
+            ))
+        char_offset += len(line) + 1  # +1 是 \n
+
+    return headings
+
+
 # Task 4 实现：parse()
