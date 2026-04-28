@@ -12,8 +12,7 @@ SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 DEFAULT_DB_PATH = Path("backend/storage/index/knowledge.db")
 
 # 当前 schema 期望的 FTS 分词器（同 schema.sql 里的 tokenize 设置）
-# T2 阶段保留 trigram；T3 改 schema.sql 时同步改成 unicode61
-EXPECTED_FTS_TOKENIZER = "trigram"
+EXPECTED_FTS_TOKENIZER = "unicode61 remove_diacritics 2"
 
 
 def jieba_tokenize(text: str | None) -> str | None:

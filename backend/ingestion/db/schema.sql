@@ -40,19 +40,21 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS idx_chunks_file    ON chunks(file_path);
 CREATE INDEX IF NOT EXISTS idx_chunks_version ON chunks(index_version);
 
--- tokenize='trigram' 让中文按 3 字符分词，支持中文子串匹配
--- （unicode61 默认按空格切，中文连续没空格会被当成单一 token，搜不到）
--- 代价：索引体积约 3x，对短英文词（< 3 字符）失效（BM25 本来对短词也没意义）
+-- tokenize='unicode61' + 应用层 jieba 预切词（spec §3.1）
+-- 修复联调报告 #1（长 query 0 召回）+ #7（短英文 3-gram 拉偏）
+-- 写入：trigger 调 jieba_tokenize SQLite UDF（在 connection.py 注册）
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     chunk_id UNINDEXED,
     content,
     title_path,
-    tokenize = 'trigram'
+    tokenize = 'unicode61 remove_diacritics 2'
 );
 
 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
     INSERT INTO chunks_fts(chunk_id, content, title_path)
-    VALUES (new.chunk_id, new.content, new.title_path);
+    VALUES (new.chunk_id,
+            jieba_tokenize(new.content),
+            jieba_tokenize(new.title_path));
 END;
 
 CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
@@ -62,5 +64,7 @@ END;
 CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
     DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
     INSERT INTO chunks_fts(chunk_id, content, title_path)
-    VALUES (new.chunk_id, new.content, new.title_path);
+    VALUES (new.chunk_id,
+            jieba_tokenize(new.content),
+            jieba_tokenize(new.title_path));
 END;
