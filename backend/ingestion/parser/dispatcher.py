@@ -7,6 +7,8 @@ from backend.ingestion.parser.types import ParseResult
 _EXT_TO_PARSER: dict[str, str] = {
     ".md": "markdown",
     ".markdown": "markdown",
+    ".adoc": "adoc",
+    ".asciidoc": "adoc",
     ".txt": "txt",
     ".html": "html",
     ".htm": "html",
@@ -30,6 +32,8 @@ async def parse_document(path: Path) -> ParseResult:
     name = get_parser_name(path)
     if name == "markdown":
         from backend.ingestion.parser.markdown_parser import parse as p
+    elif name == "adoc":
+        from backend.ingestion.parser.adoc_parser import parse as p
     elif name == "txt":
         from backend.ingestion.parser.txt_parser import parse as p
     elif name == "html":

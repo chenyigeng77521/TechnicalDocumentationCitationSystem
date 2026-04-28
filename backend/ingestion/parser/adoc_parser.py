@@ -82,4 +82,12 @@ def _extract_headings_with_anchors(raw: str) -> list[TitleNode]:
     return headings
 
 
-# Task 4 实现：parse()
+async def parse(path: Path) -> ParseResult:
+    """解析 AsciiDoc 文件。签名跟 markdown_parser.parse 一致。"""
+    raw = path.read_text(encoding="utf-8")
+    headings = _extract_headings_with_anchors(raw)
+    return ParseResult(
+        raw_text=raw,
+        title_tree=_build_tree(headings),
+        content_type="document",
+    )
