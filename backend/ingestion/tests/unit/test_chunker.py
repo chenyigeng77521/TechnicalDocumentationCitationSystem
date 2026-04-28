@@ -110,3 +110,30 @@ def test_quality_filter_drops_short():
     assert chunks == [] or all(
         len(c.content) >= MIN_CHARS_QUALITY or c.is_truncated for c in chunks
     )
+
+
+def test_chunker_uses_quality_filter():
+    """split_document 末尾真调了 filter_quality（mock 验证）"""
+    from unittest.mock import patch
+    pr = ParseResult(
+        raw_text="this is a paragraph with enough length to pass min_chars threshold easily.",
+        title_tree=[],
+    )
+    with patch(
+        "backend.ingestion.chunker.document_splitter.filter_quality",
+        wraps=lambda x: x,
+    ) as mock_fq:
+        split_document(pr, **_meta())
+        mock_fq.assert_called_once()
+
+
+def test_chunker_drops_low_quality_chunks():
+    """端到端：纯标点段落 + 正常段落 → output 不含纯标点 chunk（行为验证）"""
+    junk = "." * 60
+    normal = "This is a normal paragraph with enough alphanumeric content here."
+    pr = ParseResult(raw_text=f"{junk}\n\n{normal}", title_tree=[])
+    chunks = split_document(pr, **_meta())
+
+    contents = [c.content for c in chunks]
+    assert junk not in contents, f"纯点 chunk 没被过滤: {contents}"
+    assert any(normal in c for c in contents), f"正常段落丢了: {contents}"
