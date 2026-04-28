@@ -36,6 +36,18 @@ _mock_hf_module.HuggingFaceEmbeddings = MockHuggingFaceEmbeddings
 sys.modules['langchain_huggingface'] = _mock_hf_module
 sys.modules['langchain_community.embeddings'] = _mock_hf_module
 
+# mock CrossEncoder，避免 sentence_transformers 导入失败
+class MockCrossEncoder:
+    def __init__(self, *args, **kwargs):
+        pass
+    def predict(self, pairs):
+        # 返回递减的分数，模拟排序
+        return [0.9 - i * 0.1 for i in range(len(pairs))]
+
+_mock_st_module = MagicMock()
+_mock_st_module.CrossEncoder = MockCrossEncoder
+sys.modules['sentence_transformers'] = _mock_st_module
+
 # 确保 retrieval.py 在路径中
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -312,7 +324,7 @@ class TestRunner:
     def test_score_threshold_filter(self):
         print("\n[TEST] Score 阈值过滤")
         # MOCK_CHUNKS score: 0.85, 0.78, 0.62, 0.55
-        with patch("retrieval.MAX_SCORE_THRESHOLD", 0.6):
+        with patch("retrieval.VECTOR_SCORE_THRESHOLD", 0.6):
             with self._mock_embedding():
                 docs = self.client.search("阈值测试", top_k=4)
 
@@ -381,12 +393,16 @@ class TestRunner:
         mock_reranker.rerank = lambda q, docs: docs
 
         # mock expand_query 返回 2 个查询变体
-        with patch("retrieval.expand_query", MagicMock(return_value=["查询A", "查询B"])):
-            with patch("retrieval.get_embedding_model", MagicMock(return_value=mock_emb)):
-                with patch("retrieval.get_reranker", MagicMock(return_value=mock_reranker)):
-                    results = pipeline("测试查询", top_k=4,
-                                       use_bm25=False, use_rerank=False,
-                                       use_query_expansion=True)
+        # 重置全局 API client，强制使用 mock server 地址
+        with patch("retrieval._api_client", None):
+            with patch("retrieval._api_client_checked", False):
+                with patch("retrieval.VECTOR_API_URL", self.base_url):
+                    with patch("retrieval.expand_query", MagicMock(return_value=["查询A", "查询B"])):
+                        with patch("retrieval.get_embedding_model", MagicMock(return_value=mock_emb)):
+                            with patch("retrieval.get_reranker", MagicMock(return_value=mock_reranker)):
+                                results = pipeline("测试查询", top_k=4,
+                                                   use_bm25=False, use_rerank=False,
+                                                   use_query_expansion=True)
 
         # 每个变体检索返回 4 个，共 8 个，但 MOCK_CHUNKS 只有 4 个不同 chunk_id
         # 所以去重后应为 4 个
