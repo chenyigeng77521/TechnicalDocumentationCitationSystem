@@ -68,3 +68,25 @@ def test_keeps_code_with_symbols():
     text = "cat > /etc/kubernetes/controller-manager.conf <<EOF"
     chunks = [_make_chunk(text)]
     assert len(filter_quality(chunks)) == 1
+
+
+def test_dedups_within_document():
+    """同 file_path 内 content 完全相同 → 留第一条"""
+    chunks = [
+        _make_chunk("a" * 60, file_path="kube.docx"),
+        _make_chunk("a" * 60, file_path="kube.docx"),
+        _make_chunk("a" * 60, file_path="kube.docx"),
+    ]
+    result = filter_quality(chunks)
+    assert len(result) == 1
+    assert result[0].file_path == "kube.docx"
+
+
+def test_keeps_cross_document_duplicates():
+    """跨 file_path 同 content → 全留（合理引用）"""
+    chunks = [
+        _make_chunk("a" * 60, file_path="doc1.docx"),
+        _make_chunk("a" * 60, file_path="doc2.docx"),
+    ]
+    result = filter_quality(chunks)
+    assert len(result) == 2

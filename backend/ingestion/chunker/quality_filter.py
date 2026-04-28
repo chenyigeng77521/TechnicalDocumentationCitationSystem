@@ -39,8 +39,19 @@ def _drop_low_alphanumeric(chunks: list[Chunk]) -> list[Chunk]:
 
 
 def _dedup_within_document(chunks: list[Chunk]) -> list[Chunk]:
-    """规则 ③：占位，下个 task 实现。"""
-    return chunks
+    """规则 ③：同 file_path 内 content 完全相同留第一条；跨文档不去重。
+
+    比较语义：raw byte-for-byte（不 strip / 不 normalize）。
+    """
+    seen: set[tuple[str, str]] = set()
+    out = []
+    for c in chunks:
+        key = (c.file_path, c.content)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
 
 
 def filter_quality(chunks: list[Chunk]) -> list[Chunk]:
