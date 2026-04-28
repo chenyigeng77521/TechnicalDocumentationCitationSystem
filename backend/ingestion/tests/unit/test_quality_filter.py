@@ -92,6 +92,22 @@ def test_keeps_cross_document_duplicates():
     assert len(result) == 2
 
 
+def test_keeps_same_content_different_offset():
+    """同文档 + 同 content 但不同 char_offset_start → 留（硬切产物保护）
+
+    场景：超长段被硬切成多块 content 完全一样的 chunk，offset 不同 → 不该去重
+    """
+    c1 = _make_chunk("x" * 60, file_path="doc.docx")
+    c2 = _make_chunk("x" * 60, file_path="doc.docx")
+    c2.char_offset_start = 1000
+    c2.char_offset_end = 1060
+    c3 = _make_chunk("x" * 60, file_path="doc.docx")
+    c3.char_offset_start = 2000
+    c3.char_offset_end = 2060
+    result = filter_quality([c1, c2, c3])
+    assert len(result) == 3, "硬切产物 content 一样但 offset 不同，不应被去重"
+
+
 def test_empty_input_returns_empty():
     """空 list 不报错，返空 list"""
     assert filter_quality([]) == []

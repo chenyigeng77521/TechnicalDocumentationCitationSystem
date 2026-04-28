@@ -39,14 +39,16 @@ def _drop_low_alphanumeric(chunks: list[Chunk]) -> list[Chunk]:
 
 
 def _dedup_within_document(chunks: list[Chunk]) -> list[Chunk]:
-    """规则 ③：同 file_path 内 content 完全相同留第一条；跨文档不去重。
+    """规则 ③：同 file_path 同位置 同 content 留第一条；跨文档/不同位置都留。
 
-    比较语义：raw byte-for-byte（不 strip / 不 normalize）。
+    去重 key：(file_path, content, char_offset_start)
+    - 加 char_offset_start 避免硬切产物（同 content 不同 offset = 文档不同位置）被误删
+    - content 比较 raw byte-for-byte（不 strip / 不 normalize）
     """
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, int]] = set()
     out = []
     for c in chunks:
-        key = (c.file_path, c.content)
+        key = (c.file_path, c.content, c.char_offset_start)
         if key in seen:
             continue
         seen.add(key)

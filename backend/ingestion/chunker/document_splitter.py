@@ -6,10 +6,10 @@ import hashlib
 import re
 from typing import Optional
 from backend.ingestion.chunker.types import Chunk
+from backend.ingestion.chunker.quality_filter import filter_quality
 from backend.ingestion.parser.types import ParseResult, TitleNode
 
 MAX_CHARS = 1000
-MIN_CHARS = 30
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[。！？.!?])\s*")
 # heading-only 段（如 "## Installation"），信息已在 title_tree，跳过避免 chunk 污染
 HEADING_ONLY_RE = re.compile(r"^#{1,6}\s+\S.*$", re.MULTILINE)
@@ -141,8 +141,8 @@ def split_document(
 
         cursor += 2  # 跳过 \n\n
 
-    # 过滤过短 chunk（除非 is_truncated）
-    chunks = [c for c in chunks if c.char_count >= MIN_CHARS or c.is_truncated]
+    # 质量过滤（太短 / 字母数字占比 / 同文档去重）
+    chunks = filter_quality(chunks)
     # 重新编号 chunk_index + 重算 chunk_id
     for i, c in enumerate(chunks):
         c.chunk_index = i

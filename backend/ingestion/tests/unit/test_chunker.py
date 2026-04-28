@@ -3,8 +3,8 @@ from backend.ingestion.chunker.types import Chunk
 from backend.ingestion.chunker.document_splitter import (
     split_document,
     MAX_CHARS,
-    MIN_CHARS,
 )
+from backend.ingestion.chunker.quality_filter import MIN_CHARS_QUALITY
 from backend.ingestion.parser.types import ParseResult, TitleNode
 
 
@@ -81,8 +81,8 @@ def test_heading_only_paragraph_is_skipped():
 
 def test_no_overlap_means_offsets_match_content():
     """关掉 overlap 后 char_offset_end - char_offset_start == len(content)。"""
-    para1 = "First paragraph with enough characters to keep."  # 47 chars
-    para2 = "Second paragraph also with enough length here."   # 46 chars
+    para1 = "First paragraph with enough characters to keep over the limit."  # 62 chars
+    para2 = "Second paragraph also with enough length here over the limit."   # 61 chars
     pr = ParseResult(raw_text=f"{para1}\n\n{para2}", title_tree=[])
     chunks = split_document(pr, **_meta())
     for c in chunks:
@@ -103,8 +103,10 @@ def test_title_path_from_tree():
     assert any("Top" in p for p in paths)
 
 
-def test_min_chars_filter():
-    pr = ParseResult(raw_text="x", title_tree=[])  # 1 char < MIN_CHARS
+def test_quality_filter_drops_short():
+    """split_document 调 quality_filter 后短 chunk 被丢"""
+    pr = ParseResult(raw_text="x", title_tree=[])  # 1 char < MIN_CHARS_QUALITY
     chunks = split_document(pr, **_meta())
-    # 过短 chunk 被过滤
-    assert chunks == [] or all(c.char_count >= MIN_CHARS or c.is_truncated for c in chunks)
+    assert chunks == [] or all(
+        len(c.content) >= MIN_CHARS_QUALITY or c.is_truncated for c in chunks
+    )
