@@ -55,11 +55,22 @@ def _fts_needs_migration(conn: sqlite3.Connection) -> bool:
 
 
 def _migrate_fts_tokenizer(conn: sqlite3.Connection) -> None:
-    """DROP 旧 chunks_fts → 用新 tokenize 重建 → 从 chunks 表重新填数据。
+    """DROP 旧 chunks_fts → 用 unicode61 重建 → 重建 3 个 trigger → jieba 重填。
 
-    DROP TABLE 会级联删触发器，所以重建后必须把 chunks_ai/ad/au 也建回来。
+    spec §6.4 AC2：DROP TABLE 会级联删 chunks_ai/ad/au 三个 trigger
+    （现有 connection.py 老注释明写此约束），所以重建 FTS 表后必须把
+    trigger 也建回来，否则后续 INSERT/UPDATE/DELETE 不再同步到 chunks_fts。
 
-    T2 阶段保留老的 trigram 重建版；Task 4 会改成 unicode61 + jieba 重填。
+    重建的 trigger 必须用 jieba_tokenize（跟 schema.sql 当前版本一致）。
+    `CREATE TRIGGER IF NOT EXISTS` 在迁移场景下安全，因为 DROP TABLE 已经
+    把 trigger 拿掉，IF NOT EXISTS 实际等价于 CREATE。
+
+    前置条件：conn 必须先调 _register_sqlite_functions(conn)，否则
+    INSERT...SELECT jieba_tokenize(...) 会报 'no such function'。
+    init_db() 已在调用此函数前注册 UDF。
+
+    spec §6.1 R4：迁移不是原子事务（executescript 自动 commit），
+    失败需手动 DROP chunks_fts 让下次启动重建。
     """
     conn.executescript("""
         DROP TABLE IF EXISTS chunks_fts;
@@ -68,12 +79,14 @@ def _migrate_fts_tokenizer(conn: sqlite3.Connection) -> None:
             chunk_id UNINDEXED,
             content,
             title_path,
-            tokenize = 'trigram'
+            tokenize = 'unicode61 remove_diacritics 2'
         );
 
         CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
             INSERT INTO chunks_fts(chunk_id, content, title_path)
-            VALUES (new.chunk_id, new.content, new.title_path);
+            VALUES (new.chunk_id,
+                    jieba_tokenize(new.content),
+                    jieba_tokenize(new.title_path));
         END;
 
         CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
@@ -83,12 +96,16 @@ def _migrate_fts_tokenizer(conn: sqlite3.Connection) -> None:
         CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
             DELETE FROM chunks_fts WHERE chunk_id = old.chunk_id;
             INSERT INTO chunks_fts(chunk_id, content, title_path)
-            VALUES (new.chunk_id, new.content, new.title_path);
+            VALUES (new.chunk_id,
+                    jieba_tokenize(new.content),
+                    jieba_tokenize(new.title_path));
         END;
     """)
+    # 一句 SQL 把全部 chunks 走 jieba_tokenize 重新写进 fts
     conn.execute("""
         INSERT INTO chunks_fts(chunk_id, content, title_path)
-        SELECT chunk_id, content, title_path FROM chunks
+        SELECT chunk_id, jieba_tokenize(content), jieba_tokenize(title_path)
+        FROM chunks
     """)
     conn.commit()
 

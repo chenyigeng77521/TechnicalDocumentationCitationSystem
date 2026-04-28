@@ -139,9 +139,12 @@ def test_trigger_handles_null_title_path(tmp_db_path):
 # （trigram 时代同样存在），不在本 FTS5 jieba 切换 spec 范围。已 spawn 独立 follow-up task。
 
 
-def test_init_db_migrates_old_unicode61_to_trigram(tmp_db_path):
-    """老 DB 用 unicode61，启动 init_db 应自动迁移到 trigram，且数据保留。"""
-    # 1. 手工建一个老 schema 的 DB（unicode61 分词器 + 灌一些中文数据）
+def test_init_db_migrates_old_trigram_to_unicode61(tmp_db_path):
+    """老 trigram DB 启动 init_db 应自动迁移到 unicode61，数据保留 + jieba 切词生效。
+
+    spec §3.3 + §6.4 AC2：迁移必须 DROP FTS + 重建 + 重建 3 trigger + jieba 重填。
+    """
+    # 1. 手工建一个旧 schema 的 DB（trigram + 老 trigger 不含 jieba）
     conn = sqlite3.connect(tmp_db_path)
     conn.executescript("""
         CREATE TABLE documents (
@@ -168,47 +171,86 @@ def test_init_db_migrates_old_unicode61_to_trigram(tmp_db_path):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (file_path) REFERENCES documents(file_path) ON DELETE CASCADE
         );
-        -- 老 schema：unicode61
+        -- 老 schema：trigram
         CREATE VIRTUAL TABLE chunks_fts USING fts5(
             chunk_id UNINDEXED, content, title_path,
-            tokenize = 'unicode61 remove_diacritics 2'
+            tokenize = 'trigram'
         );
     """)
     conn.execute("""
         INSERT INTO documents (file_path, file_name, file_hash, file_size,
                                format, index_version, last_modified)
-        VALUES ('cn.md', 'cn.md', 'h1', 10, 'md', 'v1', '2026-04-25')
+        VALUES ('/d1.md', 'd1.md', 'h', 1, 'md', 'v1', '2026-04-28')
     """)
     conn.execute("""
         INSERT INTO chunks (chunk_id, file_path, file_hash, index_version,
                             content, anchor_id, char_offset_start, char_offset_end,
                             char_count, chunk_index)
-        VALUES ('c1', 'cn.md', 'h1', 'v1',
-                '中文测试：你好世界', 'cn.md#0', 0, 9, 9, 0)
+        VALUES ('c1', '/d1.md', 'h', 'v1', '数据治理架构', 'a', 0, 6, 6, 0)
+    """)
+    # 老 trigger 不存在，手动塞 fts 数据模拟旧库状态（trigram 时代是按 3-gram 切，
+    # 但这里只是为了让旧库有"chunks_fts 不为空"的状态）
+    conn.execute("INSERT INTO chunks_fts(chunk_id, content) VALUES ('c1', '数据治理架构')")
+    conn.commit()
+    conn.close()
+
+    # 2. 调 init_db 触发自动迁移
+    init_db(tmp_db_path)
+
+    # 3. 验证 chunks_fts 现在是 unicode61
+    conn = sqlite3.connect(tmp_db_path)
+    create_sql = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='chunks_fts'"
+    ).fetchone()[0]
+    assert "unicode61" in create_sql, f"应迁移到 unicode61，实际: {create_sql}"
+
+    # 4. chunks 主表数据保留
+    chunk_count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+    assert chunk_count == 1
+
+    # 5. chunks_fts 里存的是 jieba 切词后内容
+    fts_content = conn.execute(
+        "SELECT content FROM chunks_fts WHERE chunk_id = 'c1'"
+    ).fetchone()[0]
+    assert fts_content == "数据 治理 架构", f"实际: {fts_content!r}"
+
+    # 6. 中文 search 能命中
+    matches = conn.execute(
+        "SELECT chunk_id FROM chunks_fts WHERE chunks_fts MATCH ?", ('"数据"',)
+    ).fetchall()
+    assert len(matches) == 1
+
+    conn.close()
+
+
+def test_init_db_migration_is_idempotent(tmp_db_path):
+    """迁移后再启动一次 init_db 不应再次迁移（幂等）。"""
+    # 第一次调 init_db（全新 DB）
+    init_db(tmp_db_path)
+
+    conn = get_connection(tmp_db_path)
+    conn.execute("""
+        INSERT INTO documents (file_path, file_name, file_hash, file_size,
+                               format, index_version, last_modified)
+        VALUES ('/d.md', 'd.md', 'h', 1, 'md', 'v1', '2026-04-28')
+    """)
+    conn.execute("""
+        INSERT INTO chunks (chunk_id, file_path, file_hash, index_version,
+                            content, anchor_id, char_offset_start, char_offset_end,
+                            char_count, chunk_index)
+        VALUES ('c1', '/d.md', 'h', 'v1', '数据', 'a', 0, 2, 2, 0)
     """)
     conn.commit()
     conn.close()
 
-    # 2. 调 init_db 应自动迁移（不是抛异常 / 数据丢失）
+    # 第二次调 init_db
     init_db(tmp_db_path)
 
-    # 3. 验证：chunks_fts 现在用 trigram，且能搜到中文子串
-    conn = get_connection(tmp_db_path)
-    row = conn.execute(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='chunks_fts'"
-    ).fetchone()
-    assert "trigram" in row[0], "迁移后 chunks_fts 应用 trigram 分词器"
-
-    rows = conn.execute(
-        "SELECT chunk_id FROM chunks_fts WHERE chunks_fts MATCH '你好世界'"
-    ).fetchall()
-    assert len(rows) == 1, "迁移后应能搜到中文子串（≥3 字符 query）"
-    assert rows[0][0] == 'c1'
-
-    # 4. 原 chunks 表数据不应丢失
-    chunk_count = conn.execute("SELECT count(*) FROM chunks").fetchone()[0]
-    assert chunk_count == 1
+    # 数据应保留，没有"重新迁移导致清空"
+    conn = sqlite3.connect(tmp_db_path)
+    n = conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0]
     conn.close()
+    assert n == 1
 
 
 # === T2: jieba_tokenize SQLite UDF 单测（Task 2 新增）===
