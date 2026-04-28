@@ -40,6 +40,7 @@ from ._types import (
     StreamEventDone,
     StreamEventError,
 )
+from .rejection_guard import safety_check_refusal_rate
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,15 @@ class ReasoningWebUI:
 
     差异说明（相对于 TS 版）：
     - TS 版通过 setDatabase(DatabaseManager) 获取 chunks
-    - Python 版直接通过 pipeline.retrieve_chunks() 调用 retrieval.py
+    - Python 版直接通过 pipeline.search_test_chunks() 调用 retrieval.py
     - WebSocket 使用 flask-sock 而非 ws 库（⚠️ 预留接口）
     """
 
     def __init__(self, config: ReasoningPipelineConfig = None):
         self.pipeline = create_reasoning_pipeline(config)
         self._ws_clients: Dict[str, Any] = {}
+        # 会话级统计，用于防全拒答保护（safety_check_refusal_rate）
+        self._session_stats: Dict[str, int] = {'total': 0, 'refused': 0}
 
     # ------------------------------------------------------------------ #
     # ⚠️ 预留接口：如果后续需要接入 TS DatabaseManager，在此添加适配器      #
@@ -100,7 +103,14 @@ class ReasoningWebUI:
             enable_async = data.get('enableAsyncVerification', None)
 
             def generate():
-                chunks = self.pipeline.retrieve_chunks(question, top_k)
+                # 优先使用 search_test_chunks（含 expanded_query / embedding_meta）
+                try:
+                    chunks, retrieval_resp = self.pipeline.search_test_chunks(question, top_k)
+                    expanded_query = retrieval_resp.expanded_query
+                except Exception:
+                    chunks = self.pipeline.retrieve_chunks(question, top_k)
+                    expanded_query = ''
+
                 req = ReasoningRequest(
                     query=question,
                     chunks=chunks,
@@ -120,7 +130,12 @@ class ReasoningWebUI:
                             elif isinstance(event, StreamEventDone):
                                 resp = event.response
                                 srcs = [_citation_to_dict(c) for c in (resp.citations or [])]
-                                yield f"data: {json.dumps({'sources': srcs})}\n\n"
+                                # README §5.1 提交格式 citations
+                                citations_submit = [
+                                    {'doc_path': c.doc_path, 'anchor': c.anchor}
+                                    for c in (resp.citations or [])
+                                ]
+                                yield f"data: {json.dumps({'sources': srcs, 'citations': citations_submit, 'is_refusal': resp.no_evidence, 'expanded_query': expanded_query})}\n\n"
                             elif isinstance(event, StreamEventError):
                                 yield f"data: {json.dumps({'error': event.message})}\n\n"
 
@@ -159,11 +174,21 @@ class ReasoningWebUI:
         # GET /stats - 统计信息
         @bp.route('/stats', methods=['GET'])
         def stats():
+            total   = self._session_stats.get('total', 0)
+            refused = self._session_stats.get('refused', 0)
+            refusal_rate = refused / max(total, 1)
             return jsonify({
-                'score_threshold': self.pipeline.rejection_guard.get_threshold(),
-                'governance_enabled': self.pipeline.enable_governance,
-                'async_verification_enabled': self.pipeline.enable_async_verification,
-                'llm_configured': self.pipeline._openai is not None,
+                'score_threshold':              self.pipeline.rejection_guard.get_threshold(),
+                'governance_enabled':           self.pipeline.enable_governance,
+                'async_verification_enabled':   self.pipeline.enable_async_verification,
+                'llm_configured':               self.pipeline._openai is not None,
+                # ── 防全拒答保护统计（README §7.1 雷2）──────────────────
+                'session_stats': {
+                    'total':        total,
+                    'refused':      refused,
+                    'refusal_rate': round(refusal_rate, 4),
+                    'warning':      refusal_rate > 0.6,
+                },
             })
 
         return bp
@@ -235,8 +260,23 @@ class ReasoningWebUI:
         strict_mode: Optional[bool] = None,
         enable_async_verification: Optional[bool] = None,
     ) -> dict:
-        """内部问答处理"""
-        chunks = self.pipeline.retrieve_chunks(question, top_k)
+        """
+        内部问答处理。
+
+        返回对齐 README §5.1 的提交格式：
+          answer / citations（doc_path + anchor）/ is_refusal / confidence
+        """
+        # 优先使用 search_test_chunks（含 expanded_query / embedding_meta）
+        try:
+            chunks, retrieval_resp = self.pipeline.search_test_chunks(question, top_k)
+            expanded_query   = retrieval_resp.expanded_query
+            max_reranker_score = retrieval_resp.max_reranker_score
+        except Exception:
+            # 降级到旧接口（retrieval.py 直接调用）
+            chunks = self.pipeline.retrieve_chunks(question, top_k)
+            expanded_query   = ''
+            max_reranker_score = max((c.reranker_score or 0.0 for c in chunks), default=0.0)
+
         response = self.pipeline.reason(
             ReasoningRequest(
                 query=question,
@@ -245,15 +285,39 @@ class ReasoningWebUI:
                 enable_async_verification=enable_async_verification,
             )
         )
+
+        # ── 构建 README §5.1 格式的 citations（doc_path + anchor）──────────
+        citations_submit = [
+            {
+                'doc_path': c.doc_path,
+                'anchor':   c.anchor,
+            }
+            for c in response.citations
+        ]
+
+        # ── 防全拒答保护（safety_check_refusal_rate）─────────────────────
+        self._session_stats['total'] += 1
+        if response.no_evidence:
+            self._session_stats['refused'] += 1
+        safety_check_refusal_rate(self._session_stats)  # 超过 60% 时输出告警日志
+
         return {
-            'answer': response.answer,
-            'citations': [_citation_to_dict(c) for c in response.citations],
-            'noEvidence': response.no_evidence,
-            'maxScore': response.max_score,
-            'confidence': response.confidence,
+            # ── README §5.1 提交格式 ─────────────────────────────────────
+            'answer':      response.answer,
+            'citations':   citations_submit,          # doc_path + anchor
+            'is_refusal':  response.no_evidence,      # 是否拒答（布尔）
+            'confidence':  response.confidence,        # 置信度 0~1
+            # ── 内部扩展字段（WebUI 调试用）──────────────────────────────
+            'noEvidence':  response.no_evidence,
+            'maxScore':    response.max_score,
             'contextTruncated': response.context_truncated,
-            'rejectedReason': response.rejected_reason,
-            'query': question,
+            'rejectedReason':   response.rejected_reason,
+            'query':       question,
+            'debug_info': {
+                'expanded_query':     expanded_query,
+                'max_reranker_score': max_reranker_score,
+                'refuse_reason':      response.rejected_reason,
+            },
         }
 
     def push_update(self, client_id: str, data: dict) -> None:
@@ -291,14 +355,25 @@ class ReasoningWebUI:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _citation_to_dict(c: CitationSource) -> dict:
+    """
+    将 CitationSource 转换为字典。
+
+    同时输出：
+    - README §5.1 提交字段：doc_path / anchor
+    - WebUI 内部调试字段：anchorId / titlePath / score / filePath / snippet
+    """
     return {
-        'id': c.id,
-        'anchorId': c.anchor_id,
-        'titlePath': c.title_path,
-        'score': c.score,
+        # ── README §5.1 提交字段 ─────────────────────────────────────
+        'doc_path':          c.doc_path,
+        'anchor':            c.anchor,
+        # ── WebUI 内部调试字段 ────────────────────────────────────────
+        'id':                c.id,
+        'anchorId':          c.anchor_id,
+        'titlePath':         c.title_path,
+        'score':             c.score,
         'verificationStatus': c.verification_status.value,
-        'filePath': c.file_path,
-        'snippet': c.snippet,
+        'filePath':          c.file_path,
+        'snippet':           c.snippet,
     }
 
 

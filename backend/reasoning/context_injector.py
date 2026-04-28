@@ -75,6 +75,8 @@ class ContextInjector:
                 content=chunk.content,
                 is_truncated=chunk.is_truncated,
                 anchor_id=chunk.anchor_id,
+                doc_path=chunk.doc_path or chunk.file_path,
+                anchor=chunk.anchor,
                 title_path=chunk.title_path,
                 reranker_score=chunk.reranker_score or 0.0,
             )
@@ -85,14 +87,20 @@ class ContextInjector:
 
     def format_for_prompt(self, blocks: List[ContextBlock]) -> str:
         """
-        将上下文块转换为可读字符串格式，用于注入 LLM prompt
-       
+        将上下文块转换为可读字符串格式，用于注入 LLM prompt。
+        格式对齐修订.md §3.1：[ID: n | doc_path#anchor]
         """
         parts = []
         for block in blocks:
-            formatted = f"[ID: {block.id}, Source: {block.source}]\n{block.content}"
+            # 使用 doc_path + anchor 作为头部标识（评委核查友好）
+            anchor_part = block.anchor if block.anchor else ''
+            formatted = (
+                f"[ID: {block.id} | {block.doc_path}{anchor_part}]\n"
+                f"[章节路径: {block.title_path or '（无标题）'}]\n"
+                f"{block.content}"
+            )
             if block.is_truncated:
-                formatted += "\n[此段内容已截断，建议查阅原文]"
+                formatted += "\n[注意：此段内容已截断，建议查阅原文]"
             parts.append(formatted)
         return "\n\n---\n\n".join(parts)
 
@@ -101,11 +109,11 @@ class ContextInjector:
 
     def _format_source(self, chunk: RetrievedChunk) -> str:
         """
-        格式化来源字符串
+        格式化来源字符串（对齐修订.md §3.1：doc_path#anchor 格式）
         """
-        path = chunk.anchor_id
-        title = f" | {chunk.title_path}" if chunk.title_path else ""
-        return f"{path}{title}"
+        doc_path = chunk.doc_path or chunk.file_path
+        anchor = chunk.anchor or ''
+        return f"{doc_path}{anchor}"
 
     def _deduplicate(self, chunks: List[RetrievedChunk]) -> List[RetrievedChunk]:
         """

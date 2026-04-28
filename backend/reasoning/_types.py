@@ -22,21 +22,36 @@ class VerificationStatus(str, Enum):
 class RetrievedChunk:
     """检索到的文档块（带完整元数据）"""
     chunk_id: str                        # sha256(file_path + chunk_index + content[:100])
-    file_path: str                       # 文件路径
+    file_path: str                       # 文件路径（相对路径，从 docs/ 开始，正斜杠）
     file_hash: str                       # 文件哈希
     content: str                         # 块内容
-    anchor_id: str                       # 锚点 ID: file_path#char_offset_start
-    title_path: Optional[str]            # 可读标题路径: Authentication > OAuth2 > Token Refresh
-    char_offset_start: int               # 字符偏移开始
-    char_offset_end: int                 # 字符偏移结束
-    char_count: int                      # 字符数
-    is_truncated: bool                   # 是否被截断
-    chunk_index: int                     # 块索引
+
+    # ── 引用字段（提交层直接使用，对齐 README §3.2）──────────────────────────
+    doc_path: str = ''                   # ≡ file_path，提交格式字段名（与 file_path 保持一致）
+    anchor: str = ''                     # H1-H4 标题锚点，#标题名，空格替换为 -，保留原始中文
+                                         # 示例："#本地临时存储的配额"  "#web-on-reactive-stack"
+
+    # ── 内部定位字段（仅供系统内部，不对外提交）──────────────────────────────
+    anchor_id: str = ''                  # 内部用: file_path#char_offset_start（⚠️ 不用于提交）
+    title_path: Optional[str] = None     # 可读路径，UI 展示用: Authentication > OAuth2 > Token Refresh
+    char_offset_start: int = 0           # 字符偏移开始（内部定位）
+    char_offset_end: int = 0             # 字符偏移结束
+    char_count: int = 0                  # 字符数
+    is_truncated: bool = False           # 是否被截断
+    chunk_index: int = 0                 # 块索引
     content_type: Literal['document', 'code', 'structured_data'] = 'document'
     language: Optional[str] = None       # 编程语言（代码类）
     embedding: Optional[List[float]] = None  # 向量
     reranker_score: Optional[float] = None   # Reranker 打分
     raw_text: Optional[str] = None           # 原始文本（用于验证）
+
+    def __post_init__(self):
+        # doc_path 与 file_path 保持一致（提交字段名对齐）
+        if not self.doc_path:
+            self.doc_path = self.file_path
+        # 兜底：anchor 未设置时从 anchor_id 提取（向后兼容）
+        if not self.anchor and self.anchor_id and '#' in self.anchor_id:
+            self.anchor = '#' + self.anchor_id.split('#', 1)[-1]
 
 
 # ============================================================
@@ -44,21 +59,25 @@ class RetrievedChunk:
 class ContextBlock:
     """上下文块（注入格式）"""
     id: int                              # 从 1 开始的序号
-    source: str                          # Source: file_path | title_path
+    source: str                          # Source: doc_path#anchor
     content: str                         # 块内容
     is_truncated: bool                   # 是否截断
-    anchor_id: str                       # 锚点 ID
-    title_path: Optional[str]            # 可读标题路径
-    reranker_score: float                # 检索得分
+    anchor_id: str                       # 内部锚点 ID（file_path#char_offset，不用于提交）
+    doc_path: str = ''                   # 提交字段：文档相对路径（对齐 README §3.2）
+    anchor: str = ''                     # 提交字段：H1-H4 标题锚点 #标题名（对齐 README §3.2）
+    title_path: Optional[str] = None     # 可读标题路径（UI 展示用）
+    reranker_score: float = 0.0          # 检索得分
 
 
 # ============================================================
 @dataclass
 class CitationSource:
-    """引用来源（用于前端展示）"""
+    """引用来源（用于前端展示和评测提交）"""
     id: int                                         # 引用 ID（与 ContextBlock.id 对应）
-    anchor_id: str                                  # 锚点 ID
-    title_path: Optional[str]                       # 可读标题路径
+    doc_path: str                                   # 提交字段：文档相对路径（对齐 README §3.2）
+    anchor: str                                     # 提交字段：H1-H4 标题锚点 #标题名（对齐 README §3.2）
+    anchor_id: str                                  # 内部锚点（file_path#char_offset，不对外提交）
+    title_path: Optional[str]                       # 可读标题路径（UI 展示用）
     score: float                                    # 检索得分
     verification_status: VerificationStatus         # 验证状态
     file_path: str                                  # 文件路径

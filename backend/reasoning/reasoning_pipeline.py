@@ -68,7 +68,7 @@ from ._types import (
 from .context_injector import ContextInjector, create_context_injector
 from .prompt_builder import PromptBuilder, create_prompt_builder
 from .citation_verifier import CitationVerifier, create_citation_verifier
-from .rejection_guard import RejectionGuard, RejectionResult, create_rejection_guard
+from .rejection_guard import RejectionGuard, RejectionResult, RejectionReason, create_rejection_guard, REFUSAL_TEXT, is_valid_refusal
 from .context_governance import ContextGovernor, create_context_governor
 
 logger = logging.getLogger(__name__)
@@ -224,6 +224,20 @@ class ReasoningPipeline:
         else:
             answer = self._build_no_llm_response(blocks)
 
+        # ── 阶段 4.5: 门控3 - LLM 拒答检测（is_valid_refusal 或 LLM 输出包含拒答关键词）
+        if is_valid_refusal(answer):
+            # LLM 自主判断无法回答，尊重其决定
+            logger.info("🚫 LLM 判断无法从文档中找到答案，触发门控3拒答")
+            return ReasoningResponse(
+                answer=REFUSAL_TEXT,
+                citations=[],
+                no_evidence=True,
+                max_score=rejection_result.max_score or 0.0,
+                confidence=0.0,
+                context_truncated=truncated,
+                rejected_reason=RejectionReason.LLM_UNANSWERABLE.value,
+            )
+
         # ── 阶段 5: 同步引用验证 ──────────────────────────────────────
         claimed_ids = self.prompt_builder.extract_citation_ids(answer)
         sync_result = self.verifier.sync_verify(claimed_ids, blocks)
@@ -308,11 +322,13 @@ class ReasoningPipeline:
                         block = block_index[cid]
                         citation = CitationSource(
                             id=block.id,
-                            anchor_id=block.anchor_id,
+                            doc_path=block.doc_path,   # 提交字段（对齐 README §5.1）
+                            anchor=block.anchor,        # 提交字段（对齐 README §3.2）
+                            anchor_id=block.anchor_id,  # 内部字段（保留）
                             title_path=block.title_path,
                             score=block.reranker_score,
                             verification_status=VerificationStatus.PENDING,
-                            file_path=self._extract_file_path(block.anchor_id),
+                            file_path=block.doc_path or self._extract_file_path(block.anchor_id),
                             snippet=block.content[:self._rcfg.snippet_length],
                         )
                         citations.append(citation)
@@ -409,7 +425,19 @@ class ReasoningPipeline:
             raw_id = f"{file_path}{i}{content[:100]}"
             chunk_id = hashlib.sha256(raw_id.encode()).hexdigest()[:16]
 
-            # ── 构造 anchor_id（⚠️ 预留接口：步长来自 reasoning_config.yaml [retrieval.anchor_offset_step]）
+            # ── 提取 anchor（提交字段：H1-H4 标题锚点 #标题名）
+            #    优先从 metadata 读取，退而使用 heading 文本生成
+            anchor = metadata.get('anchor', metadata.get('heading_anchor', ''))
+            if not anchor:
+                heading = metadata.get('heading', metadata.get('title', ''))
+                if heading:
+                    import re as _re
+                    heading_clean = heading.strip().replace(' ', '-')
+                    heading_clean = _re.sub(r'[^\w\u4e00-\u9fff\-]', '', heading_clean)
+                    anchor = '#' + heading_clean
+
+            # ── 构造 anchor_id（内部定位，不对外提交）
+            #    ⚠️ 预留接口：步长来自 reasoning_config.yaml [retrieval.anchor_offset_step]
             estimated_offset = i * self._rcfg.anchor_offset_step
             anchor_id = f"{file_path}#{estimated_offset}"
 
@@ -417,17 +445,18 @@ class ReasoningPipeline:
             #    优先级：title_path > heading > None
             title_path = metadata.get('title_path') or metadata.get('heading') or None
 
-            # ── reranker_score（来自 CrossEncoder 真实预测分数，
-            #    reranker_scores 长度与 docs 一致，与 docs 顺序对应）
+            # ── reranker_score（来自 CrossEncoder 真实预测分数）
             score = reranker_scores[i] if i < len(reranker_scores) else (1.0 / (i + 1))
 
             chunks.append(
                 RetrievedChunk(
                     chunk_id=chunk_id,
                     file_path=file_path,
-                    file_hash='',            # ⚠️ 预留接口：建库时未写入 hash
+                    doc_path=file_path,          # 提交字段（对齐 README §5.1）
+                    file_hash='',                # ⚠️ 预留接口：建库时未写入 hash
                     content=content,
-                    anchor_id=anchor_id,
+                    anchor=anchor,               # 提交字段（对齐 README §3.2）
+                    anchor_id=anchor_id,         # 内部字段（不对外提交）
                     title_path=title_path,
                     char_offset_start=estimated_offset,
                     char_offset_end=estimated_offset + len(content),
@@ -435,7 +464,7 @@ class ReasoningPipeline:
                     is_truncated=False,
                     chunk_index=i,
                     content_type='document',
-                    reranker_score=score,    # CrossEncoder 真实分数
+                    reranker_score=score,        # CrossEncoder 真实分数
                     raw_text=content,
                 )
             )
@@ -470,11 +499,13 @@ class ReasoningPipeline:
                 RetrievedChunk(
                     chunk_id=chunk_resp.chunk_id,
                     file_path=metadata.file_path,
+                    doc_path=metadata.doc_path or metadata.file_path,  # 提交字段
                     file_hash='',                    # 预留接口
                     content=chunk_resp.content,
-                    anchor_id=metadata.anchor_id,
+                    anchor=metadata.anchor,          # 提交字段：H1-H4 标题锚点（对齐 README §3.2）
+                    anchor_id=metadata.anchor_id,    # 内部字段（不对外提交）
                     title_path=metadata.title_path,
-                    char_offset_start=int(metadata.anchor_id.split('#')[-1]) if '#' in metadata.anchor_id else 0,
+                    char_offset_start=metadata.char_offset_start,
                     char_offset_end=0,               # 预留接口
                     char_count=len(chunk_resp.content),
                     is_truncated=chunk_resp.is_truncated,
@@ -631,11 +662,14 @@ class ReasoningPipeline:
         return claimed
 
     def _build_rejection_response(self, result: RejectionResult) -> ReasoningResponse:
-        """构建拒答响应"""
-        message = self.rejection_guard.generate_rejection_message(result)
+        """
+        构建拒答响应（对齐修订.md §3.2 / §3.5 拒答格式要求）
+        - answer 固定为 REFUSAL_TEXT（"抱歉，我无法从提供的文档中找到答案。"）
+        - debug_info 追加在 ReasoningResponse.rejected_reason 字段中（不污染 answer）
+        """
         debug_info = self.rejection_guard.get_debug_info(result)
         return ReasoningResponse(
-            answer=message + debug_info,
+            answer=REFUSAL_TEXT,         # README §7.1 强制格式，不得改动任何词语
             citations=[],
             no_evidence=True,
             max_score=result.max_score or 0.0,

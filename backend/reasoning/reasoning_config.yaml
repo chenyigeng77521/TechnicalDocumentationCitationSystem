@@ -74,3 +74,19 @@ retrieval:
   # anchor_id 偏移估算步长（预留接口：建库时未存入精确偏移，故按排名估算）
   # anchor_id = file_path#{rank * anchor_offset_step}
   anchor_offset_step: 1000
+
+
+# ── 向量检索元信息 (EmbeddingMeta) ──────────────────────────
+# 用于向量空间一致性追踪和索引时效可观测性（方案.md §3.4.2 embedding_meta）
+# 这三个值由系统管理员在部署/升级 Embedding 模型时手动更新。
+# 代码不写死，改由 reasoning_config.yaml 统一维护。
+embedding_meta:
+  # Embedding 模型名称，例如 bge-m3 / bge-large-zh-v1.5 / e5-mistral
+  model: "bge-m3"
+
+  # 模型版本号，版本变更时向量空间可能发生漂移，推理层可据此触发告警
+  model_version: "1.0.0"
+
+  # 当前索引的最后构建时间（ISO8601），辅助排查向量索引与文档内容不同步问题
+  # 留空时由代码自动填入系统当前时间（ISO8601 格式）
+  index_build_time: ""

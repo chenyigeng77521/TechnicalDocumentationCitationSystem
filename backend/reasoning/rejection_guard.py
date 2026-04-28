@@ -1,6 +1,12 @@
 """
 拒答守卫
 核心要求 4: 边界严控（拒答）- 严格限制推理范围
+
+修订对齐（修订.md §3.2 / §3.4）：
+  - 拒答文本统一为："抱歉，我无法从提供的文档中找到答案。"（README §7.1 强制格式）
+  - 新增 is_valid_refusal() 验证函数
+  - 新增 safety_check_refusal_rate() 防全拒答保护
+  - RejectionReason 枚举对齐三级门控（empty_retrieval / score_below_threshold / llm_judged_unanswerable）
 """
 
 from __future__ import annotations
@@ -11,10 +17,43 @@ from ._types import RetrievedChunk, RERANKER_SCORE_THRESHOLD
 
 
 # ============================================================
+# 统一拒答文本（README §7.1 强制格式，不得改动任何词语）
+# ============================================================
+REFUSAL_TEXT = "抱歉，我无法从提供的文档中找到答案。"
+
+
+def is_valid_refusal(answer: str) -> bool:
+    """
+    验证 LLM 输出是否符合拒答格式规范。
+    README §4.2 acceptable_response_keywords: ["抱歉", "无法", "未找到", "不存在"]
+    README §7.1 统一表述示例: "抱歉,我无法从提供的文档中找到答案"
+    """
+    must_have = ["抱歉", "无法"]
+    must_not  = ["确实存在", "可以这样使用"]
+    return (all(kw in answer for kw in must_have) and
+            not any(kw in answer for kw in must_not))
+
+
+def safety_check_refusal_rate(session_stats: dict) -> bool:
+    """
+    评测期间监控：若拒答率超过 60%，触发告警。
+    防止因阈值设置过高导致全部拒答（有答案题 75 道全错）。
+    对齐修订.md §3.4 防"全拒答"保护（README §7.1 雷 2）。
+    """
+    import logging
+    refusal_rate = session_stats.get("refused", 0) / max(session_stats.get("total", 1), 1)
+    if refusal_rate > 0.60:
+        logging.warning(f"拒答率异常高：{refusal_rate:.1%}，请检查阈值设置")
+        return False
+    return True
+
+
+# ============================================================
 # ============================================================
 class RejectionReason(str, Enum):
-    NO_CHUNKS            = 'no_chunks'
-    LOW_SCORE            = 'low_score'
+    NO_CHUNKS            = 'empty_retrieval'          # 门控1：无检索结果
+    LOW_SCORE            = 'score_below_threshold'    # 门控2：分数不足
+    LLM_UNANSWERABLE     = 'llm_judged_unanswerable'  # 门控3：LLM 判断无法回答
     EMPTY_QUERY          = 'empty_query'
     CONTEXT_EXCEEDS_LIMIT = 'context_exceeds_limit'
 
@@ -33,7 +72,7 @@ class RejectionResult:
 class RejectionGuard:
     """
     拒答守卫
-    在进入 LLM 推理之前进行多重检查
+    在进入 LLM 推理之前进行多重检查（三级门控）
     """
 
     def __init__(self, score_threshold: float = RERANKER_SCORE_THRESHOLD):
@@ -41,7 +80,7 @@ class RejectionGuard:
 
     def evaluate(self, query: str, chunks: List[RetrievedChunk]) -> RejectionResult:
         """
-        检查是否应该拒答
+        检查是否应该拒答（对齐修订.md §3.4 三级拒答触发机制）
         """
         # 1. 空查询检查
         if not query or not query.strip():
@@ -56,7 +95,7 @@ class RejectionGuard:
                 },
             )
 
-        # 2. 无检索结果检查
+        # 2. 门控1：无检索结果（empty_retrieval）
         if not chunks:
             return RejectionResult(
                 should_reject=True,
@@ -69,7 +108,8 @@ class RejectionGuard:
                 },
             )
 
-        # 3. 检索得分检查
+        # 3. 门控2：检索得分不足（score_below_threshold）
+        #    阈值 0.40 基于 bge-reranker-v2-m3 分布调参（防误拒过严，对齐雷1）
         scores = [c.reranker_score or 0.0 for c in chunks]
         max_score = max(scores)
 
@@ -86,7 +126,7 @@ class RejectionGuard:
                 },
             )
 
-        # 4. 通过所有检查
+        # 4. 通过门控1+2（门控3：llm_judged_unanswerable 在 pipeline 层处理）
         return RejectionResult(
             should_reject=False,
             max_score=max_score,
@@ -99,31 +139,10 @@ class RejectionGuard:
 
     def generate_rejection_message(self, result: RejectionResult) -> str:
         """
-        生成拒答消息
+        生成拒答消息（统一格式，对齐 README §7.1 强制要求）
         """
-        if result.reason == RejectionReason.NO_CHUNKS:
-            return (
-                '根据现有文档无法回答此问题。\n\n'
-                '提示：未检索到相关文档，请尝试：\n'
-                '1. 使用不同的关键词\n'
-                '2. 确认文档中包含相关信息\n'
-                '3. 上传更多相关文档'
-            )
-        elif result.reason == RejectionReason.LOW_SCORE:
-            return (
-                f'根据现有文档无法回答此问题。\n\n'
-                f'提示：当前检索得分（{result.max_score:.2f}）低于系统阈值（{self.score_threshold}），无法确保回答准确性。\n'
-                f'建议：\n'
-                f'1. 尝试重新表述问题\n'
-                f'2. 使用更具体的关键词\n'
-                f'3. 确认文档中包含此信息'
-            )
-        elif result.reason == RejectionReason.EMPTY_QUERY:
-            return '请输入有效的问题'
-        elif result.reason == RejectionReason.CONTEXT_EXCEEDS_LIMIT:
-            return '问题过于复杂，请简化后重试'
-        else:
-            return '根据现有文档无法回答此问题'
+        # 统一拒答文本（评测必须包含"抱歉"+"无法从提供的文档中找到答案"）
+        return REFUSAL_TEXT
 
     def get_debug_info(self, result: RejectionResult) -> str:
         """
@@ -133,7 +152,6 @@ class RejectionGuard:
             return ''
         d = result.debug_info
         top_scores_str = ', '.join(f'{s:.2f}' for s in d.get('top_scores', []))
-        # 修复：将条件表达式从格式化字符串中拆出，提高可读性
         score_str = f"{result.max_score:.2f}" if result.max_score is not None else "N/A"
         info = '\n\n--- 调试信息（供评委验证）---\n'
         info += f"最高检索得分: {score_str}\n"

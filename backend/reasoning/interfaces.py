@@ -1,6 +1,5 @@
 """
 推理与引用层 - 接口定义
-严格对齐方案.md: 3.4.1 ~ 3.4.4
 
 提供两个核心接口：
 1. WEB接口 - ask / ask-stream（给前端调用）
@@ -80,11 +79,29 @@ class RetrievalRequest:
 
 @dataclass
 class ChunkMetadata:
-    """Chunk 元数据 - 对应方案.md 3.4.2 metadata"""
-    file_path: str
-    anchor_id: str                                 # 程序定位锚点: file_path#char_offset_start
-    title_path: Optional[str]                      # UI 展示锚点: Section > Subsection
-    last_modified: Optional[str] = None             # ISO8601 时间戳（Task 4：感知 5 分钟内更新）
+    """
+    Chunk 元数据 - 对应方案.md 3.4.2 metadata
+
+    修订对齐（修订.md §2 / §3.6）：
+      - doc_path：提交用文档路径（对齐 README §5.1，替代原 file_path 的提交语义）
+      - anchor：H1-H4 标题锚点 #标题名（对齐 README §3.2，替代原 anchor_id 的提交语义）
+      - anchor_id：保留为内部字段（file_path#char_offset，仅供系统内部定位，不对外提交）
+    """
+    file_path: str                                 # 内部文件路径
+    doc_path: str = ''                             # 提交字段：文档相对路径（对齐 README §5.1）
+    anchor: str = ''                               # 提交字段：H1-H4 标题锚点 #标题名（对齐 README §3.2）
+    anchor_id: str = ''                            # 内部字段：file_path#char_offset（不对外提交）
+    title_path: Optional[str] = None               # UI 展示锚点: Section > Subsection
+    char_offset_start: int = 0                     # 内部定位（不对外提交）
+    last_modified: Optional[str] = None            # ISO8601 时间戳（Task 4：感知 5 分钟内更新）
+
+    def __post_init__(self):
+        # doc_path 默认对齐 file_path
+        if not self.doc_path:
+            self.doc_path = self.file_path
+        # 向后兼容：anchor_id 未传时从 file_path + char_offset_start 构建
+        if not self.anchor_id and self.file_path:
+            self.anchor_id = f"{self.file_path}#{self.char_offset_start}"
 
 
 @dataclass
@@ -103,7 +120,7 @@ class RetrievedChunkResponse:
 
     def __post_init__(self):
         if self.metadata is None:
-            self.metadata = ChunkMetadata(file_path='', anchor_id='', title_path=None)
+            self.metadata = ChunkMetadata(file_path='', doc_path='', anchor='', anchor_id='', title_path=None)
 
 
 @dataclass
@@ -194,10 +211,25 @@ class CitationValidationStatus(str, Enum):
 
 @dataclass
 class CitationLocation:
-    """引用位置 - 对应方案.md 3.4.4 citations[].location"""
+    """
+    引用位置 - 对应方案.md 3.4.4 citations[].location
+
+    修订对齐（修订.md §3.5 / §3.6）：
+      - doc_path：提交字段（对齐 README §5.1，替代 file_path 的提交语义）
+      - anchor：H1-H4 标题锚点 #标题名（对齐 README §3.2，替代 anchor_id 的提交语义）
+      - anchor_id：保留为内部字段（file_path#char_offset，供 UI 精确跳转，不影响评分）
+    """
     file_path: str
-    anchor_id: str                                 # 程序级精确跳转: file_path#char_offset
-    title_path: Optional[str]                      # 可读路径
+    doc_path: str = ''                             # 提交字段：文档相对路径
+    anchor: str = ''                               # 提交字段：H1-H4 标题锚点 #标题名
+    anchor_id: str = ''                            # 内部字段：file_path#char_offset（不对外提交）
+    title_path: Optional[str] = None               # 可读路径（UI 展示用）
+
+    def __post_init__(self):
+        if not self.doc_path:
+            self.doc_path = self.file_path
+        if not self.anchor_id and self.file_path:
+            self.anchor_id = self.file_path
 
 
 @dataclass
@@ -224,8 +256,10 @@ class Citation:
             'source_id': self.source_id,
             'snippet': self.snippet,
             'location': {
-                'file_path': self.location.file_path,
-                'anchor_id': self.location.anchor_id,
+                'doc_path':   self.location.doc_path,    # 提交字段（对齐 README §5.1）
+                'anchor':     self.location.anchor,      # 提交字段（对齐 README §3.2）
+                'file_path':  self.location.file_path,   # 内部路径（保留）
+                'anchor_id':  self.location.anchor_id,   # 内部字段（UI 精确跳转，不影响评分）
                 'title_path': self.location.title_path,
             }
         }
@@ -349,16 +383,16 @@ class WebResponse:
             if isinstance(c, dict):
                 source_id = c.get('source_id', '')
                 loc = c.get('location', {})
-                fp = loc.get('file_path', '')
-                anchor = loc.get('anchor_id', '')
+                fp = loc.get('file_path', loc.get('doc_path', ''))
+                anchor = loc.get('anchor', '')   # 优先使用 anchor 字段（#标题名）
             else:
                 source_id = c.source_id
                 fp = c.location.file_path
-                anchor = c.location.anchor_id
+                anchor = c.location.anchor       # 优先使用 anchor 字段（#标题名）
             if source_id and source_id not in source_lib:
                 file_name = fp.split('/')[-1] if fp else source_id
-                # display_url = 物理路径 + anchor 片段，供前端跳转
-                display_url = f"{fp}#{anchor.split('#')[-1]}" if anchor and '#' in anchor else fp
+                # display_url = 物理路径 + anchor 片段，anchor 已含 # 前缀
+                display_url = f"{fp}{anchor}" if anchor else fp
                 source_lib[source_id] = {
                     'title': file_name,
                     'url': fp,
@@ -654,13 +688,28 @@ def _parse_document_chunk(doc) -> RetrievedChunkResponse:
     """
     将 retrieval.py 返回的 Document 对象转换为 RetrievedChunkResponse
     对应方案.md 3.4.2
+
+    修订对齐（修订.md §2）：
+      - 优先从 metadata 读取 anchor（#标题名格式）
+      - anchor_id 保留为内部字段（file_path#char_offset）
+      - doc_path 对齐 file_path（提交字段名）
     """
     metadata = doc.metadata or {}
 
-    # 解析 anchor_id（格式：file_path#char_offset_start）
+    # 解析 file_path
     file_path = metadata.get('file_path', metadata.get('source', ''))
+
+    # 解析 anchor（提交字段：H1-H4 标题锚点）
+    anchor = metadata.get('anchor', metadata.get('heading_anchor', ''))
+
+    # 解析 char_offset（内部用）
     char_offset = metadata.get('char_offset_start', metadata.get('offset', 0))
+
+    # 构建 anchor_id（内部定位，不对外提交）
     anchor_id = f"{file_path}#{char_offset}" if file_path else ''
+
+    # doc_path 对齐 file_path（提交字段名）
+    doc_path = metadata.get('doc_path', file_path)
 
     # 解析 title_path
     title_path = metadata.get('title_path', None)
@@ -690,8 +739,11 @@ def _parse_document_chunk(doc) -> RetrievedChunkResponse:
         is_truncated=bool(is_truncated),
         metadata=ChunkMetadata(
             file_path=file_path,
+            doc_path=doc_path,
+            anchor=anchor,
             anchor_id=anchor_id,
             title_path=title_path,
+            char_offset_start=int(char_offset),
             last_modified=last_modified,
         )
     )
@@ -709,7 +761,7 @@ def search_test(
     对应方案.md 3.4.1 和 3.4.2
 
     功能：
-    1. Query Expansion - 查询扩展
+    1. Query Expansion - 查询扩展（推理层自行生成，回填到 expanded_query）
     2. 调用 retrieval.py 的 pipeline 进行混合检索
     3. 返回规范化后的检索结果
 
@@ -720,7 +772,17 @@ def search_test(
         filters: 过滤条件（预留，暂不支持）
 
     返回：
-        RetrievalResponse - 检索响应
+        RetrievalResponse - 检索响应（含 retrieval_status 由推理层推断，embedding_meta 来自配置）
+
+    补充说明（2026-04-28）：
+    - embedding_meta 字段 model/model_version/index_build_time 均来自 reasoning_config.yaml
+      不在代码中硬编码，运维升级模型时仅需修改配置文件
+    - retrieval_status 由推理层根据 results 数量自行推断：
+        results 为空  → 'empty'
+        results 非空  → 'success'
+        异常时        → 'error'
+      检索层只提供 results + total，推理层不依赖检索层返回的状态枚举
+    - expanded_query 由推理层的 _expand_query() 自行生成后回填到响应中（检索层不负责生成）
 
     调用示例：
         from interfaces import search_test
@@ -735,78 +797,134 @@ def search_test(
         for chunk in response.retrieved_chunks:
             print(f"[{chunk.chunk_id}] {chunk.content[:100]}... (score={chunk.score})")
     """
-    # 1. Query Expansion
+    import datetime
+
+    # ── 从配置读取 embedding_meta（不硬编码）──────────────────────────────
+    try:
+        from .config_loader import load_reasoning_config as _load_rcfg
+        _rcfg = _load_rcfg()
+        _emb_model        = _rcfg.embedding_model
+        _emb_version      = _rcfg.embedding_model_version
+        _emb_build_time   = _rcfg.embedding_index_build_time or \
+                            datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    except Exception:
+        _emb_model, _emb_version = 'bge-m3', ''
+        _emb_build_time = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    # ── 1. 推理层自行生成 expanded_query 并回填 ───────────────────────────
+    #    方案.md §3.4.2 expanded_query 字段说明：
+    #    "Query Expansion 后的完整扩展词串，透传给前端 debug_info"
     expanded_query = _expand_query(query)
     logger.info(f"[search_test] 原始查询: {query}")
     logger.info(f"[search_test] 扩展查询: {expanded_query}")
 
-    # 2. 自适应 TopK
+    # ── 2. 自适应 TopK ────────────────────────────────────────────────────
     if top_k is None:
         top_k = _get_adaptive_topk(query)
         logger.info(f"[search_test] 自适应 top_k: {top_k}")
 
-    # 3. 调用 retrieval.py pipeline
+    # ── 3. 调用 retrieval.py pipeline ────────────────────────────────────
     try:
-        # 动态导入 retrieval.py（延迟加载，避免循环依赖）
         import sys
         import os
         _RETRIEVAL_DIR = os.path.join(os.path.dirname(__file__), '..', 'LLM')
         if _RETRIEVAL_DIR not in sys.path:
             sys.path.insert(0, os.path.abspath(_RETRIEVAL_DIR))
 
-        from retrieval import pipeline as retrieval_pipeline, adaptive_topk_simple
+        from retrieval import pipeline as retrieval_pipeline, adaptive_topk_simple  # type: ignore
 
-        # 调用检索管道
-        docs = retrieval_pipeline(expanded_query)
+        # retrieval.py pipeline() 可能返回 (docs, scores) 元组，也可能只返回 docs
+        raw_result = retrieval_pipeline(expanded_query)
+
+        # 兼容两种返回格式
+        if isinstance(raw_result, tuple) and len(raw_result) == 2:
+            docs, reranker_scores = raw_result
+        else:
+            docs = raw_result if raw_result is not None else []
+            reranker_scores = []
         logger.info(f"[search_test] 检索召回数量: {len(docs)}")
 
     except ImportError as e:
         logger.error(f"[search_test] retrieval.py 导入失败: {e}")
         return RetrievalResponse(
             retrieved_chunks=[],
-            retrieval_status='error',
+            retrieval_status='error',  # 推理层推断：异常 → error
             max_reranker_score=0.0,
             expanded_query=expanded_query,
+            embedding_meta=EmbeddingMeta(
+                model=_emb_model,
+                model_version=_emb_version,
+                index_build_time=_emb_build_time,
+            ),
         )
     except Exception as e:
         logger.error(f"[search_test] 检索失败: {e}")
         return RetrievalResponse(
             retrieved_chunks=[],
-            retrieval_status='error',
+            retrieval_status='error',  # 推理层推断：异常 → error
             max_reranker_score=0.0,
             expanded_query=expanded_query,
+            embedding_meta=EmbeddingMeta(
+                model=_emb_model,
+                model_version=_emb_version,
+                index_build_time=_emb_build_time,
+            ),
         )
 
-    # 4. 转换结果
-    if not docs:
+    # ── 4. 推断 retrieval_status（检索层仅提供 results + total）─────────────
+    #    不依赖检索层的状态枚举，推理层根据 results 数量自行推断：
+    #      - total == 0 → 'empty'
+    #      - total > 0  → 'success'
+    total = len(docs)
+    if total == 0:
+        retrieval_status: str = 'empty'  # 推理层推断：results 为空 → empty
         logger.warning(f"[search_test] 无检索结果")
         return RetrievalResponse(
             retrieved_chunks=[],
-            retrieval_status='empty',
+            retrieval_status=retrieval_status,
             max_reranker_score=0.0,
             expanded_query=expanded_query,
+            embedding_meta=EmbeddingMeta(
+                model=_emb_model,
+                model_version=_emb_version,
+                index_build_time=_emb_build_time,
+            ),
         )
+    else:
+        retrieval_status = 'success'  # 推理层推断：results 非空 → success
 
-    # 转换 Document 为 RetrievedChunkResponse
+    # ── 5. 转换 Document 为 RetrievedChunkResponse ─────────────────────────
     chunks = []
     max_score = 0.0
 
-    for doc in docs:
+    for idx, doc in enumerate(docs):
         chunk = _parse_document_chunk(doc)
-        chunks.append(chunk)
+        # 若 retrieval_pipeline 已返回 reranker_scores，优先使用
+        if idx < len(reranker_scores):
+            chunk.score = float(reranker_scores[idx])
         if chunk.score > max_score:
             max_score = chunk.score
+        chunks.append(chunk)
 
     # 限制返回数量
     chunks = chunks[:top_k]
 
-    logger.info(f"[search_test] 返回 {len(chunks)} 个结果, max_score={max_score:.4f}")
+    logger.info(
+        f"[search_test] 返回 {len(chunks)}/{total} 个结果,"
+        f" max_score={max_score:.4f},"
+        f" expanded_query={expanded_query!r}"
+    )
 
     return RetrievalResponse(
         retrieved_chunks=chunks,
-        retrieval_status='success',
+        retrieval_status=retrieval_status,
         max_reranker_score=max_score,
-        expanded_query=expanded_query,
+        expanded_query=expanded_query,   # 推理层生成并回填
+        embedding_meta=EmbeddingMeta(    # 来自 reasoning_config.yaml，非硬编码
+            model=_emb_model,
+            model_version=_emb_version,
+            index_build_time=_emb_build_time,
+        ),
     )
 
 
@@ -821,7 +939,14 @@ def search_test_async(
 
     对应方案.md 3.4.1（异步变体）
     适用于需要异步处理的场景
+
+    注意：此函数返回一个协程，需在异步上下文中 await 调用：
+        result = await search_test_async("查询")
     """
     import asyncio
-    return asyncio.coroutine(lambda: search_test(query, top_k, rerank, filters))()
+
+    async def _inner():
+        return search_test(query, top_k, rerank, filters)
+
+    return _inner()
 

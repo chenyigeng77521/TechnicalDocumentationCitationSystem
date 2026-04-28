@@ -307,11 +307,12 @@ class ReasoningConfig:
     """
 
     def __init__(self, data: Dict[str, Any]):
-        rej  = data.get('rejection',    {})
-        gov  = data.get('governance',   {})
-        inj  = data.get('injection',    {})
-        ver  = data.get('verification', {})
-        ret  = data.get('retrieval',    {})
+        rej  = data.get('rejection',      {})
+        gov  = data.get('governance',     {})
+        inj  = data.get('injection',      {})
+        ver  = data.get('verification',   {})
+        ret  = data.get('retrieval',      {})
+        emb  = data.get('embedding_meta', {})
 
         # ── 拒答守卫
         self.score_threshold: float = float(rej.get('score_threshold', 0.4))
@@ -339,13 +340,21 @@ class ReasoningConfig:
         self.default_top_k: int          = int(ret.get('default_top_k', 5))
         self.anchor_offset_step: int     = int(ret.get('anchor_offset_step', 1000))
 
+        # ── 向量检索元信息（方案.md §3.4.2 embedding_meta）
+        # 版本变更时向量空间可能漂移，由运维在 reasoning_config.yaml 更新，代码不硬编码
+        self.embedding_model: str          = str(emb.get('model', 'bge-m3'))
+        self.embedding_model_version: str  = str(emb.get('model_version', ''))
+        self.embedding_index_build_time: str = str(emb.get('index_build_time', ''))
+
     def __repr__(self) -> str:
         return (
             f"ReasoningConfig("
             f"score_threshold={self.score_threshold}, "
             f"max_tokens={self.max_tokens}, "
             f"verified_threshold={self.verified_threshold}, "
-            f"default_top_k={self.default_top_k})"
+            f"default_top_k={self.default_top_k}, "
+            f"embedding_model={self.embedding_model!r}, "
+            f"embedding_model_version={self.embedding_model_version!r})"
         )
 
 
@@ -401,6 +410,9 @@ if __name__ == '__main__':
     print(f'snippet_length            : {rc.snippet_length}')
     print(f'default_top_k             : {rc.default_top_k}')
     print(f'anchor_offset_step        : {rc.anchor_offset_step}')
+    print(f'embedding_model           : {rc.embedding_model}')
+    print(f'embedding_model_version   : {rc.embedding_model_version}')
+    print(f'embedding_index_build_time: {rc.embedding_index_build_time}')
     print(f'no_llm_system_prompt   : {p.no_llm_system_prompt!r}')
 
     print('\n=== LLM 配置 ===')
