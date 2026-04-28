@@ -137,3 +137,22 @@ def test_chunker_drops_low_quality_chunks():
     contents = [c.content for c in chunks]
     assert junk not in contents, f"纯点 chunk 没被过滤: {contents}"
     assert any(normal in c for c in contents), f"正常段落丢了: {contents}"
+
+
+def test_chunker_keeps_hard_split_pieces_with_different_offsets():
+    """端到端 regression：硬切产物 content 相同 offset 不同应全部保留
+
+    spec §4.3 规范要求：identity 是 (file_path, content, char_offset_start)，
+    硬切产生的 N 块 byte-identical chunks 在不同 offset 必须全留。
+    """
+    # 3000 字符单字符串 → 硬切 3 块 1000 字符（如果是同字符则 content 全相同）
+    # 用 codex 推荐的 a/b/c 验证基本切分；我们这里更严验证 offset 保护
+    giant = "x" * (MAX_CHARS * 3)  # 3000 'x' → 硬切应得 3 块全 'x' * 1000
+    pr = ParseResult(raw_text=giant, title_tree=[])
+    chunks = split_document(pr, **_meta())
+
+    assert len(chunks) == 3, f"期望 3 块硬切产物，实际 {len(chunks)}"
+    assert all(c.is_truncated for c in chunks), "全部应标 is_truncated"
+    # 关键 regression：content 全一样但 offset 递增 → 全被保留（codex 修复前会被去重成 1 个）
+    assert [c.char_offset_start for c in chunks] == [0, MAX_CHARS, MAX_CHARS * 2]
+    assert all(c.content == "x" * MAX_CHARS for c in chunks)

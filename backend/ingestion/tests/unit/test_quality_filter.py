@@ -117,3 +117,29 @@ def test_none_input_raises_typeerror():
     """None 输入抛 TypeError（按 Python 惯例不静默处理 None）"""
     with pytest.raises(TypeError):
         filter_quality(None)
+
+
+# ============= 阈值边界测试（codex review 推荐）=============
+
+
+def test_min_chars_exact_boundary():
+    """len == MIN_CHARS_QUALITY (50) 应留；len == 49 应丢"""
+    keep = _make_chunk("a" * MIN_CHARS_QUALITY)        # 50 chars
+    drop = _make_chunk("b" * (MIN_CHARS_QUALITY - 1))  # 49 chars
+    result = filter_quality([keep, drop])
+    assert len(result) == 1
+    assert result[0].content == "a" * MIN_CHARS_QUALITY
+
+
+def test_alphanumeric_ratio_exact_boundary():
+    """ratio == ALPHANUM_RATIO_THRESHOLD (0.30) 应留；ratio < 0.30 应丢
+
+    构造 60 字符 chunk：恰好 18 字母（30%）vs 17 字母（< 30%）
+    """
+    # 60 chars, 18 alpha (30%), 42 dots → 留
+    keep = _make_chunk("a" * 18 + "." * 42)
+    # 60 chars, 17 alpha (28.3%), 43 dots → 丢
+    drop = _make_chunk("a" * 17 + "." * 43)
+    result = filter_quality([keep, drop])
+    assert len(result) == 1
+    assert result[0].content.count("a") == 18
