@@ -15,10 +15,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ------------------------------------------------------------------
 # VECTOR_API_URL           向量库 API 地址，默认 http://localhost:18082
 # VECTOR_API_KEY           向量库 API 密钥（可选）
-# RETRIEVAL_SCORE_THRESHOLD  检索结果最低 score，低于此值过滤，默认 0.0
+# RETRIEVAL_SCORE_THRESHOLD  兼容旧配置：向量检索结果最低 score（已废弃，请用 VECTOR_SCORE_THRESHOLD）
+# VECTOR_SCORE_THRESHOLD   向量检索结果最低 cosine score，低于此值过滤，默认 0.0
+# BM25_SCORE_THRESHOLD     BM25 检索结果最低 score，低于此值过滤，默认 -999.0（不过滤）
+# EMBEDDING_DIMENSION      Embedding 输出维度，默认 1024（bge-m3）
 # QUERY_EXPANSION_ENABLED  是否启用查询扩展，默认 false
 # QUERY_EXPANSION_MODEL    查询扩展用 LLM 模型，默认 gpt-3.5-turbo
-# QUERY_EXPANSION_NUM      扩展变体数量，默认 3
+# QUERY_EXPANSION_NUM      扩展变体数量，默认 3，最大 5
 # OPENAI_API_KEY           查询扩展用 LLM API Key（启用查询扩展时必需）
 # OPENAI_API_BASE          查询扩展用 LLM API 基础地址，默认 https://api.openai.com/v1
 # RERANK_TOP_N             重排序后返回的文档数量，默认 3
@@ -37,17 +40,24 @@ VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
 VECTOR_MODEL = os.getenv("VECTOR_MODEL", "BAAI/bge-m3")  # 向量嵌入模型
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-base")  # 重排序模型
 
-# Score 阈值配置（低于此值的检索结果会被过滤，0.0 表示不过滤）
-MAX_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
+# Score 阈值配置（向量与 BM25 量纲不同，必须分开配置）
+VECTOR_SCORE_THRESHOLD = float(os.getenv("VECTOR_SCORE_THRESHOLD", "0.0"))
+BM25_SCORE_THRESHOLD = float(os.getenv("BM25_SCORE_THRESHOLD", "-999.0"))
+# 兼容旧配置名 RETRIEVAL_SCORE_THRESHOLD（仅作用于向量检索）
+if os.getenv("RETRIEVAL_SCORE_THRESHOLD"):
+    VECTOR_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
+
+# Embedding 维度配置（可根据模型调整）
+EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
 # 查询扩展配置
 QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
-QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "deepseek-chat")
-QUERY_EXPANSION_NUM = int(os.getenv("QUERY_EXPANSION_NUM", "3"))
+QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "aliyun/deepseek-v3.2")
+QUERY_EXPANSION_NUM = min(int(os.getenv("QUERY_EXPANSION_NUM", "3")), 5)
 
 # LLM API 配置（查询扩展用）
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY","sk-8c814e3379274286a853bde65f66ae74")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.deepseek.com/v1")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://aigw.asiainfo.com/v1")
 
 # 重排序配置
 RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "3"))
@@ -117,9 +127,9 @@ class VectorAPIClient:
             print(f"计算 embedding 失败: {e}")
             return []
 
-        # 校验维度（bge-m3 应为 1024）
-        if len(embedding) != 1024:
-            print(f"Embedding 维度异常: {len(embedding)}, 期望 1024")
+        # 校验维度（默认 1024，可通过 EMBEDDING_DIMENSION 环境变量调整）
+        if len(embedding) != EMBEDDING_DIMENSION:
+            print(f"Embedding 维度异常: {len(embedding)}, 期望 {EMBEDDING_DIMENSION}")
             return []
 
         # 2. 调用向量库 API
@@ -140,8 +150,8 @@ class VectorAPIClient:
             documents = []
             for item in result.get("results", []):
                 score = item.get("score", 0.0)
-                # Score 阈值过滤
-                if score < MAX_SCORE_THRESHOLD:
+                # 向量检索 Score 阈值过滤（cosine 量纲）
+                if score < VECTOR_SCORE_THRESHOLD:
                     continue
 
                 metadata = item.get("metadata", {})
@@ -186,8 +196,8 @@ class VectorAPIClient:
             documents = []
             for item in result.get("results", []):
                 score = item.get("score", 0.0)
-                # Score 阈值过滤
-                if score < MAX_SCORE_THRESHOLD:
+                # BM25 检索 Score 阈值过滤（BM25 分数可能为负，与向量量纲不同）
+                if score < BM25_SCORE_THRESHOLD:
                     continue
 
                 metadata = item.get("metadata", {})
@@ -220,11 +230,17 @@ class VectorAPIClient:
 _api_client = None
 
 
+_api_client_checked = False
+
+
 def get_api_client():
-    """获取 API 客户端实例"""
-    global _api_client
+    """获取 API 客户端实例（延迟健康检查，避免模块导入时触发网络请求）"""
+    global _api_client, _api_client_checked
     if _api_client is None:
         _api_client = VectorAPIClient()
+    # 仅在第一次获取时检查一次，不阻塞模块导入
+    if not _api_client_checked:
+        _api_client_checked = True
         if not _api_client.health_check():
             print(f"⚠️ 警告: 向量库 API 服务不可用: {VECTOR_API_URL}")
     return _api_client
@@ -322,25 +338,21 @@ def _expand_rerank_context(docs: List[Document], window: int = RERANK_CONTEXT_WI
     for fp in by_file:
         by_file[fp].sort(key=lambda d: d.metadata.get("char_offset_start", 0))
 
-    # 构建 (file_path, char_offset_start) -> 在排序后列表中的索引
+    # 用 Python 对象 id 建立 doc -> 其在所属文件列表中索引的映射，避免 char_offset 冲突
     index_map = {}
     for fp, file_docs in by_file.items():
         for idx, d in enumerate(file_docs):
-            key = (fp, d.metadata.get("char_offset_start", 0))
-            index_map[key] = (fp, idx)
+            index_map[id(d)] = idx
 
     expanded_texts = []
     for doc in docs:
         fp = doc.metadata.get("file_path", "")
-        start = doc.metadata.get("char_offset_start", 0)
-        key = (fp, start)
+        file_docs = by_file.get(fp, [])
 
-        if key not in index_map:
+        idx = index_map.get(id(doc))
+        if idx is None:
             expanded_texts.append(doc.page_content)
             continue
-
-        _, idx = index_map[key]
-        file_docs = by_file.get(fp, [])
 
         # 收集前后 window 个相邻 chunk
         parts = []
@@ -372,17 +384,32 @@ class Reranker:
         pairs = [[query, text] for text in expanded_texts]
         scores = self.model.predict(pairs)
 
+        # 将 reranker 分数写入 metadata，供下游阈值判断
+        for idx, score in enumerate(scores):
+            docs[idx].metadata["reranker_score"] = float(score)
+
         sorted_idx = np.argsort(scores)[::-1]
         return [docs[i] for i in sorted_idx[:self.top_n]]
 
 
 def _merge_results(vec_docs: List[Document], bm25_docs: List[Document]) -> List[Document]:
-    """合并向量检索和 BM25 检索结果，按 chunk_id 去重"""
+    """合并向量检索和 BM25 检索结果，按 chunk_id 去重，保留双路分数"""
     all_docs = {}
-    for doc in vec_docs + bm25_docs:
+    # 先处理向量检索结果
+    for doc in vec_docs:
         key = doc.metadata.get("chunk_id", doc.page_content[:100])
-        if key not in all_docs:
+        all_docs[key] = doc
+
+    # 再处理 BM25 结果，保留 bm25 分数信息
+    for doc in bm25_docs:
+        key = doc.metadata.get("chunk_id", doc.page_content[:100])
+        if key in all_docs:
+            # 合并分数信息：将 BM25 的分数写入已存在的文档
+            all_docs[key].metadata["bm25_rank"] = doc.metadata.get("bm25_rank")
+            all_docs[key].metadata["bm25_score"] = doc.metadata.get("score")
+        else:
             all_docs[key] = doc
+
     return list(all_docs.values())
 
 
@@ -460,8 +487,8 @@ def pipeline(query: str, top_k: int = 20, use_bm25: bool = True,
     all_vec_docs: List[Document] = []
     all_bm25_docs: List[Document] = []
 
-    # 对每个查询变体分别检索
-    for q in queries:
+    # 对每个查询变体分别检索（最多处理 3 个变体，防止 API 调用量暴增）
+    for q in queries[:3]:
         vec_docs = client.search(q, top_k=top_k)
         all_vec_docs.extend(vec_docs)
 
@@ -480,14 +507,14 @@ def pipeline(query: str, top_k: int = 20, use_bm25: bool = True,
     if not docs:
         return []
 
-    # 自适应 TopK 截断
-    k = adaptive_topk_simple(query, docs)
-    docs = docs[:k]
-
-    # CrossEncoder 重排序（可选）
+    # CrossEncoder 重排序（可选）— 先重排序，再截断，避免丢失高质量候选
     if use_rerank:
         reranker = get_reranker()
         docs = reranker.rerank(query, docs)
+
+    # 自适应 TopK 截断
+    k = adaptive_topk_simple(query, docs)
+    docs = docs[:k]
 
     return docs
 
