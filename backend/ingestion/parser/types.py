@@ -10,6 +10,7 @@ class TitleNode:
     char_offset: int
     children: list = field(default_factory=list)
     ancestors: list = field(default_factory=list)
+    anchor: Optional[str] = None  # [[xxx]] 显式锚点 / 自动 slug。adoc parser 会填，markdown_parser 暂留 None（W2 改）
 
 
 @dataclass
