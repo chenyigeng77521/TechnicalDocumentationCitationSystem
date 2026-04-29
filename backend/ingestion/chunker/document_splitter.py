@@ -10,7 +10,7 @@ from backend.ingestion.chunker.quality_filter import filter_quality
 from backend.ingestion.parser.types import ParseResult, TitleNode
 
 MAX_CHARS = 1000
-SENTENCE_SPLIT_RE = re.compile(r"(?<=[。！？.!?])\s*")
+SENTENCE_END_RE = re.compile(r"[。！？.!?]")
 # heading-only 段（如 "## Installation"），信息已在 title_tree，跳过避免 chunk 污染
 HEADING_ONLY_RE = re.compile(r"^#{1,6}\s+\S.*$", re.MULTILINE)
 
@@ -72,34 +72,69 @@ def _anchor_at_offset(titles: list[TitleNode], offset: int) -> str:
     return last.anchor
 
 
-def _hard_split(text: str, max_chars: int) -> list[str]:
-    return [text[i:i + max_chars] for i in range(0, len(text), max_chars)]
+def _is_list_marker_at(text: str, dot_pos: int) -> bool:
+    """判断 text[dot_pos] 这个 '.' 是不是 markdown 列表标记的一部分。
+
+    规则：
+    - 必须是英文 '.'，中文 '。' 不需要保护（中文文档没有 '1. ' 列表语法）
+    - dot_pos 所在行的行首到 dot_pos 之前必须是 \\s*\\d+（行首空白 + 纯数字）
+    - dot_pos 后必须紧跟空白（' ' '\\t' '\\n'）或行尾——防 'Python 3.12.' 这种伪列表被错保护
+
+    例:
+    - '1. The Pod' 中的 '.' (pos=1) → True (line_prefix='1', after=' ')
+    - 'Python 3.12.' 中的 '.' (pos=11) → False (line_prefix='Python 3.12'，不匹配 \\d+$)
+    - '   3. Item' 中的 '.' (pos=4) → True (line_prefix='   3', after=' ')
+    """
+    if dot_pos < 0 or dot_pos >= len(text) or text[dot_pos] != '.':
+        return False
+    line_start = text.rfind('\n', 0, dot_pos) + 1
+    line_prefix = text[line_start:dot_pos]
+    if not re.match(r'^\s*\d+$', line_prefix):
+        return False
+    after = text[dot_pos + 1:dot_pos + 2]
+    return after in (' ', '\t', '\n', '')
 
 
 def _split_paragraph(text: str) -> list[tuple[str, bool]]:
-    """单段 → list[(chunk_text, is_truncated)]，按句号 → 硬切。"""
+    """单段 → list[(chunk_text, is_truncated)]。
+
+    关键不变量：所有产出片段拼接 == 原文（一字不差）。
+    实现：扫所有句末标点位置作为候选边界，按 MAX_CHARS 贪心切原文 substring。
+    无可用边界时硬切并标记 is_truncated=True。
+    """
     if len(text) <= MAX_CHARS:
         return [(text, False)]
 
-    sentences = [s for s in SENTENCE_SPLIT_RE.split(text) if s]
-    out: list[tuple[str, bool]] = []
-    buf = ""
-    for sent in sentences:
-        if len(sent) > MAX_CHARS:
-            if buf:
-                out.append((buf, False))
-                buf = ""
-            for piece in _hard_split(sent, MAX_CHARS):
-                out.append((piece, True))
-        elif len(buf) + len(sent) <= MAX_CHARS:
-            buf += sent
+    # 收集所有合法句末标点位置（过滤掉列表标记）
+    candidates: list[int] = []
+    for m in SENTENCE_END_RE.finditer(text):
+        if _is_list_marker_at(text, m.start()):
+            continue
+        candidates.append(m.end())  # 边界 = 标点之后
+
+    pieces: list[tuple[str, bool]] = []
+    cursor = 0
+    while cursor < len(text):
+        target = cursor + MAX_CHARS
+        # 找 cursor < c <= target 范围内最大的 c（贪心吃满 MAX_CHARS）
+        boundary = None
+        for c in candidates:
+            if c <= cursor:
+                continue
+            if c > target:
+                break
+            boundary = c
+
+        if boundary is None:
+            # 无可用边界 → 硬切到 target
+            end = min(cursor + MAX_CHARS, len(text))
+            pieces.append((text[cursor:end], True))
+            cursor = end
         else:
-            if buf:
-                out.append((buf, False))
-            buf = sent
-    if buf:
-        out.append((buf, False))
-    return out
+            pieces.append((text[cursor:boundary], False))
+            cursor = boundary
+
+    return pieces
 
 
 def _para_fully_inside_comment(start: int, length: int, ranges: list[tuple[int, int]]) -> bool:
