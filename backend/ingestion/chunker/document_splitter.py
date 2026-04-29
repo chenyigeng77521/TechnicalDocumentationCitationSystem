@@ -56,6 +56,22 @@ def _title_path_at_offset(titles: list[TitleNode], offset: int) -> Optional[str]
     return " > ".join(chain)
 
 
+def _anchor_at_offset(titles: list[TitleNode], offset: int) -> str:
+    """找 offset 之前最近的 title，返回它的 anchor。
+
+    如果 offset 在第一个 title 之前 / 没有 title / 最近 title 没填 anchor → 返回 #top。
+    """
+    last = None
+    for t in titles:
+        if t.char_offset <= offset:
+            last = t
+        else:
+            break
+    if last is None or last.anchor is None:
+        return "#top"
+    return last.anchor
+
+
 def _hard_split(text: str, max_chars: int) -> list[str]:
     return [text[i:i + max_chars] for i in range(0, len(text), max_chars)]
 
@@ -135,6 +151,7 @@ def split_document(
                 is_truncated=is_truncated,
                 content_type="document",
                 language=parse_result.language,
+                markdown_anchor=_anchor_at_offset(titles, offset),
             ))
             chunk_index += 1
             cursor = offset + len(piece)
