@@ -21,3 +21,6 @@ class ParseResult:
     language: Optional[str] = None
     confidence: float = 1.0
     metadata: dict = field(default_factory=dict)
+    # HTML 注释范围列表 [(start_offset, end_offset_exclusive), ...]，由 markdown_parser 填，
+    # chunker 用它跳过任何 char_offset 落在注释内的段（K8s 双语对照英文翻译源）。
+    comment_ranges: list[tuple[int, int]] = field(default_factory=list)

@@ -1,10 +1,13 @@
-"""Markdown 解析器。提取 raw_text + heading 层级树（含 trailing anchor）。"""
+"""Markdown 解析器。提取 raw_text + heading 层级树（含 trailing anchor）+ HTML 注释范围。"""
 import re
 from pathlib import Path
 from backend.ingestion.parser.types import ParseResult, TitleNode
 
 # 标题行：捕获级别 + text(含 trailing 部分)
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+
+# HTML 注释整段（多行）：用于计算 raw_text 里所有注释的 char_offset 范围
+_COMMENT_BLOCK_RE = re.compile(r"<!--[\s\S]*?-->")
 
 # trailing anchor: K8s {#slug} 或 React {/*slug*/}，紧贴 text 末尾（前面允许 \s+ 分隔）
 # group(1) = 标题文字（去掉 trailing 锚点后的部分）
@@ -47,10 +50,27 @@ def _build_tree(headings: list[TitleNode]) -> list[TitleNode]:
     return root
 
 
+def _is_inside_any_range(pos: int, ranges: list[tuple[int, int]]) -> bool:
+    """二分判断 pos 是否落在任意 (start, end) 区间内。ranges 必须按 start 升序。"""
+    for start, end in ranges:
+        if start <= pos < end:
+            return True
+        if start > pos:
+            break
+    return False
+
+
 async def parse(path: Path) -> ParseResult:
     raw = path.read_text(encoding="utf-8")
+
+    # 先扫所有 HTML 注释范围（K8s 双语对照英文翻译源）
+    comment_ranges = [(m.start(), m.end()) for m in _COMMENT_BLOCK_RE.finditer(raw)]
+
     headings = []
     for m in _HEADING_RE.finditer(raw):
+        # 注释里的标题（如 K8s 文档英文版 H2）跳过，不进 title_tree
+        if _is_inside_any_range(m.start(), comment_ranges):
+            continue
         text_raw = m.group(2).strip()
         text, anchor = _split_text_and_anchor(text_raw)
         headings.append(TitleNode(
@@ -63,4 +83,5 @@ async def parse(path: Path) -> ParseResult:
         raw_text=raw,
         title_tree=_build_tree(headings),
         content_type="document",
+        comment_ranges=comment_ranges,
     )

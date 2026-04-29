@@ -102,6 +102,25 @@ def _split_paragraph(text: str) -> list[tuple[str, bool]]:
     return out
 
 
+def _para_fully_inside_comment(start: int, length: int, ranges: list[tuple[int, int]]) -> bool:
+    """段落 [start, start+length) 是否**完全**在某个 HTML 注释 (s, e) 范围内。
+
+    ranges 按 start 升序——线性扫早退出。
+
+    设计：跨边界段（起点在注释内，但终点超出）**不算**完全在内——因为这种段
+    通常是「英文注释 --> 中文段」混合（注释和中文之间没 \\n\\n 分隔），
+    全跳会丢掉中文。组 A 范围内的折中：保留这种段（接受英文污染），
+    P1 chunker D 的 block-aware 阶段再做更精细的段内注释剥离。
+    """
+    end = start + length
+    for s, e in ranges:
+        if s <= start and end <= e:
+            return True
+        if s > start:
+            break
+    return False
+
+
 def split_document(
     parse_result: ParseResult,
     *,
@@ -112,6 +131,7 @@ def split_document(
     """三级 fallback 切分。"""
     raw = parse_result.raw_text
     titles = _flatten_titles(parse_result.title_tree or [])
+    comment_ranges = parse_result.comment_ranges or []
 
     # 第 1 级：按段落 \n\n 切分
     paragraphs = raw.split("\n\n")
@@ -127,6 +147,12 @@ def split_document(
 
         # 跳过 heading-only 段（标题信息已在 title_tree / title_path）
         if _is_heading_only(para):
+            cursor += len(para) + 2
+            continue
+
+        # 跳过**完全**在 HTML 注释范围内的段（K8s 双语对照英文翻译源）
+        # 跨边界段（起点在内但终点超出）保留——见 _para_fully_inside_comment 注释
+        if _para_fully_inside_comment(cursor, len(para), comment_ranges):
             cursor += len(para) + 2
             continue
 
