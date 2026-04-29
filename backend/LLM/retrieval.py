@@ -56,7 +56,7 @@ QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "deepseek-v4-pro")
 QUERY_EXPANSION_NUM = min(int(os.getenv("QUERY_EXPANSION_NUM", "3")), 5)
 
 # LLM API 配置（查询扩展用）
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-8c814e3379274286a853bde65f66ae74")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.deepseek.com")
 
 # 重排序配置
