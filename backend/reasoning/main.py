@@ -31,7 +31,7 @@ from interfaces import (
     QAResponse,
     RetrievedChunk,
 )
-from reasoning import build_citations, run_reasoning
+from reasoning.reasoning import build_citations, run_reasoning
 
 # ==================== 日志 ====================
 logging.basicConfig(
