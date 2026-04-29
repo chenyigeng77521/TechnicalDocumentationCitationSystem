@@ -11,6 +11,8 @@ from backend.ingestion.parser.types import ParseResult, TitleNode
 
 MAX_CHARS = 1000
 SENTENCE_END_RE = re.compile(r"[。！？.!?]")
+# 段落边界：2 个或以上连续换行（归一化后只剩 \n）
+PARA_BOUNDARY_RE = re.compile(r"\n{2,}")
 # heading-only 段（如 "## Installation"），信息已在 title_tree，跳过避免 chunk 污染
 HEADING_ONLY_RE = re.compile(r"^#{1,6}\s+\S.*$", re.MULTILINE)
 
@@ -163,38 +165,48 @@ def split_document(
     file_hash: str,
     index_version: str,
 ) -> list[Chunk]:
-    """三级 fallback 切分。"""
-    raw = parse_result.raw_text
+    """三级 fallback 切分。
+
+    入口处归一化 CRLF → LF；段落用正则 \\n{2,} 切，处理 3+ 连续换行。
+    每段在归一化文本中的 offset 通过 finditer 跟踪，不假设固定边界长度。
+    """
+    raw_original = parse_result.raw_text
+    raw = raw_original.replace("\r\n", "\n").replace("\r", "\n")
     titles = _flatten_titles(parse_result.title_tree or [])
     comment_ranges = parse_result.comment_ranges or []
 
-    # 第 1 级：按段落 \n\n 切分
-    paragraphs = raw.split("\n\n")
+    # 用 finditer 切段落 + 记录每段在 raw 中的起始 offset
+    paragraphs_with_offset: list[tuple[int, str]] = []
+    cursor = 0
+    for m in PARA_BOUNDARY_RE.finditer(raw):
+        if cursor < m.start():
+            paragraphs_with_offset.append((cursor, raw[cursor:m.start()]))
+        cursor = m.end()
+    if cursor < len(raw):
+        paragraphs_with_offset.append((cursor, raw[cursor:]))
 
     chunks: list[Chunk] = []
-    cursor = 0
     chunk_index = 0
 
-    for para in paragraphs:
+    for para_start, para in paragraphs_with_offset:
         if not para.strip():
-            cursor += len(para) + 2
             continue
 
         # 跳过 heading-only 段（标题信息已在 title_tree / title_path）
         if _is_heading_only(para):
-            cursor += len(para) + 2
             continue
 
         # 跳过**完全**在 HTML 注释范围内的段（K8s 双语对照英文翻译源）
         # 跨边界段（起点在内但终点超出）保留——见 _para_fully_inside_comment 注释
-        if _para_fully_inside_comment(cursor, len(para), comment_ranges):
-            cursor += len(para) + 2
+        if _para_fully_inside_comment(para_start, len(para), comment_ranges):
             continue
 
+        # _split_paragraph 输出是 para 的顺序切片（拼接 == para），用 local_cursor 跟踪精确 offset
+        local_cursor = 0
         for piece, is_truncated in _split_paragraph(para):
             if not piece:
                 continue
-            offset = raw.find(piece, cursor) if piece in raw[cursor:] else cursor
+            offset = para_start + local_cursor
             title_path = _title_path_at_offset(titles, offset)
             chunk_id = _make_chunk_id(file_path, chunk_index, piece)
             chunks.append(Chunk(
@@ -215,9 +227,7 @@ def split_document(
                 markdown_anchor=_anchor_at_offset(titles, offset),
             ))
             chunk_index += 1
-            cursor = offset + len(piece)
-
-        cursor += 2  # 跳过 \n\n
+            local_cursor += len(piece)
 
     # 质量过滤（太短 / 字母数字占比 / 同文档去重）
     chunks = filter_quality(chunks)

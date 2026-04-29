@@ -75,9 +75,15 @@ def _make_parse_result(text: str) -> ParseResult:
     return ParseResult(raw_text=text, title_tree=[], comment_ranges=[], language=None)
 
 
+# 注：quality_filter MIN_CHARS_QUALITY=50，下面段落都得 ≥50 字才不被过滤
+_LONG_PARA_1 = "这是测试段落一的全部内容，里面包含了足够多的中文字符以便通过质量过滤器的最小长度检查阈值。这是这一段的结尾句。"
+_LONG_PARA_2 = "这是测试段落二的全部内容，同样带了相当数量的字符以避免被质量过滤器丢掉，它是一个独立的段落。这一段也带个结尾。"
+_LONG_PARA_3 = "这是测试段落三的全部内容，同样需要保证够长，至少有五十个字符以上才能正确地进入 chunks 表参与后续比对。结束句。"
+
+
 def test_crlf_normalized():
     """CRLF 输入正确切分，offset 字段对应归一化（LF）后文本。"""
-    raw = "段落一第一句。段落一第二句。\r\n\r\n段落二第一句。\r\n\r\n段落三。"
+    raw = f"{_LONG_PARA_1}\r\n\r\n{_LONG_PARA_2}\r\n\r\n{_LONG_PARA_3}"
     chunks = split_document(_make_parse_result(raw), file_path="t.md", file_hash="h", index_version="v1")
     assert len(chunks) == 3, f"期望 3 段，实得 {len(chunks)}: {[c.content for c in chunks]}"
     # offset 应在归一化文本中精确（归一化把 \r\n → \n，长度变短）
@@ -89,16 +95,16 @@ def test_crlf_normalized():
 
 def test_triple_newline():
     """三个连续换行（\\n\\n\\n）只产生一次段落边界，不让后续 offset 偏移。"""
-    raw = "段落一。\n\n\n段落二。"
+    raw = f"{_LONG_PARA_1}\n\n\n{_LONG_PARA_2}"
     chunks = split_document(_make_parse_result(raw), file_path="t.md", file_hash="h", index_version="v1")
-    assert len(chunks) == 2
-    # 第二段 offset 应指向 '段落二' 的 '段'
-    assert chunks[1].content.startswith("段落二"), f"chunks[1].content={chunks[1].content!r}"
+    assert len(chunks) == 2, f"期望 2 段，实得 {len(chunks)}"
+    # 第二段 offset 应指向 _LONG_PARA_2 的开头
+    assert chunks[1].content == _LONG_PARA_2, f"chunks[1].content={chunks[1].content!r}"
 
 
 def test_mixed_line_endings():
     """raw 中 \\r\\n 和 \\n 混用，归一化后边界仍正确。"""
-    raw = "段落一。\r\n\r\n段落二。\n\n段落三。"
+    raw = f"{_LONG_PARA_1}\r\n\r\n{_LONG_PARA_2}\n\n{_LONG_PARA_3}"
     chunks = split_document(_make_parse_result(raw), file_path="t.md", file_hash="h", index_version="v1")
     assert len(chunks) == 3
     normalized = raw.replace("\r\n", "\n")
@@ -108,7 +114,7 @@ def test_mixed_line_endings():
 
 def test_no_trailing_newline():
     """文档末尾无换行，最后一段仍被切出。"""
-    raw = "段落一。\n\n段落二（无尾换行）。"
+    raw = f"{_LONG_PARA_1}\n\n{_LONG_PARA_2}"
     chunks = split_document(_make_parse_result(raw), file_path="t.md", file_hash="h", index_version="v1")
     assert len(chunks) == 2
-    assert chunks[1].content == "段落二（无尾换行）。"
+    assert chunks[1].content == _LONG_PARA_2
