@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-PROJECT = Path('/Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem')
+PROJECT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT))
 
 from backend.ingestion.db.connection import init_db, get_connection
