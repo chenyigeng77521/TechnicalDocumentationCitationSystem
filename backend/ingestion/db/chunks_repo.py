@@ -22,14 +22,16 @@ def insert_chunks(conn: sqlite3.Connection, chunks: list[dict]) -> None:
             c["chunk_index"], int(c.get("is_truncated", False)),
             c.get("content_type", "document"), c.get("language"),
             json.dumps(c.get("embedding")) if c.get("embedding") is not None else None,
+            c.get("markdown_anchor"),  # W2 章节锚点（默认 None，老调用方兼容）
         ))
     conn.executemany(
         """
         INSERT OR REPLACE INTO chunks (
             chunk_id, file_path, file_hash, index_version, content, anchor_id,
             title_path, char_offset_start, char_offset_end, char_count,
-            chunk_index, is_truncated, content_type, language, embedding
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            chunk_index, is_truncated, content_type, language, embedding,
+            markdown_anchor
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         rows,
     )

@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     content_type      TEXT NOT NULL DEFAULT 'document',
     language          TEXT,
     embedding         TEXT,
+    markdown_anchor   TEXT,                                   -- W2 章节锚点 #xxx 或 #top（比赛口径）
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (file_path) REFERENCES documents(file_path) ON DELETE CASCADE
 );

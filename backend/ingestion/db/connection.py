@@ -110,6 +110,16 @@ def _migrate_fts_tokenizer(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _ensure_chunks_columns(conn: sqlite3.Connection) -> None:
+    """老 DB 兼容：chunks 表如果没有 markdown_anchor 列，加上。
+    幂等：列已存在不报错。
+    """
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(chunks)").fetchall()}
+    if "markdown_anchor" not in cols:
+        conn.execute("ALTER TABLE chunks ADD COLUMN markdown_anchor TEXT")
+        conn.commit()
+
+
 def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
     """初始化数据库（建表 / 启用 WAL）+ 必要时迁移 FTS 分词器。幂等。"""
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +130,10 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
         conn.executescript(SCHEMA_PATH.read_text())
         conn.commit()
 
-        # 第二遍：检查 chunks_fts 分词器是不是当前 schema 期望的
+        # 第二遍：老 DB 列迁移（幂等）—— W2 加 markdown_anchor 列
+        _ensure_chunks_columns(conn)
+
+        # 第三遍：检查 chunks_fts 分词器是不是当前 schema 期望的
         if _fts_needs_migration(conn):
             _migrate_fts_tokenizer(conn)
     finally:
