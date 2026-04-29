@@ -41,7 +41,7 @@ VECTOR_MODEL = os.getenv("VECTOR_MODEL", "BAAI/bge-m3")  # 向量嵌入模型
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-base")  # 重排序模型
 
 # Score 阈值配置（向量与 BM25 量纲不同，必须分开配置）
-VECTOR_SCORE_THRESHOLD = float(os.getenv("VECTOR_SCORE_THRESHOLD", "0.0"))
+VECTOR_SCORE_THRESHOLD = float(os.getenv("VECTOR_SCORE_THRESHOLD", "0.55"))
 BM25_SCORE_THRESHOLD = float(os.getenv("BM25_SCORE_THRESHOLD", "-999.0"))
 # 兼容旧配置名 RETRIEVAL_SCORE_THRESHOLD（仅作用于向量检索）
 if os.getenv("RETRIEVAL_SCORE_THRESHOLD"):
@@ -52,12 +52,12 @@ EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
 # 查询扩展配置
 QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
-QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "aliyun/deepseek-v3.2")
+QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "deepseek-v4-pro")
 QUERY_EXPANSION_NUM = min(int(os.getenv("QUERY_EXPANSION_NUM", "3")), 5)
 
 # LLM API 配置（查询扩展用）
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://aigw.asiainfo.com/v1")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-8c814e3379274286a853bde65f66ae74")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.deepseek.com")
 
 # 重排序配置
 RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "3"))
