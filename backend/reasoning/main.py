@@ -31,7 +31,7 @@ from interfaces import (
     QAResponse,
     RetrievedChunk,
 )
-from reasoning.reasoning import build_citations, run_reasoning
+from reasoning import build_citations, build_context_blocks, run_reasoning
 
 # ==================== 日志 ====================
 logging.basicConfig(
@@ -147,7 +147,6 @@ def process_single(item_id: str, query: str) -> QAResponse:
     else:
         # 从 chunks 中取出实际被引用的（used_chunks 已在 run_reasoning 内部处理）
         # 这里通过 citation_ids 映射回 chunks（与 reasoning.py 内部逻辑对齐）
-        from reasoning import build_context_blocks  # type: ignore
         _, used_chunks = build_context_blocks(chunks)
         citations = build_citations(result.citation_ids, used_chunks)
 

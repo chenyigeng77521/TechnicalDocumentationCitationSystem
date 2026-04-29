@@ -21,9 +21,9 @@ MAX_CONTEXT_CHARS: int = int(MAX_CONTEXT_TOKENS * 1.5)  # 9000 字符
 
 # ==================== LLM 配置 ====================
 
-LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
+LLM_API_KEY: str = os.getenv("LLM_API_KEY", "sk-")
 LLM_API_BASE: str = os.getenv("LLM_API_BASE", "https://api.deepseek.com")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "deepseek-chat")
+LLM_MODEL: str = os.getenv("LLM_MODEL", "deepseek-v4-pro")
 
 # 推理温度：0.0 严格模式，最大程度抑制幻觉
 LLM_TEMPERATURE: float = 0.0
