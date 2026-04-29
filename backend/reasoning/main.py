@@ -1,155 +1,304 @@
 """
-推理与引用层 (Reasoning Layer)
-服务启动入口
-
-v2 变更：
-  - LLM 配置改由 .env 统一管理
-  - 命令行新增 --provider 参数，可覆盖 yaml 中的 active_provider
-  - 环境变量（LLM_API_KEY / LLM_MODEL / LLM_BASE_URL）优先级最高
+Layer 3 FastAPI 服务入口
+提供：
+  POST /api/qa         — 单条问答
+  POST /api/qa/batch   — 批量异步处理（jsonl 落盘 + ThreadPoolExecutor）
 """
-
 from __future__ import annotations
-import os
-import sys
-import argparse
+
+import json
 import logging
-
-try:
-    from dotenv import load_dotenv
-    _DOTENV_AVAILABLE = True
-except ImportError:
-    load_dotenv = None  # type: ignore
-    _DOTENV_AVAILABLE = False
-
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-if _DOTENV_AVAILABLE:
-    load_dotenv(Path(__file__).parent / '.env')
+from typing import Optional
 
-from flask import Flask
+import sys
+# 将当前目录（reasoning/）和 LLM/ 目录加入 path，方便引用 retrieval.py
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LLM"))
 
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+from config import BATCH_MAX_WORKERS, BATCH_OUTPUT_DIR
+from interfaces import (
+    BatchItem,
+    BatchQARequest,
+    BatchQAResponse,
+    QARequest,
+    QAResponse,
+    RetrievedChunk,
+)
+from reasoning import build_citations, build_context_blocks, run_reasoning
+
+# ==================== 日志 ====================
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("layer3.main")
 
+# ==================== FastAPI App ====================
+app = FastAPI(
+    title="Layer 3 — 推理与引用层",
+    description="RAG 推理服务，单条问答 + 批量 JSONL 落盘",
+    version="1.0.0",
+)
 
-def create_app(
-    llm_api_key: str = None,
-    llm_base_url: str = None,
-    llm_model: str = None,
-    llm_provider: str = None,
-    score_threshold: float = None,
-    fake_llm: bool = False,
-) -> Flask:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ==================== 检索层调用封装 ====================
+
+def retrieve_chunks(query: str) -> list[RetrievedChunk]:
     """
-    创建 Flask 应用。
-
-    LLM 配置优先级（从高到低）：
-      1. 本函数的显式参数（llm_api_key / llm_model / llm_base_url）
-      2. 环境变量（LLM_API_KEY / LLM_MODEL / LLM_BASE_URL / LLM_PROVIDER）
-      3. .env 中 LLM_ACTIVE_PROVIDER 对应的配置块
-
-    参数：
-      llm_provider: 指定 provider 名称（glm5 / kimi / minimax / qwen / openai）
+    调用 Layer 2 检索管道，将 Document 列表转换为 RetrievedChunk 列表。
+    此函数是 Layer 2 与 Layer 3 的唯一耦合点，后续替换检索层只需修改这里。
     """
-    from .reasoning_pipeline import ReasoningPipelineConfig, LLMConfig
-    from .webui import create_reasoning_web_ui
+    try:
+        from retrieval import pipeline  # type: ignore
+    except ImportError:
+        logger.warning("retrieval.py 未找到，返回空 chunks（请确认 PYTHONPATH）")
+        return []
 
-    cfg = ReasoningPipelineConfig()
+    try:
+        docs = pipeline(query)
+    except Exception as e:
+        logger.error("检索层调用失败: %s", e)
+        return []
 
-    if fake_llm:
-        logger.info("🧪 使用 Fake LLM 模式（不调用真实 API）")
-        cfg.llm = None  # 使用内置 no-LLM 响应
-    elif llm_api_key:
-        # 显式传入 API KEY → 直接构造（跳过 yaml）
-        cfg.llm = LLMConfig(
-            api_key=llm_api_key,
-            base_url=llm_base_url or '',
-            model=llm_model or 'gpt-4-turbo',
-            provider=llm_provider or 'custom',
+    chunks: list[RetrievedChunk] = []
+    for doc in docs:
+        meta = doc.metadata if hasattr(doc, "metadata") else {}
+
+        # 优先使用 reranker_score，降级到 vector score
+        score: float = float(
+            meta.get("reranker_score") or meta.get("score") or 0.0
         )
-        logger.info(f"🤖 使用显式传入的 LLM 配置: model={cfg.llm.model!r}")
+
+        # 从 metadata 提取 doc_path 和 anchor
+        # retrieval.py 里字段名可能是 file_path / anchor_id / title_path 等
+        doc_path: str = (
+            meta.get("doc_path")
+            or meta.get("file_path")
+            or ""
+        )
+        anchor: str = (
+            meta.get("anchor")
+            or meta.get("anchor_id")
+            or ""
+        )
+
+        # anchor_id 格式可能是 "file_path#char_offset"，需提取 #xxx 部分
+        if anchor and "#" in anchor and not anchor.startswith("#"):
+            anchor = "#" + anchor.split("#", 1)[1]
+        elif anchor and not anchor.startswith("#"):
+            anchor = "#" + anchor
+
+        # 若 anchor 仍为空，用 title_path 推断
+        if not anchor or anchor == "#":
+            title_path: str = meta.get("title_path", "")
+            if title_path:
+                # title_path 转 anchor（空格 → -，全小写）
+                anchor = "#" + title_path.lower().replace(" ", "-").replace(">", "").replace("/", "").strip("-")
+            else:
+                anchor = "#top"
+
+        chunk = RetrievedChunk(
+            chunk_id=meta.get("chunk_id", ""),
+            content=doc.page_content if hasattr(doc, "page_content") else "",
+            doc_path=doc_path,
+            anchor=anchor,
+            score=score,
+            is_truncated=bool(meta.get("is_truncated", False)),
+            title_path=meta.get("title_path"),
+        )
+        chunks.append(chunk)
+
+    # 按 score 降序排列，保证 context 构建时高质量 chunk 优先
+    chunks.sort(key=lambda c: c.score, reverse=True)
+    return chunks
+
+
+# ==================== 核心处理函数（单条）====================
+
+def process_single(item_id: str, query: str) -> QAResponse:
+    """
+    处理单条问答，封装完整 Pipeline：检索 → 推理 → 格式化响应。
+    此函数在批量处理中被多线程并发调用，必须线程安全（无共享可变状态）。
+    """
+    logger.info("[%s] 开始处理: %s", item_id, query[:60])
+
+    # Step 1：检索
+    chunks = retrieve_chunks(query)
+
+    # Step 2：推理
+    result = run_reasoning(query, chunks)
+
+    # Step 3：构建 citations（需要 used_chunks，从 context 构建时已截断）
+    if result.is_refusal:
+        citations = []
     else:
-        # 从 .env 加载（provider 参数可覆盖 LLM_ACTIVE_PROVIDER）
-        cfg.llm = LLMConfig.from_file(provider=llm_provider)
+        # 从 chunks 中取出实际被引用的（used_chunks 已在 run_reasoning 内部处理）
+        # 这里通过 citation_ids 映射回 chunks（与 reasoning.py 内部逻辑对齐）
+        _, used_chunks = build_context_blocks(chunks)
+        citations = build_citations(result.citation_ids, used_chunks)
 
-    if score_threshold is not None:
-        cfg.score_threshold = score_threshold
+    logger.info(
+        "[%s] 完成: is_refusal=%s, citations=%d, score=%.3f",
+        item_id, result.is_refusal, len(citations), result.max_score,
+    )
 
-    app = Flask(__name__)
-    app.config['JSON_ENSURE_ASCII'] = False
-
-    webui = create_reasoning_web_ui(cfg)
-    bp = webui.create_blueprint()
-    app.register_blueprint(bp)
-    webui.register_websocket(app)
-
-    return app
+    return QAResponse(
+        id=item_id,
+        answer=result.answer,
+        citations=citations,
+        is_refusal=result.is_refusal,
+        confidence=result.confidence,
+    )
 
 
-def run_test(fake_llm: bool = False):
-    """运行测试查询"""
-    from .reasoning_pipeline import create_reasoning_pipeline, ReasoningPipelineConfig
-    from ._types import ReasoningRequest
+# ==================== JSONL 文件写入（带锁）====================
 
-    logger.info("🧪 运行测试查询...")
-    pipeline = create_reasoning_pipeline()
+# 全局文件写锁：key = 文件绝对路径
+_file_locks: dict[str, threading.Lock] = {}
+_file_locks_mutex = threading.Lock()
 
-    test_queries = [
-        '如何提高混合检索召回率',
-        '什么是 BM25 检索',
-    ]
 
-    for query in test_queries:
-        logger.info(f"\n🔍 测试查询: {query}")
+def _get_file_lock(filepath: str) -> threading.Lock:
+    """获取指定文件的写锁（单例）"""
+    with _file_locks_mutex:
+        if filepath not in _file_locks:
+            _file_locks[filepath] = threading.Lock()
+        return _file_locks[filepath]
+
+
+def write_jsonl_line(filepath: str, record: dict) -> None:
+    """线程安全地向 JSONL 文件追加一行"""
+    lock = _get_file_lock(filepath)
+    with lock:
+        with open(filepath, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+# ==================== API 路由 ====================
+
+@app.get("/health")
+def health_check() -> dict:
+    """服务健康检查"""
+    return {"status": "ok", "service": "layer3-reasoning"}
+
+
+@app.post("/api/qa", response_model=QAResponse)
+def qa_single(request: QARequest) -> QAResponse:
+    """
+    单条问答接口
+    入参：{ "id": "...", "question": "..." }
+    出参：{ "id", "answer", "citations", "is_refusal", "confidence" }
+    """
+    try:
+        return process_single(request.id, request.query)
+    except Exception as e:
+        logger.error("处理请求异常 [%s]: %s", request.id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/qa/batch", response_model=BatchQAResponse)
+def qa_batch(request: BatchQARequest) -> BatchQAResponse:
+    """
+    批量问答接口
+    - ThreadPoolExecutor(max_workers=8) 并发处理
+    - 每条结果逐行写入 JSONL，文件写锁保证线程安全
+    - 每条任务独立 try/except，单条失败不影响整体
+
+    入参：{ "items": [{"id": "...", "question": "..."}] }
+    出参：{ "status", "file_path", "total", "succeeded", "failed" }
+    """
+    if not request.items:
+        raise HTTPException(status_code=400, detail="items 不能为空")
+
+    # 准备输出文件路径
+    output_dir = Path(BATCH_OUTPUT_DIR)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 用第一条 id 作为文件名标识
+    first_id = request.items[0].id
+    output_file = str(output_dir / f"result_{first_id}.jsonl")
+
+    # 清空/创建文件
+    open(output_file, "w", encoding="utf-8").close()
+
+    total = len(request.items)
+    succeeded = 0
+    failed = 0
+
+    logger.info("批量处理开始：共 %d 条，输出到 %s", total, output_file)
+
+    def _process_and_write(item: BatchItem) -> bool:
+        """处理单条并写入文件，返回是否成功"""
         try:
-            chunks = pipeline.retrieve_chunks(query, top_k=3)
-            logger.info(f"  检索到 {len(chunks)} 个 chunks")
-
-            req = ReasoningRequest(query=query, chunks=chunks)
-            resp = pipeline.reason(req)
-            logger.info(f"  no_evidence={resp.no_evidence}, confidence={resp.confidence}")
-            logger.info(f"  回答预览: {resp.answer[:100]}...")
+            resp = process_single(item.id, item.query)
+            record = {
+                "id": resp.id,
+                "answer": resp.answer,
+                "citations": [c.model_dump() for c in resp.citations],
+                "is_refusal": resp.is_refusal,
+                "confidence": resp.confidence,
+            }
+            write_jsonl_line(output_file, record)
+            return True
         except Exception as e:
-            logger.error(f"  ❌ 失败: {e}")
+            logger.error("批量任务 [%s] 失败: %s", item.id, e, exc_info=True)
+            # 失败条目写入错误占位记录，保持 id 连续性
+            error_record = {
+                "id": item.id,
+                "answer": "抱歉，我无法从提供的文档中找到答案。",
+                "citations": [],
+                "is_refusal": True,
+                "confidence": 0.0,
+                "_error": str(e),
+            }
+            try:
+                write_jsonl_line(output_file, error_record)
+            except Exception:
+                pass
+            return False
 
+    # 多线程并发处理
+    with ThreadPoolExecutor(max_workers=BATCH_MAX_WORKERS) as executor:
+        futures = {executor.submit(_process_and_write, item): item for item in request.items}
+        for future in as_completed(futures):
+            if future.result():
+                succeeded += 1
+            else:
+                failed += 1
 
-def main():
-    parser = argparse.ArgumentParser(description='推理与引用层服务')
-    parser.add_argument('--host', default='0.0.0.0', help='监听地址')
-    parser.add_argument('--port', type=int, default=5050, help='监听端口')
-    parser.add_argument('--fake-llm', action='store_true', help='使用 Fake LLM（测试模式）')
-    parser.add_argument('--test', action='store_true', help='运行测试查询后退出')
-    parser.add_argument('--score-threshold', type=float, default=None, help='拒答分数阈值')
-    parser.add_argument(
-        '--provider',
-        default=None,
-        help='指定 LLM provider（glm5/kimi/minimax/qwen/openai），覆盖 .env 中的 LLM_ACTIVE_PROVIDER',
+    logger.info("批量处理完成：成功 %d，失败 %d，文件: %s", succeeded, failed, output_file)
+
+    return BatchQAResponse(
+        status="success" if failed == 0 else "partial_failure",
+        file_path=output_file,
+        total=total,
+        succeeded=succeeded,
+        failed=failed,
     )
-    args = parser.parse_args()
 
-    # 环境变量（向后兼容，优先于 yaml，但低于 --provider 参数）
-    llm_api_key = os.environ.get('LLM_API_KEY') or os.environ.get('OPENAI_API_KEY')
-    llm_base_url = os.environ.get('LLM_BASE_URL') or os.environ.get('OPENAI_BASE_URL')
-    llm_model = os.environ.get('LLM_MODEL')
 
-    if args.test:
-        run_test(args.fake_llm)
-        return
+# ==================== 启动入口 ====================
 
-    app = create_app(
-        llm_api_key=llm_api_key,
-        llm_base_url=llm_base_url,
-        llm_model=llm_model,
-        llm_provider=args.provider,
-        score_threshold=args.score_threshold,
-        fake_llm=args.fake_llm,
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8001,
+        reload=False,
+        log_level="info",
     )
-
-    logger.info(f"🚀 推理层服务启动: http://{args.host}:{args.port}")
-    app.run(host=args.host, port=args.port, debug=False)
-
-
-if __name__ == '__main__':
-    main()

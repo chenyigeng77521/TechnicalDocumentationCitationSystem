@@ -1,216 +1,95 @@
-﻿<#
-.SYNOPSIS
-    启动 / 停止 / 查看 reasoning 推理层服务
+# Reasoning Service 启动脚本（PowerShell / Windows）
+# Layer 3: 推理与引用层
+#
+# 用法：
+#   .\start.ps1              # 前台启动
+#   .\start.ps1 -Bg          # 后台启动（Start-Process）
+#   .\start.ps1 -Bg -FakeLLM # 后台 + Fake LLM 模式
+#   .\start.ps1 -Bg -Provider glm5 -Port 5050
+#
+# 停止：
+#   .\stop.ps1
 
-.DESCRIPTION
-    该脚本等价于 start.sh，为 Windows PowerShell 环境设计。
-    支持前台运行（默认）和后台运行（-Background）。
-
-.EXAMPLE
-    .\start.ps1                        # 前台启动
-    .\start.ps1 -Background            # 后台启动
-    .\start.ps1 --fake-llm             # Fake LLM 模式（不调用真实 API）
-    .\start.ps1 --provider kimi        # 切换 LLM provider
-    .\start.ps1 --port 5051            # 自定义端口
-    .\start.ps1 -Stop                 # 停止后台服务
-    .\start.ps1 -Status               # 查看服务状态
-#>
-
-[CmdletBinding()]
 param(
-    [switch]$Background,
-    [switch]$Stop,
-    [switch]$Status,
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$ScriptArgs
+    [switch]$Bg,
+    [switch]$FakeLLM,
+    [switch]$Test,
+    [string]$Provider,
+    [int]$Port = 5050,
+    [double]$ScoreThreshold
 )
 
 $ErrorActionPreference = "Stop"
 
-# ── 定位脚本所在目录 ───────────────────────────────────────────
+# ---- 路径 ----
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location -Path $ScriptDir
+$ProjectRoot = Resolve-Path "$ScriptDir\..\.."
+$LogDir = "$ScriptDir\logs"
+$PidFile = "$ScriptDir\.reasoning.pid"
+$ServerLog = "$LogDir\reasoning.log"
 
-$ProjectRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
-$PidFile = Join-Path $ScriptDir ".reasoning.pid"
-$LogDir = Join-Path $ProjectRoot "logs"
-$LogFile = Join-Path $LogDir "reasoning.log"
-$ErrFile = Join-Path $LogDir "reasoning.err"
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+Set-Location $ProjectRoot
 
-# ── 状态查询 ──────────────────────────────────────────────────
-if ($Status) {
-    if (Test-Path $PidFile) {
-        $pidValue = Get-Content $PidFile -Raw
-        $process = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
-        if ($process) {
-            Write-Host "✅ reasoning 服务正在运行 (PID: $pidValue)" -ForegroundColor Green
-            Write-Host "   日志文件: $LogFile"
-        } else {
-            Write-Host "⚠️ PID 文件存在但进程未运行 (PID: $pidValue)" -ForegroundColor Yellow
-            Write-Host "   建议删除 PID 文件后重新启动"
-        }
-    } else {
-        Write-Host "❌ reasoning 服务未运行（未找到 PID 文件）" -ForegroundColor Red
-    }
-    exit 0
+# ---- 端口占用检查 ----
+$Existing = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($Existing) {
+    $ExistingPid = $Existing.OwningProcess
+    Write-Host "❌ 端口 $Port 已被进程 $ExistingPid 占用" -ForegroundColor Red
+    Write-Host "   想杀掉旧进程？运行: .\backend\reasoning\stop.ps1"
+    exit 1
 }
 
-# ── 停止服务 ──────────────────────────────────────────────────
-if ($Stop) {
-    if (Test-Path $PidFile) {
-        $pidValue = Get-Content $PidFile -Raw
-        $process = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
-        if ($process) {
-            Write-Host "🛑 停止 reasoning 服务 (PID: $pidValue)..." -ForegroundColor Yellow
-            Stop-Process -Id $pidValue -Force
-            Write-Host "✅ 服务已停止" -ForegroundColor Green
-        } else {
-            Write-Host "⚠️ PID 文件存在但进程未运行" -ForegroundColor Yellow
-        }
-        Remove-Item $PidFile -Force
-    } else {
-        Write-Host "❌ 未找到 PID 文件，服务可能未在后台运行" -ForegroundColor Red
-    }
-    exit 0
-}
+# ---- 构建参数 ----
+$PyArgs = @("-m", "reasoning.main", "--port", $Port)
+if ($FakeLLM) { $PyArgs += "--fake-llm" }
+if ($Test)    { $PyArgs += "--test" }
+if ($Provider) { $PyArgs += @("--provider", $Provider) }
+if ($ScoreThreshold) { $PyArgs += @("--score-threshold", $ScoreThreshold) }
 
-# ── 加载 .env（若存在）────────────────────────────────────────
-$EnvFile = Join-Path -Path $ScriptDir -ChildPath ".env"
-if (Test-Path $EnvFile) {
-    Write-Host "📄 加载 .env 配置..." -ForegroundColor Cyan
-    foreach ($line in Get-Content $EnvFile) {
-        $line = $line.Trim()
-        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) { continue }
-        $parts = $line -split '=', 2
-        if ($parts.Length -eq 2) {
-            $name = $parts[0].Trim()
-            $val = $parts[1].Trim()
-            # 移除外层引号（如果有的话）
-            if ($val.Length -ge 2 -and (($val.StartsWith('"') -and $val.EndsWith('"')) -or ($val.StartsWith("'") -and $val.EndsWith("'")))) {
-                $val = $val.Substring(1, $val.Length - 2)
-            }
-            [Environment]::SetEnvironmentVariable($name, $val, "Process")
-        }
-    }
-}
+Write-Host "──────────────────────────────────────────────"
+Write-Host " Reasoning Service (Layer 3)"
+Write-Host "──────────────────────────────────────────────"
+Write-Host "  Project root : $ProjectRoot"
+Write-Host "  Port         : $Port"
+Write-Host "  Log dir      : $LogDir"
+Write-Host "  Mode         : $(if ($Bg) { 'background' } else { 'foreground' })"
+Write-Host "  Python args  : $($PyArgs -join ' ')"
+Write-Host "──────────────────────────────────────────────"
 
-# ── Python 环境检查 ───────────────────────────────────────────
-$PythonCmd = "python"
-if (Get-Command "python3" -ErrorAction SilentlyContinue) {
-    $PythonCmd = "python3"
-}
-$PythonVersion = & $PythonCmd --version 2>&1
-Write-Host "🐍 Python: $PythonVersion" -ForegroundColor Cyan
+if (-not $Bg) {
+    Write-Host "前台启动（Ctrl+C 停止）..." -ForegroundColor Cyan
+    & python @PyArgs
+} else {
+    # 后台模式：Start-Process + 窗口隐藏
+    Write-Host "后台启动，日志写入: $ServerLog" -ForegroundColor Cyan
 
-# ── 可选：激活虚拟环境 ────────────────────────────────────────
-$VenvDirs = @(".venv", "venv", "..\.venv")
-foreach ($dir in $VenvDirs) {
-    $ActivateScript = Join-Path -Path $ScriptDir -ChildPath "$dir\Scripts\Activate.ps1"
-    if (Test-Path $ActivateScript) {
-        Write-Host "🔧 激活虚拟环境: $dir" -ForegroundColor Cyan
-        . $ActivateScript
-        break
-    }
-}
-
-# ── 依赖检查（首次运行时自动安装）───────────────────────────
-$CheckFlask = & $PythonCmd -c "import flask" 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "📦 安装依赖 (pip install -r requirements.txt)..." -ForegroundColor Yellow
-    & $PythonCmd -m pip install -r requirements.txt
-}
-
-# ── 默认参数（可被环境变量覆盖）─────────────────────────────
-$HostIP = [Environment]::GetEnvironmentVariable("REASONING_HOST")
-if ([string]::IsNullOrEmpty($HostIP)) { $HostIP = "0.0.0.0" }
-
-$Port = [Environment]::GetEnvironmentVariable("REASONING_PORT")
-if ([string]::IsNullOrEmpty($Port)) { $Port = "5050" }
-
-$Provider = [Environment]::GetEnvironmentVariable("LLM_ACTIVE_PROVIDER")
-if ([string]::IsNullOrEmpty($Provider)) { $Provider = "（未设置，使用内置默认值）" }
-
-# 组装启动参数
-$RunArgs = @("-m", "reasoning.main", "--host", $HostIP, "--port", $Port)
-if ($ScriptArgs) {
-    $RunArgs += $ScriptArgs
-}
-
-# 由于模块入口在 reasoning.main，确保我们是在 backend 目录下来执行
-$BackendDir = Split-Path -Parent $ScriptDir
-$env:PYTHONPATH = $BackendDir
-
-# ── 后台模式 ──────────────────────────────────────────────────
-if ($Background) {
-    # 检查是否已有实例在运行
-    if (Test-Path $PidFile) {
-        $existingPid = Get-Content $PidFile -Raw
-        $existingProcess = Get-Process -Id $existingPid -ErrorAction SilentlyContinue
-        if ($existingProcess) {
-            Write-Host "⚠️ reasoning 服务已在后台运行 (PID: $existingPid)" -ForegroundColor Yellow
-            Write-Host "   如需重启，请先执行: .\start.ps1 -Stop" -ForegroundColor Yellow
-            exit 1
-        } else {
-            Remove-Item $PidFile -Force
-        }
-    }
-
-    # 确保日志目录存在
-    if (-not (Test-Path $LogDir)) {
-        New-Item -ItemType Directory -Path $LogDir | Out-Null
-    }
-
-    Write-Host "🚀 后台启动 reasoning 服务: http://${HostIP}:${Port}" -ForegroundColor Green
-    Write-Host "   Provider : $Provider"
-    Write-Host "   Config   : reasoning_config.yaml"
-    Write-Host "   日志文件 : $LogFile"
-    Write-Host "   PID 文件 : $PidFile"
-    Write-Host "─────────────────────────────────────────────────────────"
-
-    # 构建环境变量传递字符串（Start-Process 需要显式传递）
-    $pythonPathEnv = $env:PYTHONPATH
-    $pathEnv = $env:PATH
-
-    # 收集所有需要传递的环境变量（.env 中加载的 + PYTHONPATH）
-    $envVars = @{}
-    foreach ($line in Get-Content $EnvFile -ErrorAction SilentlyContinue) {
-        $line = $line.Trim()
-        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) { continue }
-        $parts = $line -split '=', 2
-        if ($parts.Length -eq 2) {
-            $name = $parts[0].Trim()
-            $val = $parts[1].Trim()
-            if ($val.Length -ge 2 -and (($val.StartsWith('"') -and $val.EndsWith('"')) -or ($val.StartsWith("'") -and $val.EndsWith("'")))) {
-                $val = $val.Substring(1, $val.Length - 2)
-            }
-            $envVars[$name] = $val
-        }
-    }
-    $envVars["PYTHONPATH"] = $pythonPathEnv
-
-    # 使用 Start-Process 后台启动
-    $proc = Start-Process -FilePath $PythonCmd `
-        -ArgumentList $RunArgs `
-        -WorkingDirectory $BackendDir `
+    $Proc = Start-Process -FilePath "python" -ArgumentList $PyArgs `
+        -WorkingDirectory $ProjectRoot `
         -WindowStyle Hidden `
-        -RedirectStandardOutput $LogFile `
-        -RedirectStandardError $ErrFile `
+        -RedirectStandardOutput $ServerLog `
+        -RedirectStandardError $ServerLog `
         -PassThru
 
-    # 记录 PID
-    $proc.Id | Out-File -FilePath $PidFile -Encoding utf8 -NoNewline
+    $Proc.Id | Out-File -FilePath $PidFile -Encoding utf8 -NoNewline
+    Write-Host "PID: $($Proc.Id)（已写入 $PidFile）"
+    Write-Host
+    Write-Host "等待服务就绪..." -ForegroundColor Cyan
 
-    Write-Host "✅ 服务已后台启动 (PID: $($proc.Id))" -ForegroundColor Green
-    Write-Host "   查看日志: Get-Content '$LogFile' -Tail 20 -Wait"
-    Write-Host "   停止服务: .\start.ps1 -Stop"
-    exit 0
+    for ($i = 1; $i -le 10; $i++) {
+        try {
+            $Resp = Invoke-WebRequest -Uri "http://localhost:$Port/api/reasoning/health" -Method GET -TimeoutSec 2 -ErrorAction Stop
+            if ($Resp.StatusCode -eq 200) {
+                Write-Host "✅ 服务已就绪: http://localhost:$Port" -ForegroundColor Green
+                Write-Host
+                Write-Host "查日志:  Get-Content $ServerLog -Tail 20 -Wait"
+                Write-Host "停止:    .\stop.ps1"
+                exit 0
+            }
+        } catch {}
+        Start-Sleep -Seconds 1
+    }
+
+    Write-Host "⚠️ 10 秒内未就绪，请查日志: $ServerLog" -ForegroundColor Yellow
+    exit 1
 }
-
-# ── 前台模式（默认）───────────────────────────────────────────
-Write-Host "🚀 前台启动 reasoning 服务: http://${HostIP}:${Port}" -ForegroundColor Green
-Write-Host "   Provider : $Provider"
-Write-Host "   Config   : reasoning_config.yaml"
-Write-Host "   按 Ctrl+C 停止服务"
-Write-Host "─────────────────────────────────────────────────────────"
-
-& $PythonCmd @RunArgs
