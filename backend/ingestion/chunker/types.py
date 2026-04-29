@@ -20,6 +20,7 @@ class Chunk:
     content_type: str = "document"
     language: Optional[str] = None
     embedding: Optional[list[float]] = None
+    markdown_anchor: Optional[str] = None  # 比赛口径锚点（#xxx 或 #top），W2 chunker 改造时填
 
     def to_dict(self) -> dict:
         return asdict(self)
