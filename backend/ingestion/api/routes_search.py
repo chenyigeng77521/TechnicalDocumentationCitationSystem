@@ -41,9 +41,11 @@ def _row_to_metadata(row: dict) -> dict:
         "char_offset_start": row["char_offset_start"],
         "char_offset_end": row["char_offset_end"],
         "is_truncated": bool(row["is_truncated"]),
+        "is_x15_truncated": False,  # 新增：X1.5 max_chars 截断标记，默认 False，仅 X1.5 路径会改 True
         "content_type": row["content_type"],
         "language": row["language"],
         "last_modified": last_modified,
+        "markdown_anchor": row.get("markdown_anchor") or "#top",  # 新增：section 标识，赛题 citation 用
     }
 
 
