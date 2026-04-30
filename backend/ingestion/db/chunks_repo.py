@@ -63,14 +63,26 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
+SIBLING_INDEX_RADIUS = 2  # 主匹配 chunk_index ±N 内的同节兄弟参与展开
+SIBLING_PRIMARY_COUNT = 10  # 取前 N 个主匹配做 sibling 展开（覆盖 top-10）
+SIBLING_SCORE_DELTA = 0.001  # sibling 分数 = primary - 这个增量，让兄弟紧跟主匹配
+
+
 def vector_search(
     conn: sqlite3.Connection,
     query_embedding: list[float],
     top_k: int = 50,
+    expand_siblings: bool = True,
 ) -> list[dict]:
-    """全表 cosine 排序（MVP，~10k chunks 100ms）。
+    """全表 cosine 排序（MVP，~10k chunks 100ms）+ 同章节邻居救援。
 
     JOIN documents 取 indexed_at 作为 last_modified（给评委验证 5min SLA 用）。
+
+    expand_siblings=True 时（默认）：top-3 主匹配的同 (file_path, title_path)
+    且 chunk_index 在 ±2 内的兄弟也进入候选池，用 (primary_score - 0.001) 排序，
+    最后截 top_k。让"问题命中标题节"的查询能拿到整节内容而非孤立片段。
+
+    expand_siblings=False 时：行为同原版，纯 cosine + 截 top_k（用于回归测试 / 单测对照）。
     """
     rows = conn.execute(
         """
@@ -86,10 +98,47 @@ def vector_search(
         score = _cosine_similarity(query_embedding, emb)
         scored.append((score, r))
     scored.sort(key=lambda x: x[0], reverse=True)
-    results = []
-    for score, r in scored[:top_k]:
-        results.append({**dict(r), "score": float(score)})
-    return results
+
+    if not expand_siblings:
+        return [{**dict(r), "score": float(s)} for s, r in scored[:top_k]]
+
+    # 候选池：用 dict 去重（chunk_id → (score, row_dict)）
+    pool: dict[str, tuple[float, dict]] = {}
+    for s, r in scored[:top_k]:
+        rd = dict(r)
+        pool[rd["chunk_id"]] = (float(s), rd)
+
+    # 对前 N 个主匹配做 sibling 展开
+    primary_count = min(SIBLING_PRIMARY_COUNT, len(scored))
+    for s_pri, r_pri in scored[:primary_count]:
+        rp = dict(r_pri)
+        if not rp.get("title_path"):
+            continue  # title_path=NULL 不展开（避免拿整本书）
+        sibs = conn.execute(
+            """
+            SELECT c.*, d.indexed_at AS doc_indexed_at
+            FROM chunks c
+            JOIN documents d ON c.file_path = d.file_path
+            WHERE c.file_path = ?
+              AND c.title_path = ?
+              AND c.chunk_id != ?
+              AND ABS(c.chunk_index - ?) <= ?
+              AND c.embedding IS NOT NULL
+            """,
+            (rp["file_path"], rp["title_path"], rp["chunk_id"],
+             rp["chunk_index"], SIBLING_INDEX_RADIUS),
+        ).fetchall()
+        for sib in sibs:
+            sd = dict(sib)
+            cid = sd["chunk_id"]
+            sib_score = float(s_pri) - SIBLING_SCORE_DELTA
+            # 只在 sibling 不在池里、或新 sib_score 更高时更新
+            if cid not in pool or pool[cid][0] < sib_score:
+                pool[cid] = (sib_score, sd)
+
+    # 按 score 排序，硬截 top_k
+    final = sorted(pool.values(), key=lambda x: -x[0])[:top_k]
+    return [{**rd, "score": float(s)} for s, rd in final]
 
 
 def _is_meaningful_token(token: str) -> bool:
