@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# backend/LLM/wiki/UpdateWiki/stop.sh
+# backend/retrieval/wiki/UpdateWiki/stop.sh
 # 停止 update_wiki.py
 
 echo "========================================"

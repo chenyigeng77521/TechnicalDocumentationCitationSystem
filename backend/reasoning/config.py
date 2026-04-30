@@ -9,7 +9,7 @@ load_dotenv()
 
 # ==================== 检索质量阈值 ====================
 
-# Reranker 最高分低于此值 → 直接拒答，不进 LLM
+# Reranker 最高分低于此值 → 直接拒答，不进 retrieval
 SCORE_THRESHOLD: float = 0.4
 
 # 语义相似度验证阈值：answer 与 cited chunk 余弦相似度必须超过此值
@@ -19,16 +19,16 @@ SIMILARITY_THRESHOLD: float = 0.75
 MAX_CONTEXT_TOKENS: int = 6000
 MAX_CONTEXT_CHARS: int = int(MAX_CONTEXT_TOKENS * 1.5)  # 9000 字符
 
-# ==================== LLM 配置 ====================
+# ==================== retrieval 配置 ====================
 
-LLM_API_KEY: str = os.getenv("LLM_API_KEY", "sk-")
+LLM_API_KEY: str = os.getenv("LLM_API_KEY", "sk-8c814e3379274286a853bde65f66ae74")
 LLM_API_BASE: str = os.getenv("LLM_API_BASE", "https://api.deepseek.com")
 LLM_MODEL: str = os.getenv("LLM_MODEL", "deepseek-v4-pro")
 
 # 推理温度：0.0 严格模式，最大程度抑制幻觉
 LLM_TEMPERATURE: float = 0.0
 
-# LLM 超时（秒）
+# retrieval 超时（秒）
 LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "60"))
 
 # ==================== 批量处理配置 ====================

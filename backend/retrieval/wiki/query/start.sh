@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# backend/LLM/wiki/query/start.sh
+# backend/retrieval/wiki/query/start.sh
 # 启动 knowledge_api.py
 
 echo "========================================"

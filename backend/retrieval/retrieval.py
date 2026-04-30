@@ -20,10 +20,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # BM25_SCORE_THRESHOLD     BM25 检索结果最低 score，低于此值过滤，默认 -999.0（不过滤）
 # EMBEDDING_DIMENSION      Embedding 输出维度，默认 1024（bge-m3）
 # QUERY_EXPANSION_ENABLED  是否启用查询扩展，默认 false
-# QUERY_EXPANSION_MODEL    查询扩展用 LLM 模型，默认 gpt-3.5-turbo
+# QUERY_EXPANSION_MODEL    查询扩展用 retrieval 模型，默认 gpt-3.5-turbo
 # QUERY_EXPANSION_NUM      扩展变体数量，默认 3，最大 5
-# OPENAI_API_KEY           查询扩展用 LLM API Key（启用查询扩展时必需）
-# OPENAI_API_BASE          查询扩展用 LLM API 基础地址，默认 https://api.openai.com/v1
+# OPENAI_API_KEY           查询扩展用 retrieval API Key（启用查询扩展时必需）
+# OPENAI_API_BASE          查询扩展用 retrieval API 基础地址，默认 https://api.openai.com/v1
 # RERANK_TOP_N             重排序后返回的文档数量，默认 3
 # RERANK_CONTEXT_WINDOW    重排序上下文扩展窗口，前后各取 N 个相邻 chunk，默认 1
 # SEARCH_TIMEOUT           向量/BM25 检索 API 超时时间（秒），默认 30
@@ -55,7 +55,7 @@ QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() 
 QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "deepseek-v4-pro")
 QUERY_EXPANSION_NUM = min(int(os.getenv("QUERY_EXPANSION_NUM", "3")), 5)
 
-# LLM API 配置（查询扩展用）
+# retrieval API 配置（查询扩展用）
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.deepseek.com")
 
@@ -416,7 +416,7 @@ def _merge_results(vec_docs: List[Document], bm25_docs: List[Document]) -> List[
 # ==================== 查询扩展 ====================
 def expand_query(query: str, num_variants: int = QUERY_EXPANSION_NUM) -> List[str]:
     """
-    查询扩展：基于 LLM 生成语义相关的查询变体，提升检索召回率。
+    查询扩展：基于 retrieval 生成语义相关的查询变体，提升检索召回率。
 
     如果未配置 OPENAI_API_KEY，则直接返回原查询（降级处理）。
     """
@@ -472,7 +472,7 @@ def pipeline(query: str, top_k: int = 20, use_bm25: bool = True,
         top_k: 每路检索返回数量
         use_bm25: 是否启用 BM25 API 检索
         use_rerank: 是否启用 CrossEncoder 重排序
-        use_query_expansion: 是否启用查询扩展（会调用 LLM 生成查询变体）
+        use_query_expansion: 是否启用查询扩展（会调用 retrieval 生成查询变体）
     """
     print("原始查询:", query)
 

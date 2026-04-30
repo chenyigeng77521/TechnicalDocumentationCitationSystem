@@ -158,7 +158,7 @@ QUERY_EXPANSION_ENABLED=false
 QUERY_EXPANSION_MODEL=gpt-3.5-turbo
 QUERY_EXPANSION_NUM=3
 
-# LLM API 配置（查询扩展必需）
+# retrieval API 配置（查询扩展必需）
 OPENAI_API_KEY=sk-xxx
 # OPENAI_API_BASE=https://api.openai.com/v1   # 可选，用于代理
 
@@ -444,7 +444,7 @@ results = pipeline("查询", use_bm25=False, use_rerank=False)
 # 减少 TopK 值
 results = pipeline("查询", top_k=10)
 
-# 禁用查询扩展（避免 LLM 调用和额外 API 请求）
+# 禁用查询扩展（避免 retrieval 调用和额外 API 请求）
 results = pipeline("查询", use_query_expansion=False)
 ```
 
@@ -519,7 +519,7 @@ OSError: model not found
 项目已包含完整的 Mock HTTP 测试脚本，无需启动真实向量库即可验证检索逻辑：
 
 ```bash
-cd /Users/lenghaijun/PycharmProjects/TechnicalDocumentationCitationSystem/backend/LLM
+cd /Users/lenghaijun/PycharmProjects/TechnicalDocumentationCitationSystem/backend/retrieval
 python3 test_retrieval_mock.py
 ```
 

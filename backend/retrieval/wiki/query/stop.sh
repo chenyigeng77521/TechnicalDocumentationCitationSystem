@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# backend/LLM/wiki/query/stop.sh
+# backend/retrieval/wiki/query/stop.sh
 # 停止 knowledge_api.py
 
 echo "========================================"

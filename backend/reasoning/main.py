@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import Optional
 
 import sys
-# 将当前目录（reasoning/）和 LLM/ 目录加入 path，方便引用 retrieval.py
+# 将当前目录（reasoning/）和 retrieval/ 目录加入 path，方便引用 retrieval.py
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LLM"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "retrieval"))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
