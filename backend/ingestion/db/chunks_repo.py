@@ -132,14 +132,16 @@ def text_search(
     fts_query = _build_fts_query(query)
     if not fts_query:
         return []  # 空 / 全标点 query 直接返空，不打 FTS5（防 syntax error）
+    # bm25 权重对应 chunks_fts 列顺序: chunk_id (UNINDEXED) / content / title_path
+    # title_path 5x 权重让"问题词命中标题"的 chunk 排前，缓解问题 B（vector_search 不用 title_path）
     rows = conn.execute(
         """
-        SELECT c.*, fts.rank AS bm25_rank, d.indexed_at AS doc_indexed_at
+        SELECT c.*, bm25(chunks_fts, 0.0, 1.0, 5.0) AS bm25_rank, d.indexed_at AS doc_indexed_at
         FROM chunks_fts fts
         JOIN chunks c ON c.chunk_id = fts.chunk_id
         JOIN documents d ON c.file_path = d.file_path
         WHERE chunks_fts MATCH ?
-        ORDER BY fts.rank
+        ORDER BY bm25_rank
         LIMIT ?
         """,
         (fts_query, top_k),
