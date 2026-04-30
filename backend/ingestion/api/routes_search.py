@@ -94,10 +94,10 @@ async def post_vector_search(req: VectorSearchRequest):
 
         results = []
         for key, members in sorted_groups:
-            title_path = members[0].get("title_path") if key[0] == "SECTION" else ""
+            title_path = members[0].get("title_path") or ""  # UNTITLED 路径自动是 ""
             metadata_x0 = _row_to_metadata(members[0])
             results.append(
-                _format_result_x15(conn, members, title_path or "", metadata_x0)
+                _format_result_x15(conn, members, title_path, metadata_x0)
             )
 
         return {"results": results, "total": len(results)}
@@ -126,7 +126,7 @@ async def post_text_search(req: TextSearchRequest):
 
         results = []
         for key, members in sorted_groups:
-            title_path = members[0].get("title_path") if key[0] == "SECTION" else ""
+            title_path = members[0].get("title_path") or ""  # UNTITLED 路径自动是 ""
             metadata_x0 = _row_to_metadata(members[0])
             results.append(
                 _format_result_x15(conn, members, title_path or "", metadata_x0)
