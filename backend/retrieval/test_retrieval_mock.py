@@ -6,7 +6,7 @@ retrieval.py 向量检索功能模拟测试程序
 对 VectorAPIClient 进行端到端测试，覆盖正常/异常/边界场景。
 
 使用方法：
-    cd /Users/lenghaijun/PycharmProjects/TechnicalDocumentationCitationSystem/backend/LLM
+    cd /Users/lenghaijun/PycharmProjects/TechnicalDocumentationCitationSystem/backend/retrieval
     python test_retrieval_mock.py
 """
 import json
@@ -371,9 +371,9 @@ class TestRunner:
         self._assert(len(results) == 4,
                      f"混合检索合并去重后应为 4 个，实际 {len(results)}")
 
-    # ---------- 测试 10: 查询扩展降级（无 LLM 配置时返回原查询）----------
+    # ---------- 测试 10: 查询扩展降级（无 retrieval 配置时返回原查询）----------
     def test_expand_query_fallback(self):
-        print("\n[TEST] 查询扩展降级（无 LLM 配置）")
+        print("\n[TEST] 查询扩展降级（无 retrieval 配置）")
         from retrieval import expand_query
 
         # 确保没有 OPENAI_API_KEY
@@ -381,7 +381,7 @@ class TestRunner:
             queries = expand_query("测试查询", num_variants=3)
 
         self._assert(queries == ["测试查询"],
-                     f"无 LLM 配置时应返回原查询，实际 {queries}")
+                     f"无 retrieval 配置时应返回原查询，实际 {queries}")
 
     # ---------- 测试 11: Pipeline 查询扩展多路检索 ----------
     def test_pipeline_query_expansion(self):

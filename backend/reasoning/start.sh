@@ -19,7 +19,7 @@ PID_FILE="$SCRIPT_DIR/.reasoning.pid"
 SERVER_LOG="$LOG_DIR/reasoning.log"
 
 # ---- 配置 ----
-PORT=5050
+PORT=8001
 PYTHON_CMD="python"
 EXTRA_ARGS=()
 

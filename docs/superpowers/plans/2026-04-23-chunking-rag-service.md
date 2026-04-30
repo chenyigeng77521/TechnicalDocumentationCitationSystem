@@ -1255,7 +1255,7 @@ echo "--- files ---"
 curl -s http://localhost:3002/api/qa/files | head -c 500
 echo ""
 
-# 问答（空 LLM key 走拒答路径）
+# 问答（空 retrieval key 走拒答路径）
 echo "--- ask-stream ---"
 curl -sN -X POST http://localhost:3002/api/qa/ask-stream \
   -H "Content-Type: application/json" \

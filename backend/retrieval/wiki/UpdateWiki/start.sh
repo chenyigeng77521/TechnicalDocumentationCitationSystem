@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# backend/LLM/wiki/UpdateWiki/start.sh
+# backend/retrieval/wiki/UpdateWiki/start.sh
 # 启动 update_wiki.py
 
 echo "========================================"

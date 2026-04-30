@@ -8,7 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PID_FILE="$SCRIPT_DIR/.reasoning.pid"
-PORT=5050
+PORT=8001
 
 KILLED_ANY=0
 

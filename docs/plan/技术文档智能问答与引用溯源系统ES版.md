@@ -222,7 +222,7 @@ UI 的 `pending` 状态显示预计完成时间：
 
 ```python
 def expand_query(query: str) -> str:
-    """调用 LLM 生成同义表达，拼接后统一 embed，token 消耗极小"""
+    """调用 retrieval 生成同义表达，拼接后统一 embed，token 消耗极小"""
     expansions = llm.generate(
         f"给出以下技术问题的2个同义表达，仅输出问题本身，换行分隔，不加序号：\n{query}"
     )

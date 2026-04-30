@@ -29,7 +29,7 @@ from interfaces import Citation, ReasoningResult, RetrievedChunk
 logger = logging.getLogger(__name__)
 
 
-# ==================== LLM 客户端（单例）====================
+# ==================== retrieval 客户端（单例）====================
 
 _llm_client: Optional[openai.OpenAI] = None
 
@@ -50,7 +50,7 @@ def get_llm_client() -> openai.OpenAI:
 
 def is_answerable(chunks: list[RetrievedChunk]) -> tuple[bool, str, float]:
     """
-    可回答性双阈值判定（不进 LLM，纯规则，< 1ms）
+    可回答性双阈值判定（不进 retrieval，纯规则，< 1ms）
 
     Returns:
         (answerable, refuse_reason, max_score)
@@ -107,11 +107,11 @@ def build_context_blocks(chunks: list[RetrievedChunk]) -> tuple[str, list[Retrie
     return "\n\n".join(blocks), used_chunks
 
 
-# ==================== Step 3：LLM 推理（含 retry）====================
+# ==================== Step 3：retrieval 推理（含 retry）====================
 
 def call_llm(prompt: str) -> str:
     """
-    调用 LLM，失败时 retry 1 次。
+    调用 retrieval，失败时 retry 1 次。
     返回原始字符串输出，调用方负责解析。
 
     Raises:
@@ -132,15 +132,15 @@ def call_llm(prompt: str) -> str:
         except Exception as e:
             last_err = e
             if attempt == 0:
-                logger.warning("LLM 调用第 1 次失败，1s 后重试: %s", e)
+                logger.warning("retrieval 调用第 1 次失败，1s 后重试: %s", e)
                 time.sleep(1)
 
-    raise RuntimeError(f"LLM 调用失败（已重试 1 次）: {last_err}") from last_err
+    raise RuntimeError(f"retrieval 调用失败（已重试 1 次）: {last_err}") from last_err
 
 
 def parse_llm_output(raw: str) -> tuple[Optional[dict], bool]:
     """
-    解析 LLM 输出：
+    解析 retrieval 输出：
     - 输出 REFUSE → 返回 (None, is_refuse=True)
     - 输出合法 JSON → 返回 (dict, False)
     - 解析失败 → 返回 (None, False)（调用方按拒答处理）
@@ -153,7 +153,7 @@ def parse_llm_output(raw: str) -> tuple[Optional[dict], bool]:
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
 
-    # LLM 主动拒答
+    # retrieval 主动拒答
     if text.strip().upper() == "REFUSE":
         return None, True
 
@@ -162,7 +162,7 @@ def parse_llm_output(raw: str) -> tuple[Optional[dict], bool]:
         data = json.loads(text)
         return data, False
     except json.JSONDecodeError:
-        # 尝试从文本中提取 JSON 对象（LLM 可能加了多余文字）
+        # 尝试从文本中提取 JSON 对象（retrieval 可能加了多余文字）
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             try:
@@ -171,7 +171,7 @@ def parse_llm_output(raw: str) -> tuple[Optional[dict], bool]:
             except json.JSONDecodeError:
                 pass
 
-    logger.warning("LLM 输出无法解析为 JSON: %s", raw[:200])
+    logger.warning("retrieval 输出无法解析为 JSON: %s", raw[:200])
     return None, False
 
 
@@ -182,7 +182,7 @@ def validate_citations(
     used_chunks: list[RetrievedChunk],
 ) -> list[int]:
     """
-    校验 LLM 输出的 citation_ids 是否全部在合法范围内（1-based）。
+    校验 retrieval 输出的 citation_ids 是否全部在合法范围内（1-based）。
     非法 ID 直接剔除（不拒答，但不允许无效引用进入响应）。
 
     Returns:
@@ -263,7 +263,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     Layer 3 完整推理 Pipeline：
       1. 可回答性判定
       2. Context 构建
-      3. LLM 推理
+      3. retrieval 推理
       4. 引用校验
       5. 语义一致性验证
       6. 后处理输出
@@ -285,7 +285,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     # ---------- Step 2：构建 Context ----------
     context_blocks, used_chunks = build_context_blocks(chunks)
 
-    # ---------- Step 3：LLM 推理 ----------
+    # ---------- Step 3：retrieval 推理 ----------
     prompt = PROMPT_TEMPLATE.format(
         context_blocks=context_blocks,
         query=query,
@@ -294,7 +294,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     try:
         raw_output = call_llm(prompt)
     except RuntimeError as e:
-        logger.error("LLM 调用最终失败: %s", e)
+        logger.error("retrieval 调用最终失败: %s", e)
         return ReasoningResult(
             answer=REFUSAL_TEXT,
             is_refusal=True,
@@ -303,11 +303,11 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
             confidence=0.0,
         )
 
-    # ---------- Step 3.5：解析 LLM 输出 ----------
+    # ---------- Step 3.5：解析 retrieval 输出 ----------
     parsed, is_llm_refuse = parse_llm_output(raw_output)
 
     if is_llm_refuse:
-        logger.info("LLM 主动拒答")
+        logger.info("retrieval 主动拒答")
         return ReasoningResult(
             answer=REFUSAL_TEXT,
             is_refusal=True,
@@ -348,7 +348,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     # ---------- Step 4：引用校验 ----------
     valid_citation_ids = validate_citations(citation_ids, used_chunks)
 
-    # 所有引用均非法（LLM 编造了不存在的 ID） → 拒答
+    # 所有引用均非法（retrieval 编造了不存在的 ID） → 拒答
     if citation_ids and not valid_citation_ids:
         logger.warning("引用全部非法 → 拒答")
         return ReasoningResult(

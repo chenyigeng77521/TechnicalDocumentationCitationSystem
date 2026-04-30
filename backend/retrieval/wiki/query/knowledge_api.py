@@ -476,7 +476,7 @@ async def query_knowledge_base(request: QueryRequest):
             metadata={"files_count": 0}
         )
 
-    # 检查 LLM 配置
+    # 检查 retrieval 配置
     if not config.LLM_API_KEY:
         return QueryResponse(
             success=False,
@@ -532,7 +532,7 @@ async def query_knowledge_base_stream(request: QueryRequest):
                 yield f"data: {json.dumps({'type': 'error', 'error': 'wiki目录为空'}, ensure_ascii=False)}\n\n"
                 return
 
-            # 检查 LLM 配置
+            # 检查 retrieval 配置
             if not config.LLM_API_KEY:
                 yield f"data: {json.dumps({'type': 'error', 'error': '未配置大模型 API Key'}, ensure_ascii=False)}\n\n"
                 return
