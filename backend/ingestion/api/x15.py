@@ -25,3 +25,109 @@ def _read_raw_file(file_path: str) -> str:
     abs_path = RAW_DIR / file_path
     text = abs_path.read_text(encoding="utf-8")
     return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+# 进程级 section 边界缓存（key 不能用 conn，所以单独 dict）
+# section 总数 ~1600，全装内存可忽略；测试 fixture 显式 clear
+_section_range_cache: dict[tuple[str, str], tuple[int, int]] = {}
+
+
+def get_section_full_range(conn, file_path: str, title_path: str) -> tuple[int, int]:
+    """查同 section 全部 chunks（含未命中的）的 offset union 范围。
+
+    关键设计点：必须查全部 chunks 的 union，不能只看召回的命中。
+    否则 section 内只有 1 个 chunk 被命中时，"section 全量" 退化成单 chunk 大小。
+    """
+    cache_key = (file_path, title_path or "")
+    if cache_key in _section_range_cache:
+        return _section_range_cache[cache_key]
+
+    row = conn.execute(
+        """SELECT MIN(char_offset_start) AS s, MAX(char_offset_end) AS e
+           FROM chunks
+           WHERE file_path = ?
+             AND COALESCE(title_path, '') = COALESCE(?, '')""",
+        (file_path, title_path or ""),
+    ).fetchone()
+    if row is None or row["s"] is None:
+        raise ValueError(f"no chunks for ({file_path}, {title_path!r})")
+
+    result = (row["s"], row["e"])
+    _section_range_cache[cache_key] = result
+    return result
+
+
+def clear_section_range_cache():
+    """测试用，清空 section 边界缓存。"""
+    _section_range_cache.clear()
+
+
+def make_window(
+    section_start: int,
+    section_end: int,
+    hits: list[dict],
+    max_chars: int = DEFAULT_MAX_CHARS,
+) -> tuple[int, int, bool]:
+    """居中截窗口算法。返回 (win_start, win_end, is_truncated)。
+
+    3 档策略：
+    - Case 1: section 长度 ≤ max_chars → 整 section 全保
+    - Case 2: 命中点 union 跨度 ≤ max_chars → 命中点 union 居中
+    - Case 3: 命中点跨度 > max_chars → 取分最高命中点居中（罕见）
+
+    边界回弹：window 撞 section 边界时把空间补给另一边，保证 win_end - win_start = max_chars。
+    """
+    section_len = section_end - section_start
+    if section_len <= max_chars:
+        return section_start, section_end, False  # Case 1
+
+    hit_min = min(h["char_offset_start"] for h in hits)
+    hit_max = max(h["char_offset_end"] for h in hits)
+
+    if hit_max - hit_min <= max_chars:
+        # Case 2: 命中点 union 装得下
+        center = (hit_min + hit_max) // 2
+    else:
+        # Case 3: 跨度过大，按最高分居中
+        top_hit = max(hits, key=lambda h: h.get("score", 0))
+        center = (top_hit["char_offset_start"] + top_hit["char_offset_end"]) // 2
+
+    half = max_chars // 2
+    win_start = max(section_start, center - half)
+    win_end = min(section_end, center + half)
+
+    # 边界回弹：一边碰壁就把空间补给另一边
+    if win_end - win_start < max_chars:
+        if win_start == section_start:
+            win_end = min(section_end, win_start + max_chars)
+        else:
+            win_start = max(section_start, win_end - max_chars)
+
+    return win_start, win_end, True
+
+
+GroupKey = tuple  # ('SINGLE', chunk_id) 或 ('SECTION', file_path, title_path)
+
+
+def assign_group_key(chunk: dict) -> GroupKey:
+    """决定 chunk 属于 SINGLE 还是 SECTION 路径。
+
+    title_path 空 ≡ markdown_anchor=#top（数据验证 100% 对应），走 SINGLE 退化避免跨文件误并。
+    """
+    title_path = chunk.get("title_path") or ""
+    if not title_path:
+        return ("SINGLE", chunk["chunk_id"])
+    return ("SECTION", chunk["file_path"], title_path)
+
+
+def group_results(results: list[dict]) -> dict[GroupKey, list[dict]]:
+    """把 search 返回的 rows 按 group_key 分组，组内按 score 降序排。
+
+    输出顺序由调用方按"组内最高分"再排（这里只做分组）。
+    """
+    groups: dict[GroupKey, list[dict]] = defaultdict(list)
+    for r in results:
+        groups[assign_group_key(r)].append(r)
+    for k in groups:
+        groups[k].sort(key=lambda c: -c.get("score", 0))
+    return groups
