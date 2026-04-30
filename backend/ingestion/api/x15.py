@@ -106,31 +106,55 @@ def make_window(
     return win_start, win_end, True
 
 
-GroupKey = tuple  # ('SINGLE', chunk_id) 或 ('SECTION', file_path, title_path)
+GroupKey = tuple
+# 新分组路径：
+#   ('SECTION', file_path, title_path)         — title_path 非空，按 spec §2.1
+#   ('UNTITLED_SEG', file_path, segment_id)    — title_path 空，按 chunk_index 物理连续段切（fix Task 8）
 
 
 def assign_group_key(chunk: dict) -> GroupKey:
-    """决定 chunk 属于 SINGLE 还是 SECTION 路径。
+    """决定 chunk 粗分组 key。
 
-    title_path 空 ≡ markdown_anchor=#top（数据验证 100% 对应），走 SINGLE 退化避免跨文件误并。
+    title_path 空 → 临时归到 ('UNTITLED', file_path)，由 group_results 内部再按 chunk_index
+    物理连续切子组（避免跨 #top section 误并 — 数据显示 46% #top 组 chunk_index 不连续）。
     """
     title_path = chunk.get("title_path") or ""
     if not title_path:
-        return ("SINGLE", chunk["chunk_id"])
+        return ("UNTITLED", chunk["file_path"])
     return ("SECTION", chunk["file_path"], title_path)
 
 
 def group_results(results: list[dict]) -> dict[GroupKey, list[dict]]:
     """把 search 返回的 rows 按 group_key 分组，组内按 score 降序排。
 
-    输出顺序由调用方按"组内最高分"再排（这里只做分组）。
+    UNTITLED 粗组内部按 chunk_index 排序后切物理连续子段（chunk_index 差 > 1 即断开）。
+    每个连续子段一个 'UNTITLED_SEG' 组。
     """
-    groups: dict[GroupKey, list[dict]] = defaultdict(list)
+    raw_groups: dict[GroupKey, list[dict]] = defaultdict(list)
     for r in results:
-        groups[assign_group_key(r)].append(r)
-    for k in groups:
-        groups[k].sort(key=lambda c: -c.get("score", 0))
-    return groups
+        raw_groups[assign_group_key(r)].append(r)
+
+    final_groups: dict[GroupKey, list[dict]] = defaultdict(list)
+    for key, chunks in raw_groups.items():
+        if key[0] == "SECTION":
+            final_groups[key].extend(chunks)
+        else:
+            # UNTITLED → 按 chunk_index 排序后切连续段
+            sorted_chunks = sorted(chunks, key=lambda c: c.get("chunk_index", 0))
+            seg_id = 0
+            prev_idx = None
+            for c in sorted_chunks:
+                idx = c.get("chunk_index", 0)
+                if prev_idx is not None and idx - prev_idx > 1:
+                    seg_id += 1
+                seg_key = ("UNTITLED_SEG", key[1], seg_id)
+                final_groups[seg_key].append(c)
+                prev_idx = idx
+
+    # 组内按 score 降序
+    for k in final_groups:
+        final_groups[k].sort(key=lambda c: -c.get("score", 0))
+    return final_groups
 
 
 def _format_result_x15(
@@ -143,41 +167,40 @@ def _format_result_x15(
     """X1.5 化主函数。每组返回 1 个 result。
 
     Args:
-        conn: SQLite connection（用于 get_section_full_range）
+        conn: SQLite connection（SECTION 路径用于 get_section_full_range）
         group_chunks: 已按 score 降序的命中 chunks
-        title_path: SECTION 路径的标题路径；'' 触发 SINGLE 退化
+        title_path: SECTION 路径的标题路径；'' 触发 UNTITLED 路径（无 title prefix）
         metadata_x0: 由调用方用 _row_to_metadata(group_chunks[0]) 算好传入
 
     Returns:
         result dict 含 chunk_id / content / score / metadata
     """
     representative = group_chunks[0]
-
-    if not title_path:
-        # SINGLE 退化路径：原 chunk content，metadata 不变
-        return {
-            "chunk_id": representative["chunk_id"],
-            "content": representative["content"],
-            "score": representative.get("score", 0.0),
-            "metadata": metadata_x0,
-        }
-
-    # SECTION 合并路径
     file_path = representative["file_path"]
+    is_section = bool(title_path)
+
     try:
-        section_start, section_end = get_section_full_range(conn, file_path, title_path)
+        if is_section:
+            # SECTION 路径：查同 section 全部 chunks（含未命中）的 offset union
+            section_start, section_end = get_section_full_range(conn, file_path, title_path)
+        else:
+            # UNTITLED_SEG 路径：用召回连续段 chunks 的 offset union（不查 DB；段内必连续）
+            section_start = min(c["char_offset_start"] for c in group_chunks)
+            section_end = max(c["char_offset_end"] for c in group_chunks)
+
         win_start, win_end, is_truncated = make_window(
             section_start, section_end, group_chunks, max_chars=max_chars
         )
         raw_slice = _read_raw_file(file_path)[win_start:win_end]
         if not raw_slice.strip():
             raise ValueError("empty raw_slice")
-        content = f"{title_path}\n\n{raw_slice}"
+
+        content = f"{title_path}\n\n{raw_slice}" if is_section else raw_slice
     except (FileNotFoundError, OSError, UnicodeDecodeError, ValueError) as e:
         logger.warning(
             "x15 fallback for %s (title=%s): %s", file_path, title_path, e
         )
-        # 退回 X0 行为：单 chunk 原 content，metadata 不变
+        # 退回 X0 行为：单 chunk 原 content
         return {
             "chunk_id": representative["chunk_id"],
             "content": representative["content"],
@@ -185,7 +208,7 @@ def _format_result_x15(
             "metadata": metadata_x0,
         }
 
-    # X1.5 成功路径：metadata 跟着 content 走
+    # X1.5 成功路径
     metadata = dict(metadata_x0)
     metadata["is_x15_truncated"] = is_truncated
     metadata["char_offset_start"] = win_start
