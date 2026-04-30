@@ -3,6 +3,8 @@
 Spec: docs/superpowers/specs/2026-04-25-data-layer-design.md §4.2
 """
 import json
+import os
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, HTTPException
@@ -11,6 +13,12 @@ from backend.ingestion.db.connection import init_db, get_connection
 from backend.ingestion.db.chunks_repo import (
     vector_search, text_search, get_chunk,
 )
+from backend.ingestion.api.x15 import (
+    group_results,
+    _format_result_x15,
+)
+
+X15_ENABLED = os.getenv("INGESTION_X15_ENABLED", "true").lower() == "true"
 
 router = APIRouter()
 DB_PATH = Path("backend/storage/index/knowledge.db")
@@ -49,7 +57,7 @@ def _row_to_metadata(row: dict) -> dict:
     }
 
 
-def _format_result(row: dict, include_bm25: bool = False) -> dict:
+def _format_result_legacy(row: dict, include_bm25: bool = False) -> dict:
     out = {
         "chunk_id": row["chunk_id"],
         "content": row["content"],
@@ -68,11 +76,31 @@ async def post_vector_search(req: VectorSearchRequest):
     init_db(DB_PATH)
     conn = get_connection(DB_PATH)
     try:
-        results = vector_search(conn, req.embedding, top_k=req.top_k)
-        return {
-            "results": [_format_result(r) for r in results],
-            "total": len(results),
-        }
+        rows = vector_search(conn, req.embedding, top_k=req.top_k)
+
+        if not X15_ENABLED:
+            return {
+                "results": [_format_result_legacy(r) for r in rows],
+                "total": len(rows),
+            }
+
+        # X1.5 路径：分组 → 排序 → 格式化
+        groups = group_results(rows)
+        # 输出顺序：按"组内最高分"降序
+        sorted_groups = sorted(
+            groups.items(),
+            key=lambda kv: -kv[1][0].get("score", 0),
+        )
+
+        results = []
+        for key, members in sorted_groups:
+            title_path = members[0].get("title_path") if key[0] == "SECTION" else ""
+            metadata_x0 = _row_to_metadata(members[0])
+            results.append(
+                _format_result_x15(conn, members, title_path or "", metadata_x0)
+            )
+
+        return {"results": results, "total": len(results)}
     finally:
         conn.close()
 
@@ -82,11 +110,29 @@ async def post_text_search(req: TextSearchRequest):
     init_db(DB_PATH)
     conn = get_connection(DB_PATH)
     try:
-        results = text_search(conn, req.query, top_k=req.top_k)
-        return {
-            "results": [_format_result(r, include_bm25=True) for r in results],
-            "total": len(results),
-        }
+        rows = text_search(conn, req.query, top_k=req.top_k)
+
+        if not X15_ENABLED:
+            return {
+                "results": [_format_result_legacy(r, include_bm25=True) for r in rows],
+                "total": len(rows),
+            }
+
+        groups = group_results(rows)
+        sorted_groups = sorted(
+            groups.items(),
+            key=lambda kv: -kv[1][0].get("score", 0),
+        )
+
+        results = []
+        for key, members in sorted_groups:
+            title_path = members[0].get("title_path") if key[0] == "SECTION" else ""
+            metadata_x0 = _row_to_metadata(members[0])
+            results.append(
+                _format_result_x15(conn, members, title_path or "", metadata_x0)
+            )
+
+        return {"results": results, "total": len(results)}
     finally:
         conn.close()
 
