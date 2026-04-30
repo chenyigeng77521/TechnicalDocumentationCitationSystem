@@ -131,3 +131,69 @@ def group_results(results: list[dict]) -> dict[GroupKey, list[dict]]:
     for k in groups:
         groups[k].sort(key=lambda c: -c.get("score", 0))
     return groups
+
+
+def _format_result_x15(
+    conn,
+    group_chunks: list[dict],
+    title_path: str,
+    metadata_x0: dict,
+    max_chars: int = DEFAULT_MAX_CHARS,
+) -> dict:
+    """X1.5 化主函数。每组返回 1 个 result。
+
+    Args:
+        conn: SQLite connection（用于 get_section_full_range）
+        group_chunks: 已按 score 降序的命中 chunks
+        title_path: SECTION 路径的标题路径；'' 触发 SINGLE 退化
+        metadata_x0: 由调用方用 _row_to_metadata(group_chunks[0]) 算好传入
+
+    Returns:
+        result dict 含 chunk_id / content / score / metadata
+    """
+    representative = group_chunks[0]
+
+    if not title_path:
+        # SINGLE 退化路径：原 chunk content，metadata 不变
+        return {
+            "chunk_id": representative["chunk_id"],
+            "content": representative["content"],
+            "score": representative.get("score", 0.0),
+            "metadata": metadata_x0,
+        }
+
+    # SECTION 合并路径
+    file_path = representative["file_path"]
+    try:
+        section_start, section_end = get_section_full_range(conn, file_path, title_path)
+        win_start, win_end, is_truncated = make_window(
+            section_start, section_end, group_chunks, max_chars=max_chars
+        )
+        raw_slice = _read_raw_file(file_path)[win_start:win_end]
+        if not raw_slice.strip():
+            raise ValueError("empty raw_slice")
+        content = f"{title_path}\n\n{raw_slice}"
+    except (FileNotFoundError, OSError, UnicodeDecodeError, ValueError) as e:
+        logger.warning(
+            "x15 fallback for %s (title=%s): %s", file_path, title_path, e
+        )
+        # 退回 X0 行为：单 chunk 原 content，metadata 不变
+        return {
+            "chunk_id": representative["chunk_id"],
+            "content": representative["content"],
+            "score": representative.get("score", 0.0),
+            "metadata": metadata_x0,
+        }
+
+    # X1.5 成功路径：metadata 跟着 content 走
+    metadata = dict(metadata_x0)
+    metadata["is_x15_truncated"] = is_truncated
+    metadata["char_offset_start"] = win_start
+    metadata["char_offset_end"] = win_end
+    metadata["anchor_id"] = f"{file_path}#{win_start}"
+    return {
+        "chunk_id": representative["chunk_id"],
+        "content": content,
+        "score": representative.get("score", 0.0),
+        "metadata": metadata,
+    }
