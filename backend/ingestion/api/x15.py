@@ -201,12 +201,15 @@ def _format_result_x15(
             "x15 fallback for %s (title=%s): %s", file_path, title_path, e
         )
         # 退回 X0 行为：单 chunk 原 content
-        return {
+        result = {
             "chunk_id": representative["chunk_id"],
             "content": representative["content"],
             "score": representative.get("score", 0.0),
             "metadata": metadata_x0,
         }
+        if "bm25_rank" in representative:
+            result["bm25_rank"] = representative["bm25_rank"]
+        return result
 
     # X1.5 成功路径
     metadata = dict(metadata_x0)
@@ -214,9 +217,12 @@ def _format_result_x15(
     metadata["char_offset_start"] = win_start
     metadata["char_offset_end"] = win_end
     metadata["anchor_id"] = f"{file_path}#{win_start}"
-    return {
+    result = {
         "chunk_id": representative["chunk_id"],
         "content": content,
         "score": representative.get("score", 0.0),
         "metadata": metadata,
     }
+    if "bm25_rank" in representative:
+        result["bm25_rank"] = representative["bm25_rank"]
+    return result
