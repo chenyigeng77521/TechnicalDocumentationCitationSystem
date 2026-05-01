@@ -113,8 +113,7 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
         # anchor 优先用 markdown_anchor（人类可读的 H1~H4 标题锚点如 #react-compiler）
         # 检索层 _row_to_metadata 已通过 _normalize_anchor 保证格式为 '#xxx'，None → '#top'
         anchor: str = (
-            meta.get("markdown_anchor")
-            or meta.get("anchor")
+            meta.get("anchor")
             or meta.get("anchor_id")
             or ""
         )
