@@ -39,7 +39,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ------------------------------------------------------------------
 load_dotenv()
 # 向量库 API 配置
-VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://127.0.0.1:8000")
+VECTOR_API_URL = os.getenv("VECTOR_API_URL", "https://equivalent-handling-heritage-hat.trycloudflare.com/")
 VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
 
 # 模型配置
@@ -58,12 +58,12 @@ EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
 # 查询扩展配置
 QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
-QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "deepseek-v4-pro")
+QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "aliyun/deepseek-v3.2")
 QUERY_EXPANSION_NUM = min(int(os.getenv("QUERY_EXPANSION_NUM", "3")), 5)
 
 # retrieval API 配置（查询扩展用）
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.deepseek.com")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://aigw.asiainfo.com/v1")
 
 # 重排序配置
 RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "5"))
