@@ -50,7 +50,7 @@ pip install -r requirements.txt
 编辑 `.env` 文件，填写真实的 API 密钥：
 
 ```ini
-# 必填：retrieval API 密钥
+# 必填：LLM API 密钥
 LLM_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 
 # 可选：覆盖默认值

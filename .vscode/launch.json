@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Reasoning: main",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "reasoning.main",
+            "cwd": "${workspaceFolder}/backend",
+            "console": "integratedTerminal",
+            "args": ["--port", "8001"],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/backend"
+            }
+        },
+        {
+            "name": "Retrieval: retrieval.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/retrieval/retrieval.py",
+            "cwd": "${workspaceFolder}/backend",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/backend"
+            }
+        }
+    ]
+}

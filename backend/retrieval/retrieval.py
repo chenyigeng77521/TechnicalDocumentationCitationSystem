@@ -26,6 +26,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # OPENAI_API_BASE          查询扩展用 retrieval API 基础地址，默认 https://api.openai.com/v1
 # RERANK_TOP_N             重排序后返回的文档数量，默认 3
 # RERANK_CONTEXT_WINDOW    重排序上下文扩展窗口，前后各取 N 个相邻 chunk，默认 1
+# RERANK_API_URL           外部重排序 API 地址（如 https://aigw.asiainfo.com/v1/rerank），配置后优先使用 API 而非本地模型
+# RERANK_API_KEY           外部重排序 API 密钥（Bearer Token）
+# RERANK_API_MODEL         外部重排序 API 模型名，默认 10086/bge-reranker-v2-m3
+# EMBEDDING_API_URL        外部 Embedding API 地址（如 https://aigw.asiainfo.com/v1/embeddings），配置后替代本地模型
+# EMBEDDING_API_KEY        外部 Embedding API 密钥（Bearer Token）
+# EMBEDDING_API_MODEL      外部 Embedding API 模型名，默认 10086/bge-m3
 # SEARCH_TIMEOUT           向量/BM25 检索 API 超时时间（秒），默认 30
 # HEALTH_TIMEOUT           健康检查 API 超时时间（秒），默认 5
 # ADAPTIVE_TOPK_MIN        自适应 TopK 最小返回数量，默认 5
@@ -33,12 +39,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ------------------------------------------------------------------
 load_dotenv()
 # 向量库 API 配置
-VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://172.25.178.21:3003")
+VECTOR_API_URL = os.getenv("VECTOR_API_URL", "http://127.0.0.1:8000")
 VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
 
 # 模型配置
 VECTOR_MODEL = os.getenv("VECTOR_MODEL", "BAAI/bge-m3")  # 向量嵌入模型
-RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-base")  # 重排序模型
+RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")  # 重排序模型
 
 # Score 阈值配置（向量与 BM25 量纲不同，必须分开配置）
 VECTOR_SCORE_THRESHOLD = float(os.getenv("VECTOR_SCORE_THRESHOLD", "0.55"))
@@ -60,8 +66,18 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.deepseek.com")
 
 # 重排序配置
-RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "3"))
+RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "5"))
 RERANK_CONTEXT_WINDOW = int(os.getenv("RERANK_CONTEXT_WINDOW", "1"))
+
+# 外部重排序 API 配置（可选，配置后替代本地 CrossEncoder）
+RERANK_API_URL = os.getenv("RERANK_API_URL", "https://aigw.asiainfo.com/v1/rerank")
+RERANK_API_KEY = os.getenv("RERANK_API_KEY", "sk-")
+RERANK_API_MODEL = os.getenv("RERANK_API_MODEL", "10086/bge-reranker-v2-m3")
+
+# 外部 Embedding API 配置（可选，配置后替代本地 HuggingFaceEmbeddings）
+EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL", "https://aigw.asiainfo.com/v1/embeddings")
+EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", "sk-")
+EMBEDDING_API_MODEL = os.getenv("EMBEDDING_API_MODEL", "10086/bge-m3")
 
 # API 超时配置（秒）
 SEARCH_TIMEOUT = int(os.getenv("SEARCH_TIMEOUT", "30"))
@@ -75,19 +91,89 @@ ADAPTIVE_TOPK_MAX = int(os.getenv("ADAPTIVE_TOPK_MAX", "25"))
 _embedding_model = None
 
 
+class APIEmbeddingModel:
+    """通过外部 API（OpenAI 兼容格式）计算 embedding"""
+
+    def __init__(self, api_url: str, api_key: str, model: str):
+        self.api_url = api_url
+        self.api_key = api_key
+        self.model = model
+        self.session = requests.Session()
+        print(f"正在初始化 API Embedding 模型: {api_url} (model={model})")
+
+    def _call_api(self, texts: List[str]) -> List[List[float]]:
+        """调用外部 Embedding API"""
+        payload = {
+            "model": self.model,
+            "input": texts
+        }
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        try:
+            response = self.session.post(
+                self.api_url,
+                json=payload,
+                headers=headers,
+                timeout=SEARCH_TIMEOUT
+            )
+            response.raise_for_status()
+            result = response.json()
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Embedding API 请求失败: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Embedding API 解析失败: {e}")
+
+        # OpenAI 兼容格式: {"data": [{"embedding": [...], "index": 0}, ...]}
+        data = result.get("data", [])
+        if not data:
+            raise RuntimeError("Embedding API 返回空数据")
+
+        # 按 index 排序确保顺序一致
+        data = sorted(data, key=lambda x: x.get("index", 0))
+        embeddings = [item.get("embedding", []) for item in data]
+
+        # 校验维度
+        for idx, emb in enumerate(embeddings):
+            if len(emb) != EMBEDDING_DIMENSION:
+                print(f"警告: Embedding 维度异常: {len(emb)}, 期望 {EMBEDDING_DIMENSION} (index={idx})")
+
+        return embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        """对单个查询文本计算 embedding"""
+        embeddings = self._call_api([text])
+        return embeddings[0]
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """对批量文档计算 embedding"""
+        return self._call_api(texts)
+
+
 def get_embedding_model():
-    """惰性加载 HuggingFaceEmbeddings（首次调用时才初始化）"""
+    """惰性加载 Embedding 模型（本地 HuggingFace 或远程 API）"""
     global _embedding_model
     if _embedding_model is None:
-        try:
-            from langchain_huggingface import HuggingFaceEmbeddings
-        except ImportError:
-            from langchain_community.embeddings import HuggingFaceEmbeddings
-        _embedding_model = HuggingFaceEmbeddings(
-            model_name=VECTOR_MODEL,
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
-        )
+        if EMBEDDING_API_URL:
+            _embedding_model = APIEmbeddingModel(
+                api_url=EMBEDDING_API_URL,
+                api_key=EMBEDDING_API_KEY,
+                model=EMBEDDING_API_MODEL
+            )
+        else:
+            try:
+                from langchain_huggingface import HuggingFaceEmbeddings
+            except ImportError:
+                from langchain_community.embeddings import HuggingFaceEmbeddings
+            _embedding_model = HuggingFaceEmbeddings(
+                model_name=VECTOR_MODEL,
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': True}
+            )
     return _embedding_model
 
 # ==================== 初始化重排序模型（全局只加载一次） ====================
@@ -95,10 +181,22 @@ reranker = None  # 延迟加载
 
 
 def get_reranker():
-    """获取重排序模型实例（单例模式）"""
+    """获取重排序模型实例（单例模式）
+
+    若配置了 RERANK_API_URL，则使用外部 API 重排序；
+    否则回退到本地 CrossEncoder 模型。
+    """
     global reranker
     if reranker is None:
-        reranker = Reranker()
+        if RERANK_API_URL:
+            reranker = APIReranker(
+                api_url=RERANK_API_URL,
+                api_key=RERANK_API_KEY,
+                model=RERANK_API_MODEL,
+                top_n=RERANK_TOP_N
+            )
+        else:
+            reranker = Reranker()
     return reranker
 
 
@@ -364,11 +462,11 @@ def _expand_rerank_context(docs: List[Document], window: int = RERANK_CONTEXT_WI
     return expanded_texts
 
 
-# ==================== Reranker（保持不变）====================
+# ==================== Reranker（本地 CrossEncoder）====================
 class Reranker:
     def __init__(self, model_name=RERANKER_MODEL, top_n=RERANK_TOP_N):
         print(f"正在加载重排序模型: {model_name}...")
-        self.model = CrossEncoder(model_name)
+        self.model = CrossEncoder(model_name, tokenizer_kwargs={'truncation': True, 'padding': True})
         self.top_n = top_n
         print("重排序模型加载完成")
 
@@ -382,14 +480,88 @@ class Reranker:
             print(f"重排序上下文扩展: window={RERANK_CONTEXT_WINDOW}")
 
         pairs = [[query, text] for text in expanded_texts]
-        scores = self.model.predict(pairs)
-
+        scores = self.model.predict(pairs,batch_size=8)
+        # 将原始 logits 通过 Sigmoid 映射到 (0, 1)，与 bge-reranker-base 行为对齐
+        scores = 1 / (1 + np.exp(-np.array(scores)))
         # 将 reranker 分数写入 metadata，供下游阈值判断
         for idx, score in enumerate(scores):
             docs[idx].metadata["reranker_score"] = float(score)
 
         sorted_idx = np.argsort(scores)[::-1]
         return [docs[i] for i in sorted_idx[:self.top_n]]
+
+
+# ==================== API Reranker（远程 API 调用）====================
+class APIReranker:
+    """通过外部 API（如 aigw.asiainfo.com）进行重排序"""
+
+    def __init__(self, api_url: str, api_key: str, model: str, top_n: int = RERANK_TOP_N):
+        self.api_url = api_url
+        self.api_key = api_key
+        self.model = model
+        self.top_n = top_n
+        self.session = requests.Session()
+        print(f"正在初始化 API 重排序器: {api_url} (model={model})")
+
+    def rerank(self, query: str, docs: List[Document]):
+        if not docs:
+            return []
+
+        # 上下文扩展：用相邻 chunk 补全后打分
+        expanded_texts = _expand_rerank_context(docs)
+        if RERANK_CONTEXT_WINDOW > 0:
+            print(f"重排序上下文扩展: window={RERANK_CONTEXT_WINDOW}")
+
+        payload = {
+            "model": self.model,
+            "return_text": True,
+            "query": query,
+            "documents": expanded_texts
+        }
+
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        try:
+            response = self.session.post(
+                self.api_url,
+                json=payload,
+                headers=headers,
+                timeout=SEARCH_TIMEOUT
+            )
+            response.raise_for_status()
+            result = response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"API 重排序请求失败: {e}")
+            return docs[:self.top_n]
+        except Exception as e:
+            print(f"API 重排序解析失败: {e}")
+            return docs[:self.top_n]
+
+        # 解析返回结果：标准 rerank API 返回 { "results": [{"index": 0, "relevance_score": 0.9, "text": "..."}, ...] }
+        results = result.get("results", [])
+        if not results:
+            print("API 重排序返回空结果，返回原始排序")
+            return docs[:self.top_n]
+
+        # 按 relevance_score 降序排序
+        sorted_results = sorted(results, key=lambda x: x.get("relevance_score", 0), reverse=True)
+
+        reranked_docs = []
+        for item in sorted_results[:self.top_n]:
+            idx = item.get("index")
+            if idx is None or idx < 0 or idx >= len(docs):
+                continue
+            score = item.get("relevance_score", 0.0)
+            docs[idx].metadata["reranker_score"] = float(score)
+            reranked_docs.append(docs[idx])
+
+        print(f"API 重排序完成: {len(reranked_docs)} 篇文档")
+        return reranked_docs
 
 
 def _merge_results(vec_docs: List[Document], bm25_docs: List[Document]) -> List[Document]:
@@ -462,7 +634,7 @@ def expand_query(query: str, num_variants: int = QUERY_EXPANSION_NUM) -> List[st
 
 
 # ==================== Pipeline（API 向量 + API BM25 + 重排序）====================
-def pipeline(query: str, top_k: int = 20, use_bm25: bool = True,
+def pipeline(query: str, top_k: int = 10, use_bm25: bool = True,
              use_rerank: bool = True, use_query_expansion: bool = False):
     """
     检索管道（双路 API 检索 + 查询扩展 + 重排序）
