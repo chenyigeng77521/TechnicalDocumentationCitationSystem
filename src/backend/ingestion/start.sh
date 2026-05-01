@@ -32,6 +32,24 @@ export INGESTION_UPLOAD_ENABLED
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_ROOT"
 
+# ---- 加载环境变量（让 AIGW_API_KEY 等进 server 进程）----
+# src/.env：团队共享非敏感配置（git tracked）
+# src/.env.aigw：含 API key 等敏感信息（gitignored，需团队成员各自创建）
+for env_file in "$PROJECT_ROOT/src/.env" "$PROJECT_ROOT/src/.env.aigw"; do
+    if [ -f "$env_file" ]; then
+        set -a
+        # shellcheck disable=SC1091
+        source "$env_file"
+        set +a
+    fi
+done
+
+# 校验 AIGW_API_KEY 已设置
+if [ -z "${AIGW_API_KEY:-}" ]; then
+    echo "⚠️  AIGW_API_KEY 未设置！请创建 src/.env.aigw（参考 src/.env.aigw.example）"
+    echo "   embedding 调用会在首次请求时 RuntimeError"
+fi
+
 # ---- 端口占用检查 ----
 if lsof -i :$PORT -sTCP:LISTEN >/dev/null 2>&1; then
     EXISTING_PID=$(lsof -ti :$PORT -sTCP:LISTEN)
