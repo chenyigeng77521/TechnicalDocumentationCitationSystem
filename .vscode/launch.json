@@ -6,22 +6,22 @@
             "type": "debugpy",
             "request": "launch",
             "module": "reasoning.main",
-            "cwd": "${workspaceFolder}/backend",
+            "cwd": "${workspaceFolder}/src/backend",
             "console": "integratedTerminal",
             "args": ["--port", "8001"],
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/backend"
+                "PYTHONPATH": "${workspaceFolder}/src/backend"
             }
         },
         {
             "name": "Retrieval: retrieval.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/backend/retrieval/retrieval.py",
-            "cwd": "${workspaceFolder}/backend",
+            "program": "${workspaceFolder}/src/backend/retrieval/retrieval.py",
+            "cwd": "${workspaceFolder}/src/backend",
             "console": "integratedTerminal",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/backend"
+                "PYTHONPATH": "${workspaceFolder}/src/backend"
             }
         }
     ]
