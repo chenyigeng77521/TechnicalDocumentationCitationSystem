@@ -90,7 +90,8 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
             or ""
         )
         anchor: str = (
-            meta.get("anchor")
+            meta.get("markdown_anchor")  # 优先用 ingestion 输出的 section-id(评委要的格式)
+            or meta.get("anchor")
             or meta.get("anchor_id")
             or ""
         )
