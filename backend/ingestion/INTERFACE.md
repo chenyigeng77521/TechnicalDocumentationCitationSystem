@@ -118,6 +118,8 @@ curl http://localhost:3003/health
 | `metadata.title_path` | string \| null | `Section > Subsection` 面包屑路径，无 heading 时 null |
 | `metadata.char_offset_start/end` | int | content 在原文中的字符区间（含端点）|
 | `metadata.is_truncated` | bool | 是否硬切产生（超长单句）。true 时 reranker/LLM 应注明"内容可能不完整"|
+| `metadata.markdown_anchor` | string | markdown section anchor，如 `#top` 或 `#section-id`；**赛题 citation 输出用**。Layer 2 海军应映射到 `RetrievedChunk.anchor`，reasoning 端 `Citation.anchor` 透传 |
+| `metadata.is_x15_truncated` | bool | X1.5 max_chars 截断标记。**仅 X1.5 路径**实际发生截断时为 true，其它情况（X0 路径、UNTITLED 退化、by-id 接口、未截断的 X1.5）一律 false |
 | `metadata.content_type` | string | `document` / `code` / `structured_data`。MVP 全部 `document` |
 | `metadata.language` | string \| null | `zh` / `en` / null（待解析端填充）|
 | `metadata.last_modified` | string \| null | ISO8601。MVP 暂为 null（不 JOIN documents）|
@@ -296,7 +298,7 @@ POST /upload?index=true|false
 Content-Type: multipart/form-data
 
 Form fields:
-  files: 文件数组（最多 50，单文件 ≤ 50 MB）
+  files: 文件数组（最多 200，单文件 ≤ 50 MB）
          同名字段重复出现 = 多文件，不是逗号分隔字符串
 
 Query parameters:
@@ -327,7 +329,7 @@ Query parameters:
 |---|---|---|
 | 422 | FastAPI 默认 unprocessable | 完全没传 `files` 字段 / 空 files 列表 |
 | 400 | `path_traversal_detected` | 任一文件名含 `..` / `/` / `\`（安全攻击）|
-| 400 | `too_many_files: {n} > 50` | 单次 > 50 文件，n 是实际数 |
+| 400 | `too_many_files: {n} > 200` | 单次 > 200 文件，n 是实际数 |
 | 404 | （路由未注册）| 开关 OFF |
 
 **单文件级错误**（HTTP 200 中 status="error"）：
@@ -470,6 +472,62 @@ def rrf(vector_results, text_results, k=60):
 - vector-search MVP 用 Python 端全表 cosine（< 10k chunks 性能 OK，~100ms）。P1 升级 sqlite-vec 扩展可 10x 加速
 - `metadata.last_modified` 暂为 null（避免每次 search JOIN documents 表）。如果你需要，告诉我加上
 - `content_type` 暂全部 `document`（不分派 code / structured_data，已是团队共识）
+
+---
+
+## X1.5 search 接口字段语义（重要）
+
+自 X1.5 实施起（spec: `docs/superpowers/specs/2026-04-30-x15-rigorous-design.md`），`vector-search` / `text-search` 接口的字段语义变化：
+
+### 不变（保契约）
+
+- `chunk_id`：DB sha256 真主键，组内分最高 chunk 的代表，可用 by-id 反查
+- `metadata.title_path`、`metadata.is_truncated`、其它从代表 chunk 继承
+- `total` 字段 = `len(results)`，分组合并后的返回条数（不是原始命中行数）
+
+### 跟随 content 走（X1.5 路径）
+
+- `content` = `title_path + "\n\n" + raw_slice (max_chars=2000 居中截)`（仅 SECTION 路径加 title prefix；UNTITLED_SEG 路径不加）
+- `metadata.char_offset_start` = window 起点（**不是代表 chunk 的 offset**）
+- `metadata.char_offset_end` = window 终点
+- `metadata.anchor_id` = `f"{file_path}#{char_offset_start}"`，跟着 window 起点
+
+### 新增（赛题输出用）
+
+- `metadata.markdown_anchor`：section 标识（如 `#api-发起驱逐` / `#top`），**赛题判分按这字段**
+- `metadata.is_x15_truncated`：X1.5 截断标记
+
+### 收缩（合并影响）
+
+- 同 `(file_path, title_path)` 内多个命中合并为 1 个 result
+- title_path 空的 chunks 按同 file_path + chunk_index 物理连续切段（避免跨文件位置误并）
+- 30 个候选可能收缩到 ~15-20 个 result
+
+### by-id 接口不变
+
+- `GET /chunks/{chunk_id}` 仍返回单 chunk 原 content（不 X1.5 化）
+- metadata 也含 `markdown_anchor` / `is_x15_truncated=false`（复用 `_row_to_metadata`）
+
+### feature flag 应急回滚
+
+- env var `INGESTION_X15_ENABLED`，默认 `true`
+- 应急：设 `false` 重启 ingestion 服务（30 秒回滚到 X0 行为）
+
+### Layer 2 映射建议（**海军 team 改动**）
+
+ingestion 当前已透传整个 metadata 到海军 retrieval.py 的 Document.metadata，所以 `markdown_anchor` 已自动传到 reasoning。但 reasoning/main.py 的 anchor 提取优先级需要 1 行改动：
+
+```python
+# backend/reasoning/main.py:92
+anchor: str = (
+    meta.get("markdown_anchor")    # ← 加这一行（X1.5 字段优先）
+    or meta.get("anchor")
+    or meta.get("anchor_id")
+    or ""
+)
+```
+
+不改的话：reasoning 输出的 citation.anchor 仍是 char_offset 形式（`#1234`），跟赛题 gold anchor（`#data-fetching` 等）对不上，丢分。
 
 ---
 
