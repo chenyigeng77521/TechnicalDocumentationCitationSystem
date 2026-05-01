@@ -24,7 +24,7 @@ from config import (
     SCORE_THRESHOLD,
     SIMILARITY_THRESHOLD,
 )
-from interfaces import Citation, ReasoningResult, RetrievedChunk
+from interfaces import Citation, GoldSource, ReasoningResult, RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
@@ -141,8 +141,9 @@ def call_llm(prompt: str) -> str:
 def parse_llm_output(raw: str) -> tuple[Optional[dict], bool]:
     """
     解析 LLM 输出：
-    - 输出 REFUSE → 返回 (None, is_refuse=True)
-    - 输出合法 JSON → 返回 (dict, False)
+    - 输出 REFUSE（纯文本）→ 返回 (None, is_refuse=True)
+    - 输出 {"refuse": true, "trap_type": "...", "unanswerable_reason": "..."} → (dict, is_refuse=True)
+    - 输出合法有答 JSON → 返回 (dict, False)
     - 解析失败 → 返回 (None, False)（调用方按拒答处理）
 
     Returns:
@@ -152,27 +153,35 @@ def parse_llm_output(raw: str) -> tuple[Optional[dict], bool]:
     text = raw.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
+    text = text.strip()
 
-    # LLM 主动拒答
-    if text.strip().upper() == "REFUSE":
+    # 纯文本 REFUSE
+    if text.upper() == "REFUSE":
         return None, True
 
     # 尝试 JSON 解析
+    data: Optional[dict] = None
     try:
         data = json.loads(text)
-        return data, False
     except json.JSONDecodeError:
         # 尝试从文本中提取 JSON 对象（LLM 可能加了多余文字）
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             try:
                 data = json.loads(match.group())
-                return data, False
             except json.JSONDecodeError:
                 pass
 
-    logger.warning("LLM 输出无法解析为 JSON: %s", raw[:200])
-    return None, False
+    if data is None:
+        logger.warning("LLM 输出无法解析为 JSON: %s", raw[:200])
+        return None, False
+
+    # 拒答型 JSON：{"refuse": true, ...}
+    if data.get("refuse") is True:
+        return data, True
+
+    # 有答型 JSON：{"answer": "...", "citation_ids": [...]}
+    return data, False
 
 
 # ==================== Step 4：引用校验（硬一致性验证）====================
@@ -307,13 +316,21 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     parsed, is_llm_refuse = parse_llm_output(raw_output)
 
     if is_llm_refuse:
-        logger.info("LLM 主动拒答")
+        # LLM 主动拒答：尝试从 parsed 中提取 trap_type/unanswerable_reason
+        trap_type: Optional[str] = None
+        unanswerable_reason: Optional[str] = None
+        if parsed:
+            trap_type = parsed.get("trap_type") or None
+            unanswerable_reason = parsed.get("unanswerable_reason") or None
+        logger.info("LLM 主动拒答，trap_type=%s", trap_type)
         return ReasoningResult(
             answer=REFUSAL_TEXT,
             is_refusal=True,
             refuse_reason="llm_refuse",
             max_score=max_score,
             confidence=0.0,
+            trap_type=trap_type,
+            unanswerable_reason=unanswerable_reason,
         )
 
     if parsed is None:

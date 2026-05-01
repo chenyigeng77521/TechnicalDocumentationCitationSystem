@@ -25,13 +25,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import BATCH_MAX_WORKERS, BATCH_OUTPUT_DIR
 from interfaces import (
     BatchItem,
+    BatchOutputRecord,
     BatchQARequest,
     BatchQAResponse,
+    GoldSource,
     QARequest,
     QAResponse,
     RetrievedChunk,
 )
 from reasoning import build_citations, build_context_blocks, run_reasoning
+from interfaces import ReasoningResult  # 新增，用于 process_single 返回完整推理结果
 
 # ==================== 日志 ====================
 logging.basicConfig(
@@ -53,6 +56,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==================== 工具函数 ====================
+
+def infer_domain(doc_path: str) -> Optional[str]:
+    """
+    从 doc_path 推断 domain。
+    规则：取 docs/<domain>/... 路径中的 <domain> 段（大小写原样保留）。
+    示例：docs/react/hooks.md → "react"
+          data/docs/Spring/xxx.md → "Spring"
+    """
+    # 统一路径分隔符
+    parts = doc_path.replace("\\", "/").split("/")
+    # 找到 "docs" 所在位置，取其后一段
+    for i, part in enumerate(parts):
+        if part.lower() == "docs" and i + 1 < len(parts):
+            return parts[i + 1]
+    return None
+
 
 # ==================== 检索层调用封装 ====================
 
@@ -89,8 +110,11 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
             or meta.get("file_path")
             or ""
         )
+        # anchor 优先用 markdown_anchor（人类可读的 H1~H4 标题锚点如 #react-compiler）
+        # 检索层 _row_to_metadata 已通过 _normalize_anchor 保证格式为 '#xxx'，None → '#top'
         anchor: str = (
-            meta.get("anchor")
+            meta.get("markdown_anchor")
+            or meta.get("anchor")
             or meta.get("anchor_id")
             or ""
         )
@@ -128,9 +152,14 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
 
 # ==================== 核心处理函数（单条）====================
 
-def process_single(item_id: str, query: str) -> QAResponse:
+def process_single(item_id: str, query: str) -> tuple[QAResponse, ReasoningResult, list]:
     """
     处理单条问答，封装完整 Pipeline：检索 → 推理 → 格式化响应。
+    返回 (QAResponse, ReasoningResult, used_chunks) 三元组：
+    - QAResponse：单条接口直接返回
+    - ReasoningResult：包含 trap_type/unanswerable_reason，批量落盘使用
+    - used_chunks：实际注入 context 的 chunk 列表，用于构建 evidence
+
     此函数在批量处理中被多线程并发调用，必须线程安全（无共享可变状态）。
     """
     logger.info("[%s] 开始处理: %s", item_id, query[:60])
@@ -141,12 +170,11 @@ def process_single(item_id: str, query: str) -> QAResponse:
     # Step 2：推理
     result = run_reasoning(query, chunks)
 
-    # Step 3：构建 citations（需要 used_chunks，从 context 构建时已截断）
+    # Step 3：构建 citations
+    used_chunks: list = []
     if result.is_refusal:
         citations = []
     else:
-        # 从 chunks 中取出实际被引用的（used_chunks 已在 run_reasoning 内部处理）
-        # 这里通过 citation_ids 映射回 chunks（与 reasoning.py 内部逻辑对齐）
         _, used_chunks = build_context_blocks(chunks)
         citations = build_citations(result.citation_ids, used_chunks)
 
@@ -155,13 +183,14 @@ def process_single(item_id: str, query: str) -> QAResponse:
         item_id, result.is_refusal, len(citations), result.max_score,
     )
 
-    return QAResponse(
+    qa_resp = QAResponse(
         id=item_id,
         answer=result.answer,
         citations=citations,
         is_refusal=result.is_refusal,
         confidence=result.confidence,
     )
+    return qa_resp, result, used_chunks
 
 
 # ==================== JSONL 文件写入（带锁）====================
@@ -203,7 +232,8 @@ def qa_single(request: QARequest) -> QAResponse:
     出参：{ "id", "answer", "citations", "is_refusal", "confidence" }
     """
     try:
-        return process_single(request.id, request.query)
+        qa_resp, _, _ = process_single(request.id, request.query)
+        return qa_resp
     except Exception as e:
         logger.error("处理请求异常 [%s]: %s", request.id, e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -241,31 +271,65 @@ def qa_batch(request: BatchQARequest) -> BatchQAResponse:
     logger.info("批量处理开始：共 %d 条，输出到 %s", total, output_file)
 
     def _process_and_write(item: BatchItem) -> bool:
-        """处理单条并写入文件，返回是否成功"""
+        """处理单条并写入 JSONL，返回是否成功"""
         try:
-            resp = process_single(item.id, item.query)
-            record = {
-                "id": resp.id,
-                "answer": resp.answer,
-                "citations": [c.model_dump() for c in resp.citations],
-                "is_refusal": resp.is_refusal,
-                "confidence": resp.confidence,
-            }
-            write_jsonl_line(output_file, record)
+            qa_resp, reasoning_result, used_chunks = process_single(item.id, item.query)
+
+            # ---- 构建 gold_sources（有答时从 used_chunks 取 evidence）----
+            gold_sources: list[GoldSource] = []
+            if not qa_resp.is_refusal:
+                for c in qa_resp.citations:
+                    # 从已缓存的 used_chunks 中找对应 chunk，取 content 作为 evidence
+                    evidence = ""
+                    for chunk in used_chunks:
+                        if chunk.doc_path == c.doc_path and chunk.anchor == c.anchor:
+                            evidence = chunk.content
+                            break
+                    gold_sources.append(GoldSource(
+                        doc_path=c.doc_path,
+                        anchor=c.anchor,
+                        evidence=evidence,
+                    ))
+
+            # ---- domain：优先用调用方传入，fallback 从 doc_path 推断 ----
+            domain = item.domain
+            if not domain and gold_sources:
+                domain = infer_domain(gold_sources[0].doc_path)
+
+            # ---- 构建落盘记录 ----
+            record = BatchOutputRecord(
+                id=item.id,
+                domain=domain,
+                question=item.query,
+                is_answerable=not qa_resp.is_refusal,
+                answer=qa_resp.answer,
+                gold_sources=gold_sources,
+                answer_type=item.answer_type,
+                difficulty=item.difficulty,
+                trap_type=reasoning_result.trap_type if qa_resp.is_refusal else None,
+                unanswerable_reason=reasoning_result.unanswerable_reason if qa_resp.is_refusal else None,
+            )
+            write_jsonl_line(output_file, record.model_dump(exclude_none=True))
             return True
+
         except Exception as e:
             logger.error("批量任务 [%s] 失败: %s", item.id, e, exc_info=True)
-            # 失败条目写入错误占位记录，保持 id 连续性
-            error_record = {
-                "id": item.id,
-                "answer": "抱歉，我无法从提供的文档中找到答案。",
-                "citations": [],
-                "is_refusal": True,
-                "confidence": 0.0,
-                "_error": str(e),
-            }
+            # 失败条目写入拒答占位记录，保持 id 连续性
+            error_record = BatchOutputRecord(
+                id=item.id,
+                domain=item.domain,
+                question=item.query,
+                is_answerable=False,
+                answer="抱歉，我无法从提供的文档中找到答案。",
+                gold_sources=[],
+                answer_type=item.answer_type,
+                difficulty=item.difficulty,
+                unanswerable_reason=f"[处理异常] {e}",
+            )
             try:
-                write_jsonl_line(output_file, error_record)
+                row = error_record.model_dump(exclude_none=True)
+                row["_error"] = str(e)
+                write_jsonl_line(output_file, row)
             except Exception:
                 pass
             return False

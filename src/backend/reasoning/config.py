@@ -23,7 +23,7 @@ MAX_CONTEXT_CHARS: int = int(MAX_CONTEXT_TOKENS * 1.5)  # 9000 字符
 
 LLM_API_KEY: str = os.getenv("LLM_API_KEY", "sk-")
 LLM_API_BASE: str = os.getenv("LLM_API_BASE", "https://aigw.asiainfo.com/v1")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "aliyun/deepseek-v3.2")
+LLM_MODEL: str = os.getenv("LLM_MODEL", "aliyun/qwen3.6-plus")
 
 # 推理温度：0.0 严格模式，最大程度抑制幻觉
 LLM_TEMPERATURE: float = 0.0
@@ -34,7 +34,12 @@ LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "60"))
 # ==================== 批量处理配置 ====================
 
 BATCH_MAX_WORKERS: int = 8
-BATCH_OUTPUT_DIR: str = os.getenv("BATCH_OUTPUT_DIR", "./eval")
+# 默认指向项目内 storage/batch/，基于本文件位置动态计算
+_BATCH_DEFAULT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "storage", "batch"
+)
+BATCH_OUTPUT_DIR: str = os.getenv("BATCH_OUTPUT_DIR", _BATCH_DEFAULT_DIR)
 
 # ==================== 拒答固定文本 ====================
 # 赛题要求统一格式，不得随意更改
@@ -46,8 +51,11 @@ PROMPT_TEMPLATE: str = """你是一个严格的技术文档问答助手。
 
 规则：
 1. 仅根据下方提供的 Context 回答问题，严禁使用任何外部知识。
-2. 如果 Context 中不包含回答所需信息，你必须输出：REFUSE
-3. 如果能够回答，必须输出结构化 JSON，格式如下：
+2. 如果 Context 中不包含回答所需信息，必须输出拒答 JSON，格式如下：
+   {{"refuse": true, "trap_type": "<类型>", "unanswerable_reason": "<简明原因>"}}
+   trap_type 必须从以下类型中选一个：fake_api / future_version / overgeneralization / parameter_mismatch / cross_domain / concept_confusion / procedure_step
+   unanswerable_reason 是对无法回答的简明解释，必须基于 Context 内容说明原因。
+3. 如果能够回答，必须输出有答 JSON，格式如下：
    {{"answer": "你的回答", "citation_ids": [1, 2, ...]}}
    citation_ids 是你引用的 Chunk 编号列表（即 [ID: n] 中的 n）。
 4. 每个事实性陈述必须有对应 Chunk 支撑，citation_ids 中只能包含下方 Context 中实际存在的 ID。
@@ -59,4 +67,4 @@ Context：
 
 问题：{query}
 
-请直接输出 JSON 或 REFUSE，不要有任何其他文字："""
+请直接输出 JSON，不要有任何其他文字："""

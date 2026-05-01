@@ -14,7 +14,7 @@ class RetrievedChunk(BaseModel):
     chunk_id: str = ""
     content: str
     doc_path: str       # 文档相对路径，如 docs/react/xxx.md
-    anchor: str         # 段落锚点，如 #top 或 #dispatch-actions-from-event-handlers
+    anchor: str         # 段落锚点，如 #top 或 #dispatch-actions-with-event-handlers
     score: float = 0.0  # Reranker 精排分（或向量相似度分）
     is_truncated: bool = False
     title_path: Optional[str] = None
@@ -31,9 +31,15 @@ class QARequest(BaseModel):
 
 
 class BatchItem(BaseModel):
-    """批量请求中的单条记录"""
+    """
+    批量请求中的单条记录。
+    除 id/question 外，domain/answer_type/difficulty 由调用方传入，原样透传到输出。
+    """
     id: str
     query: str = Field(..., alias="question")
+    domain: Optional[str] = None        # 透传字段，如 "React"
+    answer_type: Optional[str] = None   # 透传字段，如 "concept"
+    difficulty: Optional[str] = None    # 透传字段，如 "easy"
 
     model_config = {"populate_by_name": True}
 
@@ -43,16 +49,16 @@ class BatchQARequest(BaseModel):
     items: list[BatchItem]
 
 
-# ==================== Layer 3 → Web 响应结构 ====================
+# ==================== Layer 3 → Web 响应结构（单条接口，保持原格式）====================
 
 class Citation(BaseModel):
-    """引用出处（严格对齐赛题 citations 格式）"""
+    """引用出处（单条接口使用，保持原格式）"""
     doc_path: str   # 文档路径，如 docs/react/xxx.md
     anchor: str     # 段落锚点，如 #top
 
 
 class QAResponse(BaseModel):
-    """单条问答响应（对齐赛题提交格式）"""
+    """单条问答响应（POST /api/qa，格式不变）"""
     id: str
     answer: str
     citations: list[Citation] = Field(default_factory=list)
@@ -69,6 +75,39 @@ class BatchQAResponse(BaseModel):
     failed: int
 
 
+# ==================== 批量 JSONL 落盘专用格式 ====================
+
+class GoldSource(BaseModel):
+    """
+    JSONL 输出中的引用条目（新格式）。
+    evidence 取命中 chunk 的原始 content，代码直接填入，不经过 LLM。
+    """
+    doc_path: str
+    anchor: str
+    evidence: str   # 文档原文片段
+
+
+class BatchOutputRecord(BaseModel):
+    """
+    批量落盘 JSONL 每行的完整格式。
+    有答/无答字段对齐赛题要求，两种模式共用同一结构，None 字段序列化时剔除。
+    """
+    id: str
+    domain: Optional[str]           # 透传
+    question: str                   # 透传原始问题
+    is_answerable: bool             # True=有答，False=无答（is_refusal 取反）
+    answer: str
+
+    # 有答模式字段
+    gold_sources: list[GoldSource] = Field(default_factory=list)
+    answer_type: Optional[str] = None   # 透传
+    difficulty: Optional[str] = None    # 透传
+
+    # 无答模式字段
+    trap_type: Optional[str] = None           # LLM 输出
+    unanswerable_reason: Optional[str] = None  # LLM 输出
+
+
 # ==================== 内部流转结构 ====================
 
 class ReasoningResult(BaseModel):
@@ -79,3 +118,6 @@ class ReasoningResult(BaseModel):
     refuse_reason: Optional[str] = None  # score_below_threshold / empty_retrieval / llm_refuse / invalid_citation / semantic_mismatch / json_parse_error
     max_score: float = 0.0
     confidence: float = 0.0
+    # 无答模式扩展字段（由 LLM 输出）
+    trap_type: Optional[str] = None
+    unanswerable_reason: Optional[str] = None
