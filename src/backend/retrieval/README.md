@@ -34,18 +34,14 @@
 └─────────────────────────────────────────────────────────────┘
 ↓
 ┌─────────────────────────────────────────────────────────────┐
+│ 重排序 (Reranker)                                            │
+│ CrossEncoder / API 对扩展后的上下文精细打分排序              │
+│ （内部自动按 file_path 补全相邻 chunk 作为上下文）           │
+└─────────────────────────────────────────────────────────────┘
+↓
+┌─────────────────────────────────────────────────────────────┐
 │ 自适应 TopK 截断                                             │
 │ 根据查询长度/复杂度/技术特征动态调整返回数量                    │
-└─────────────────────────────────────────────────────────────┘
-↓
-┌─────────────────────────────────────────────────────────────┐
-│ 上下文扩展 (Context Expansion, 可选)                         │
-│ 为每个 chunk 补全同文件相邻 chunk，拼接后重排序               │
-└─────────────────────────────────────────────────────────────┘
-↓
-┌─────────────────────────────────────────────────────────────┐
-│ 重排序 (Reranker)                                            │
-│ CrossEncoder 对扩展后的上下文精细打分排序                    │
 └─────────────────────────────────────────────────────────────┘
 ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -79,9 +75,9 @@
 - 通过环境变量 `QUERY_EXPANSION_ENABLED` 控制开关
 
 ### 5. Score 阈值过滤
-- 通过 `RETRIEVAL_SCORE_THRESHOLD` 环境变量配置最低 score
-- 低于阈值的检索结果会被自动过滤
-- 默认 `0.0`（不过滤）
+- **向量检索**：通过 `VECTOR_SCORE_THRESHOLD` 配置最低 cosine score（默认 `0.55`，低于此值过滤）
+- **BM25 检索**：通过 `BM25_SCORE_THRESHOLD` 配置最低 BM25 score（默认 `-999.0`，即不过滤）
+- `RETRIEVAL_SCORE_THRESHOLD` 为兼容旧配置名，仅作用于向量检索（已废弃，请优先使用 `VECTOR_SCORE_THRESHOLD`）
 
 ### 6. 自适应 TopK
 - 根据查询长度、关键词数量、数字含量、疑问句模式等动态调整返回数量
@@ -98,7 +94,7 @@
 ### 8. 可调超时与边界配置
 - `SEARCH_TIMEOUT` / `HEALTH_TIMEOUT`：控制 API 超时（默认 30s / 5s）
 - `ADAPTIVE_TOPK_MIN` / `ADAPTIVE_TOPK_MAX`：控制自适应 TopK 返回数量边界（默认 5 / 25）
-- `RERANK_TOP_N`：控制重排序后最终返回文档数（默认 3）
+- `RERANK_TOP_N`：控制重排序后最终返回文档数（默认 5）
 
 ## 安装配置
 
@@ -139,43 +135,45 @@ openai>=1.0.0
 
 ```bash
 # ==================== 向量库 API 配置 ====================
-VECTOR_API_URL=http://localhost:18082
+VECTOR_API_URL=https://equivalent-handling-heritage-hat.trycloudflare.com/
 VECTOR_API_KEY=your-api-key-here      # 可选
 
-# ==================== 模型配置（本地模式，不配置 API 时生效）====================
+# ==================== 模型配置（本地模式，清空 API URL 时生效）====================
 # 向量嵌入模型（首次使用会自动下载，约 2GB）
 # VECTOR_MODEL=BAAI/bge-m3
 # 重排序模型（首次使用会自动下载，约 1GB）
-# RERANKER_MODEL=BAAI/bge-reranker-base
+# RERANKER_MODEL=BAAI/bge-reranker-v2-m3
 
 # ==================== Score 阈值过滤 ====================
-# 低于此值的检索结果会被过滤，0.0 表示不过滤
-RETRIEVAL_SCORE_THRESHOLD=0.0
+# 向量检索最低 cosine score，低于此值过滤
+VECTOR_SCORE_THRESHOLD=0.55
+# BM25 检索最低 score，默认 -999.0 表示不过滤
+BM25_SCORE_THRESHOLD=-999.0
+# 兼容旧配置名（仅作用于向量检索，已废弃）
+# RETRIEVAL_SCORE_THRESHOLD=0.0
 
 # ==================== 查询扩展配置（可选）====================
 # 全局默认开关
 QUERY_EXPANSION_ENABLED=false
-QUERY_EXPANSION_MODEL=gpt-3.5-turbo
+QUERY_EXPANSION_MODEL=aliyun/deepseek-v3.2
 QUERY_EXPANSION_NUM=3
 
 # retrieval API 配置（查询扩展必需）
 OPENAI_API_KEY=sk-xxx
-# OPENAI_API_BASE=https://api.openai.com/v1   # 可选，用于代理
+OPENAI_API_BASE=https://aigw.asiainfo.com/v1
 
-# ==================== Embedding API 配置（可选）====================
-# 配置后替代本地 HuggingFaceEmbeddings，走外部 API 计算 embedding
-# EMBEDDING_API_URL=https://aigw.asiainfo.com/v1/embeddings
-# EMBEDDING_API_KEY=sk-xxx
-# EMBEDDING_API_MODEL=10086/bge-m3
+# ==================== Embedding API 配置（默认启用，清空则回退本地模型）====================
+EMBEDDING_API_URL=https://aigw.asiainfo.com/v1/embeddings
+EMBEDDING_API_KEY=sk-xxx
+EMBEDDING_API_MODEL=10086/bge-m3
 
-# ==================== 重排序 API 配置（可选）====================
-# 配置后替代本地 CrossEncoder，走外部 API 进行重排序
-# RERANK_API_URL=https://aigw.asiainfo.com/v1/rerank
-# RERANK_API_KEY=sk-xxx
-# RERANK_API_MODEL=10086/bge-reranker-v2-m3
+# ==================== 重排序 API 配置（默认启用，清空则回退本地模型）====================
+RERANK_API_URL=https://aigw.asiainfo.com/v1/rerank
+RERANK_API_KEY=sk-xxx
+RERANK_API_MODEL=10086/bge-reranker-v2-m3
 
 # ==================== 重排序配置 ====================
-RERANK_TOP_N=3              # 重排序后返回文档数
+RERANK_TOP_N=5              # 重排序后返回文档数
 RERANK_CONTEXT_WINDOW=1     # 上下文扩展窗口（0 关闭）
 
 # ==================== API 超时配置 ====================
@@ -190,12 +188,14 @@ ADAPTIVE_TOPK_MAX=25        # 最大返回数量
 或在命令行设置：
 
 ```bash
-export VECTOR_API_URL=http://localhost:18082
-export RETRIEVAL_SCORE_THRESHOLD=0.5
+export VECTOR_API_URL=https://equivalent-handling-heritage-hat.trycloudflare.com/
+export VECTOR_SCORE_THRESHOLD=0.55
+export BM25_SCORE_THRESHOLD=-999.0
 export QUERY_EXPANSION_ENABLED=true
 export OPENAI_API_KEY=sk-xxx
+export OPENAI_API_BASE=https://aigw.asiainfo.com/v1
 
-# 可选：启用外部 Embedding / Rerank API（替代本地模型）
+# 默认已启用外部 Embedding / Rerank API，如需回退本地模型请清空以下变量
 export EMBEDDING_API_URL=https://aigw.asiainfo.com/v1/embeddings
 export EMBEDDING_API_KEY=sk-xxx
 export RERANK_API_URL=https://aigw.asiainfo.com/v1/rerank
@@ -325,28 +325,9 @@ for query in queries:
 
 ### 模型配置
 
-#### 本地模式（默认）
+#### API 模式（默认）
 
-不配置 `EMBEDDING_API_URL` 和 `RERANK_API_URL` 时，使用本地 HuggingFace 模型：
-
-```python
-# 向量模型配置（代码中修改 retrieval.py）
-VECTOR_MODEL = "BAAI/bge-m3"  # 多语言向量模型，1024 维
-# 其他可选模型：
-# - "BAAI/bge-large-zh"  # 中文专用
-# - "sentence-transformers/all-MiniLM-L6-v2"  # 轻量级
-# - "intfloat/e5-large-v2"  # 英文优化
-
-# 重排序模型配置
-RERANKER_MODEL = "BAAI/bge-reranker-base"
-# 其他可选：
-# - "BAAI/bge-reranker-large"  # 更精确但更慢
-# - "cross-encoder/ms-marco-MiniLM-L-6-v2"  # 轻量级
-```
-
-#### API 模式
-
-配置以下环境变量后，embedding 和重排序将走外部 API，无需本地加载模型：
+代码中 `EMBEDDING_API_URL` 和 `RERANK_API_URL` 默认指向外部 API，默认走 API 模式，无需本地加载模型：
 
 ```bash
 # Embedding API（OpenAI 兼容格式）
@@ -360,6 +341,25 @@ RERANK_API_KEY=sk-xxx
 RERANK_API_MODEL=10086/bge-reranker-v2-m3
 ```
 
+#### 本地模式
+
+将 `EMBEDDING_API_URL` 和 `RERANK_API_URL` 置为空（或注释掉），即可回退到本地 HuggingFace 模型：
+
+```python
+# 向量模型配置（代码中修改 retrieval.py）
+VECTOR_MODEL = "BAAI/bge-m3"  # 多语言向量模型，1024 维
+# 其他可选模型：
+# - "BAAI/bge-large-zh"  # 中文专用
+# - "sentence-transformers/all-MiniLM-L6-v2"  # 轻量级
+# - "intfloat/e5-large-v2"  # 英文优化
+
+# 重排序模型配置
+RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
+# 其他可选：
+# - "BAAI/bge-reranker-large"  # 更精确但更慢
+# - "cross-encoder/ms-marco-MiniLM-L-6-v2"  # 轻量级
+```
+
 ### 运行时可调参数
 
 | 参数 | 类型 | 默认值 | 说明 |
@@ -368,7 +368,7 @@ RERANK_API_MODEL=10086/bge-reranker-v2-m3
 | `use_bm25` | bool | True | 是否启用 BM25 API 检索 |
 | `use_rerank` | bool | True | 是否启用重排序（本地 CrossEncoder 或外部 API） |
 | `use_query_expansion` | bool | False | 是否启用查询扩展 |
-| `RERANK_TOP_N` | int | 3 | 重排序后返回文档数 |
+| `RERANK_TOP_N` | int | 5 | 重排序后返回文档数 |
 | `RERANK_CONTEXT_WINDOW` | int | 1 | 重排序上下文扩展窗口（0 关闭） |
 | `SEARCH_TIMEOUT` | int | 30 | API 检索超时（秒） |
 | `HEALTH_TIMEOUT` | int | 5 | 健康检查超时（秒） |
@@ -505,9 +505,9 @@ def cached_search(query: str):
 
 ```
 # 错误信息
-ConnectionError: 向量库 API 服务不可用: http://localhost:18082
+ConnectionError: 向量库 API 服务不可用: https://equivalent-handling-heritage-hat.trycloudflare.com/
 # 或
-⚠️ 警告: 向量库 API 服务不可用: http://localhost:18082
+⚠️ 警告: 向量库 API 服务不可用: https://equivalent-handling-heritage-hat.trycloudflare.com/
 
 # 解决方案
 # 1. 检查向量库服务是否启动
@@ -609,14 +609,14 @@ if __name__ == "__main__":
 
 ## 注意事项
 
-1. **首次运行会下载模型**：使用本地模式时，初次使用 `bge-m3` 和 `bge-reranker-base` 会自动从 HuggingFace 下载，共需约 3GB 磁盘空间。配置 API 模式后无需下载
-2. **API 依赖**：系统完全依赖远程向量库 API（默认 `http://localhost:18082`），确保向量库服务正常运行
-3. **内存使用**：本地模式下，重排序模型约占用 2-3GB 内存，向量模型约 1-2GB。配置 API 模式后无需本地模型内存
+1. **默认 API 模式**：代码中 `EMBEDDING_API_URL` 和 `RERANK_API_URL` 默认非空，默认走外部 API 模式，不会自动下载本地模型。如需本地模式，请将对应 URL 置空
+2. **API 依赖**：系统完全依赖远程向量库 API（默认 `https://equivalent-handling-heritage-hat.trycloudflare.com/`），确保向量库服务正常运行
+3. **内存使用**：本地模式下，重排序模型约占用 2-3GB 内存，向量模型约 1-2GB。API 模式后无需本地模型内存
 4. **查询扩展成本**：启用查询扩展后，每个变体会增加 2 次 API 调用（向量 + BM25）和 1 次 LLM 调用，请根据实际场景权衡召回率与成本
 5. **上下文扩展要求**：重排序上下文扩展依赖 `file_path` 和 `char_offset_start` metadata，如果向量库返回结果不包含这些字段，扩展将自动回退为不扩展
 6. **惰性加载**：`import retrieval` 时不会加载任何模型，首次调用 `get_embedding_model()` 或 `pipeline()` 时才初始化
 7. **无需本地数据文件**：系统不再依赖 `doc_chunks.pkl`、本地 SQLite 或 BM25 索引，所有检索均走 API
-8. **Embedding / Rerank API 独立配置**：`EMBEDDING_API_URL` 和 `RERANK_API_URL` 可以单独启用，灵活组合本地与远程能力
+8. **Embedding / Rerank API 独立配置**：`EMBEDDING_API_URL` 和 `RERANK_API_URL` 可独立置空或配置，灵活组合本地与远程能力
 
 ## 故障排查
 
@@ -654,6 +654,14 @@ print(f"前5个值: {vec[:5]}")
 
 ## 版本历史
 
+- **v2.3.0** (2026-05-01): 配置默认值更新与文档同步
+  - 更新 `VECTOR_API_URL` 默认值为当前部署地址
+  - `EMBEDDING_API_URL` / `RERANK_API_URL` 默认值改为外部 API 地址，默认启用 API 模式
+  - `QUERY_EXPANSION_MODEL` 默认改为 `aliyun/deepseek-v3.2`，`OPENAI_API_BASE` 默认改为 `https://aigw.asiainfo.com/v1`
+  - `RERANK_TOP_N` 默认改为 `5`
+  - 新增 `VECTOR_SCORE_THRESHOLD`（默认 `0.55`）和 `BM25_SCORE_THRESHOLD`（默认 `-999.0`）
+  - `RETRIEVAL_SCORE_THRESHOLD` 标记为兼容旧配置（已废弃）
+  - README 架构图修正：重排序 → 自适应 TopK 截断（与代码执行顺序一致）
 - **v2.2.0** (2026-05-01): Embedding 与 Rerank 支持外部 API
   - 新增 `APIEmbeddingModel`：支持通过 OpenAI 兼容格式的外部 API 计算 embedding
   - 新增 `EMBEDDING_API_URL`、`EMBEDDING_API_KEY`、`EMBEDDING_API_MODEL` 环境变量
