@@ -1,0 +1,15 @@
+[transformers] Disabling PyTorch because PyTorch >= 2.4 is required but found 2.2.2
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/firstlayer/question_filter/app.py:58: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Started server process [73161]
+INFO:     Waiting for application startup.
+/Users/chenyigeng/Library/Application Support/winclaw/.openclaw/workspace/TechnicalDocumentationCitationSystem/backend/firstlayer/question_filter/classifier.py:48: FutureWarning: Possible set symmetric difference at position 40
+  (re.compile(r'^[!@#$%^&*()_+\-=\[\]\{\};:\'",.<>/?\\|`~~]+$/'), "只有标点符号"),
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:3005 (Press CTRL+C to quit)
