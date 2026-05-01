@@ -7,7 +7,7 @@
 
 ## 概述
 
-本系统实现了一个完整的混合检索管道，支持**向量语义检索**、**BM25全文检索**、**查询扩展**、**自适应TopK**和**CrossEncoder重排序**。所有检索均通过 HTTP API 访问远程向量库，本地仅负责计算 embedding 和编排检索流程，无需维护本地文档索引。
+本系统实现了一个完整的混合检索管道，支持**向量语义检索**、**BM25全文检索**、**查询扩展**、**自适应TopK**和**CrossEncoder重排序**。所有检索均通过 HTTP API 访问远程向量库，embedding 计算和重排序均支持本地模型或外部 API 两种模式，无需维护本地文档索引。
 
 ## 系统架构
 ```
@@ -25,7 +25,7 @@
 │ 双路 API 检索                                               │
 ├──────────────────────────┬──────────────────────────────────┤
 │ 向量检索 /chunks/vector-search │ BM25检索 /chunks/text-search   │
-│ 本地 bge-m3 计算 embedding    │ 直接传 query 字符串             │
+│ 本地/API 计算 embedding       │ 直接传 query 字符串             │
 │ 远程向量库 cosine similarity  │ 远程 SQLite FTS5 全文匹配        │
 └──────────────────────────┴──────────────────────────────────┘
 ↓
@@ -56,7 +56,7 @@
 ## 功能特性
 
 ### 1. 向量检索 (Vector Search)
-- 本地使用 `bge-m3` 计算 query embedding（1024 维，normalized）
+- **Embedding 模式可配置**：本地 `bge-m3` 计算 或 外部 API（OpenAI 兼容格式）
 - 通过 HTTP API 调用远程向量库 `/chunks/vector-search`
 - 返回带 cosine similarity score 的语义搜索结果
 - 支持 `filters` 过滤（按文件路径、时间戳等）
@@ -88,11 +88,11 @@
 - 针对技术文档场景优化（识别 "算法"/"架构"/"原理" 等关键词）
 - 返回数量范围：5 ~ 25
 
-### 7. CrossEncoder 重排序
-- 使用 `bge-reranker-base` 对候选结果精细打分
-- **上下文扩展**：重排序前自动补合同文件前后相邻 chunk，CrossEncoder 基于更大上下文打分更准确
+### 7. 重排序 (Reranker)
+- **双模式支持**：本地 `CrossEncoder` 模型 或 外部 Rerank API
+- **上下文扩展**：重排序前自动补合同文件前后相邻 chunk，基于更大上下文打分更准确
 - 可通过 `RERANK_CONTEXT_WINDOW` 控制扩展窗口大小（0 关闭，默认 1）
-- 支持惰性加载，首次使用时才初始化模型
+- 支持惰性加载，首次调用时才初始化
 - 可通过 `use_rerank=False` 禁用，提升速度
 
 ### 8. 可调超时与边界配置
@@ -142,7 +142,7 @@ openai>=1.0.0
 VECTOR_API_URL=http://localhost:18082
 VECTOR_API_KEY=your-api-key-here      # 可选
 
-# ==================== 模型配置 ====================
+# ==================== 模型配置（本地模式，不配置 API 时生效）====================
 # 向量嵌入模型（首次使用会自动下载，约 2GB）
 # VECTOR_MODEL=BAAI/bge-m3
 # 重排序模型（首次使用会自动下载，约 1GB）
@@ -161,6 +161,18 @@ QUERY_EXPANSION_NUM=3
 # retrieval API 配置（查询扩展必需）
 OPENAI_API_KEY=sk-xxx
 # OPENAI_API_BASE=https://api.openai.com/v1   # 可选，用于代理
+
+# ==================== Embedding API 配置（可选）====================
+# 配置后替代本地 HuggingFaceEmbeddings，走外部 API 计算 embedding
+# EMBEDDING_API_URL=https://aigw.asiainfo.com/v1/embeddings
+# EMBEDDING_API_KEY=sk-xxx
+# EMBEDDING_API_MODEL=10086/bge-m3
+
+# ==================== 重排序 API 配置（可选）====================
+# 配置后替代本地 CrossEncoder，走外部 API 进行重排序
+# RERANK_API_URL=https://aigw.asiainfo.com/v1/rerank
+# RERANK_API_KEY=sk-xxx
+# RERANK_API_MODEL=10086/bge-reranker-v2-m3
 
 # ==================== 重排序配置 ====================
 RERANK_TOP_N=3              # 重排序后返回文档数
@@ -182,6 +194,12 @@ export VECTOR_API_URL=http://localhost:18082
 export RETRIEVAL_SCORE_THRESHOLD=0.5
 export QUERY_EXPANSION_ENABLED=true
 export OPENAI_API_KEY=sk-xxx
+
+# 可选：启用外部 Embedding / Rerank API（替代本地模型）
+export EMBEDDING_API_URL=https://aigw.asiainfo.com/v1/embeddings
+export EMBEDDING_API_KEY=sk-xxx
+export RERANK_API_URL=https://aigw.asiainfo.com/v1/rerank
+export RERANK_API_KEY=sk-xxx
 ```
 
 ## 使用方法
@@ -307,6 +325,10 @@ for query in queries:
 
 ### 模型配置
 
+#### 本地模式（默认）
+
+不配置 `EMBEDDING_API_URL` 和 `RERANK_API_URL` 时，使用本地 HuggingFace 模型：
+
 ```python
 # 向量模型配置（代码中修改 retrieval.py）
 VECTOR_MODEL = "BAAI/bge-m3"  # 多语言向量模型，1024 维
@@ -322,13 +344,29 @@ RERANKER_MODEL = "BAAI/bge-reranker-base"
 # - "cross-encoder/ms-marco-MiniLM-L-6-v2"  # 轻量级
 ```
 
+#### API 模式
+
+配置以下环境变量后，embedding 和重排序将走外部 API，无需本地加载模型：
+
+```bash
+# Embedding API（OpenAI 兼容格式）
+EMBEDDING_API_URL=https://aigw.asiainfo.com/v1/embeddings
+EMBEDDING_API_KEY=sk-xxx
+EMBEDDING_API_MODEL=10086/bge-m3
+
+# Rerank API
+RERANK_API_URL=https://aigw.asiainfo.com/v1/rerank
+RERANK_API_KEY=sk-xxx
+RERANK_API_MODEL=10086/bge-reranker-v2-m3
+```
+
 ### 运行时可调参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `top_k` | int | 20 | 每路检索返回数量 |
 | `use_bm25` | bool | True | 是否启用 BM25 API 检索 |
-| `use_rerank` | bool | True | 是否启用 CrossEncoder 重排序 |
+| `use_rerank` | bool | True | 是否启用重排序（本地 CrossEncoder 或外部 API） |
 | `use_query_expansion` | bool | False | 是否启用查询扩展 |
 | `RERANK_TOP_N` | int | 3 | 重排序后返回文档数 |
 | `RERANK_CONTEXT_WINDOW` | int | 1 | 重排序上下文扩展窗口（0 关闭） |
@@ -571,13 +609,14 @@ if __name__ == "__main__":
 
 ## 注意事项
 
-1. **首次运行会下载模型**：初次使用 `bge-m3` 和 `bge-reranker-base` 时会自动从 HuggingFace 下载，共需约 3GB 磁盘空间和网络连接
+1. **首次运行会下载模型**：使用本地模式时，初次使用 `bge-m3` 和 `bge-reranker-base` 会自动从 HuggingFace 下载，共需约 3GB 磁盘空间。配置 API 模式后无需下载
 2. **API 依赖**：系统完全依赖远程向量库 API（默认 `http://localhost:18082`），确保向量库服务正常运行
-3. **内存使用**：重排序模型约占用 2-3GB 内存，向量模型约 1-2GB，可通过 `use_rerank=False` 减少内存占用
+3. **内存使用**：本地模式下，重排序模型约占用 2-3GB 内存，向量模型约 1-2GB。配置 API 模式后无需本地模型内存
 4. **查询扩展成本**：启用查询扩展后，每个变体会增加 2 次 API 调用（向量 + BM25）和 1 次 LLM 调用，请根据实际场景权衡召回率与成本
 5. **上下文扩展要求**：重排序上下文扩展依赖 `file_path` 和 `char_offset_start` metadata，如果向量库返回结果不包含这些字段，扩展将自动回退为不扩展
 6. **惰性加载**：`import retrieval` 时不会加载任何模型，首次调用 `get_embedding_model()` 或 `pipeline()` 时才初始化
 7. **无需本地数据文件**：系统不再依赖 `doc_chunks.pkl`、本地 SQLite 或 BM25 索引，所有检索均走 API
+8. **Embedding / Rerank API 独立配置**：`EMBEDDING_API_URL` 和 `RERANK_API_URL` 可以单独启用，灵活组合本地与远程能力
 
 ## 故障排查
 
@@ -615,6 +654,13 @@ print(f"前5个值: {vec[:5]}")
 
 ## 版本历史
 
+- **v2.2.0** (2026-05-01): Embedding 与 Rerank 支持外部 API
+  - 新增 `APIEmbeddingModel`：支持通过 OpenAI 兼容格式的外部 API 计算 embedding
+  - 新增 `EMBEDDING_API_URL`、`EMBEDDING_API_KEY`、`EMBEDDING_API_MODEL` 环境变量
+  - 新增 `APIReranker`：支持通过外部 Rerank API 替代本地 CrossEncoder
+  - 新增 `RERANK_API_URL`、`RERANK_API_KEY`、`RERANK_API_MODEL` 环境变量
+  - `get_embedding_model()` 和 `get_reranker()` 自动根据配置选择本地模型或远程 API
+  - Embedding API 与 Rerank API 可独立配置，灵活组合本地与远程能力
 - **v2.1.0** (2026-04-25): 重排序增强与配置优化
   - 新增重排序上下文扩展：按 file_path 补全相邻 chunk 作为 CrossEncoder 输入
   - 新增 `RERANK_CONTEXT_WINDOW` 环境变量控制上下文窗口
