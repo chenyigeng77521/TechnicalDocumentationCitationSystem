@@ -1,0 +1,3623 @@
+{
+  "summary": {
+    "x0_anchor_hit": 47,
+    "x15_anchor_hit": 60,
+    "x0_evidence_hit": 66,
+    "x15_evidence_hit": 89,
+    "x0_only_anchor_hit": [],
+    "x15_only_anchor_hit": [
+      "react_008",
+      "react_015",
+      "react_027",
+      "react_033",
+      "react_045",
+      "react_050",
+      "k8s_008",
+      "k8s_025",
+      "k8s_031",
+      "k8s_047",
+      "spring_002",
+      "spring_018",
+      "spring_030"
+    ],
+    "both_anchor_hit": [
+      "react_002",
+      "react_003",
+      "react_004",
+      "react_005",
+      "react_006",
+      "react_010",
+      "react_014",
+      "react_016",
+      "react_018",
+      "react_019",
+      "react_020",
+      "react_023",
+      "react_025",
+      "react_026",
+      "react_028",
+      "react_030",
+      "react_032",
+      "react_037",
+      "react_038",
+      "react_040",
+      "react_041",
+      "react_043",
+      "react_044",
+      "react_047",
+      "react_049",
+      "k8s_003",
+      "k8s_013",
+      "k8s_014",
+      "k8s_026",
+      "k8s_029",
+      "k8s_034",
+      "k8s_036",
+      "k8s_045",
+      "k8s_046",
+      "k8s_049",
+      "spring_004",
+      "spring_009",
+      "spring_012",
+      "spring_022",
+      "spring_028",
+      "spring_031",
+      "spring_033",
+      "spring_038",
+      "spring_039",
+      "spring_040",
+      "spring_042",
+      "spring_050"
+    ],
+    "both_anchor_miss": [
+      "react_001",
+      "react_007",
+      "react_009",
+      "react_011",
+      "react_012",
+      "react_013",
+      "react_017",
+      "react_021",
+      "react_022",
+      "react_024",
+      "react_029",
+      "react_031",
+      "react_034",
+      "react_035",
+      "react_036",
+      "react_039",
+      "react_042",
+      "react_046",
+      "react_048",
+      "k8s_001",
+      "k8s_002",
+      "k8s_004",
+      "k8s_005",
+      "k8s_006",
+      "k8s_007",
+      "k8s_009",
+      "k8s_010",
+      "k8s_011",
+      "k8s_012",
+      "k8s_015",
+      "k8s_016",
+      "k8s_017",
+      "k8s_018",
+      "k8s_019",
+      "k8s_020",
+      "k8s_021",
+      "k8s_022",
+      "k8s_023",
+      "k8s_024",
+      "k8s_027",
+      "k8s_028",
+      "k8s_030",
+      "k8s_032",
+      "k8s_033",
+      "k8s_035",
+      "k8s_037",
+      "k8s_038",
+      "k8s_039",
+      "k8s_040",
+      "k8s_041",
+      "k8s_042",
+      "k8s_043",
+      "k8s_044",
+      "k8s_048",
+      "k8s_050",
+      "spring_001",
+      "spring_003",
+      "spring_005",
+      "spring_006",
+      "spring_007",
+      "spring_008",
+      "spring_010",
+      "spring_011",
+      "spring_013",
+      "spring_014",
+      "spring_015",
+      "spring_016",
+      "spring_017",
+      "spring_019",
+      "spring_020",
+      "spring_021",
+      "spring_023",
+      "spring_024",
+      "spring_025",
+      "spring_026",
+      "spring_027",
+      "spring_029",
+      "spring_032",
+      "spring_034",
+      "spring_035",
+      "spring_036",
+      "spring_037",
+      "spring_041",
+      "spring_043",
+      "spring_044",
+      "spring_045",
+      "spring_046",
+      "spring_047",
+      "spring_048",
+      "spring_049"
+    ],
+    "trap_skipped": 50,
+    "improvement_anchor": 13,
+    "improvement_evidence": 23,
+    "total": 200,
+    "answerable_total": 150,
+    "elapsed_seconds": 1213.56493973732
+  },
+  "per_query": [
+    {
+      "id": "react_001",
+      "domain": "React",
+      "query": "React Compiler的增量采用是什么意思？",
+      "gold_doc": "docs/react/incremental-adoption.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "incremental-adoption.md#why-incremental-adoption",
+        "incremental-adoption.md#why-incremental-adoption",
+        "incremental-adoption.md#why-incremental-adoption"
+      ],
+      "x15_top3_anchors": [
+        "incremental-adoption.md#why-incremental-adoption",
+        "incremental-adoption.md#approaches-to-incremental-adoption",
+        "setup.md#react-compiler"
+      ]
+    },
+    {
+      "id": "react_002",
+      "domain": "React",
+      "query": "从大多数后端或 REST 风格 API 获取数据时，React 建议使用哪些库？",
+      "gold_doc": "docs/react/build-a-react-app-from-scratch.md",
+      "gold_anchor": "#data-fetching",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "build-a-react-app-from-scratch.md#data-fetching",
+        "build-a-react-app-from-scratch.md#data-fetching",
+        "build-a-react-app-from-scratch.md#data-fetching"
+      ],
+      "x15_top3_anchors": [
+        "build-a-react-app-from-scratch.md#data-fetching",
+        "synchronizing-with-effects.md#what-are-good-alternatives-to-data-fetching-in-effects",
+        "add-react-to-an-existing-project.md#using-react-for-an-entire-subroute-of-your-existing-website"
+      ]
+    },
+    {
+      "id": "react_003",
+      "domain": "React",
+      "query": "一个按钮应该能在'On'和'Off'之间切换，但它总是显示'Off'，代码的问题出在哪里？如何修复？",
+      "gold_doc": "docs/react/referencing-values-with-refs.md",
+      "gold_anchor": "#fix-a-component-failing-to-re-render",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "referencing-values-with-refs.md#fix-a-component-failing-to-re-render",
+        "referencing-values-with-refs.md#fix-a-component-failing-to-re-render",
+        "referencing-values-with-refs.md#fix-a-component-failing-to-re-render"
+      ],
+      "x15_top3_anchors": [
+        "referencing-values-with-refs.md#fix-a-component-failing-to-re-render",
+        "responding-to-events.md#reading-props-in-event-handlers",
+        "referencing-values-with-refs.md#fix-debouncing"
+      ]
+    },
+    {
+      "id": "react_004",
+      "domain": "React",
+      "query": "在联系人列表示例中，勾选“Show in reverse order”后，为什么Alice的展开状态会错位到Taylor？如何修复？",
+      "gold_doc": "docs/react/preserving-and-resetting-state.md",
+      "gold_anchor": "#fix-misplaced-state-in-the-list",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "preserving-and-resetting-state.md#fix-misplaced-state-in-the-list",
+        "preserving-and-resetting-state.md#fix-misplaced-state-in-the-list",
+        "preserving-and-resetting-state.md#fix-misplaced-state-in-the-list"
+      ],
+      "x15_top3_anchors": [
+        "preserving-and-resetting-state.md#fix-misplaced-state-in-the-list",
+        "preserving-and-resetting-state.md#reset-a-detail-form",
+        "synchronizing-with-effects.md#fix-fetching-inside-an-effect"
+      ]
+    },
+    {
+      "id": "react_005",
+      "domain": "React",
+      "query": "Profile组件有没有向Avatar组件传递props？",
+      "gold_doc": "docs/react/passing-props-to-a-component.md",
+      "gold_anchor": "#passing-props-to-a-component",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "passing-props-to-a-component.md#passing-props-to-a-component",
+        "passing-props-to-a-component.md#passing-props-to-a-component",
+        "passing-props-to-a-component.md#forwarding-props-with-the-jsx-spread-syntax"
+      ],
+      "x15_top3_anchors": [
+        "passing-props-to-a-component.md#passing-props-to-a-component",
+        "passing-props-to-a-component.md#forwarding-props-with-the-jsx-spread-syntax",
+        "keeping-components-pure.md#fix-a-broken-profile"
+      ]
+    },
+    {
+      "id": "react_006",
+      "domain": "React",
+      "query": "如何在本地计算机上尝试 React？",
+      "gold_doc": "docs/react/installation.md",
+      "gold_anchor": "#try-react",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "installation.md#try-react",
+        "installation.md#try-react",
+        "installation.md#try-react"
+      ],
+      "x15_top3_anchors": [
+        "installation.md#try-react",
+        "tutorial-tic-tac-toe.md#react-developer-tools",
+        "tutorial-tic-tac-toe.md#overview"
+      ]
+    },
+    {
+      "id": "react_007",
+      "domain": "React",
+      "query": "在Chat组件中，当textarea内容变化时，如何发送action来更新消息？",
+      "gold_doc": "docs/react/extracting-state-logic-into-a-reducer.md",
+      "gold_anchor": "#dispatch-actions-from-event-handlers",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "managing-state.md#reacting-to-input-with-state",
+        "reacting-to-input-with-state.md#step-5-connect-the-event-handlers-to-set-state",
+        "managing-state.md#reacting-to-input-with-state"
+      ],
+      "x15_top3_anchors": [
+        "managing-state.md#reacting-to-input-with-state",
+        "reacting-to-input-with-state.md#step-5-connect-the-event-handlers-to-set-state",
+        "removing-effect-dependencies.md#are-you-reading-some-state-to-calculate-the-next-state"
+      ]
+    },
+    {
+      "id": "react_008",
+      "domain": "React",
+      "query": "在 React 中，什么情况下需要访问由 React 管理的 DOM 元素？",
+      "gold_doc": "docs/react/escape-hatches.md",
+      "gold_anchor": "#manipulating-the-dom-with-refs",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading"
+      ],
+      "x15_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "escape-hatches.md#manipulating-the-dom-with-refs",
+        "manipulating-the-dom-with-refs.md#top"
+      ]
+    },
+    {
+      "id": "react_009",
+      "domain": "React",
+      "query": "当 ChatRoom 组件用相同的 roomId（例如 ‘general’）重新渲染时，React 会再次执行其 Effect 吗？",
+      "gold_doc": "docs/react/synchronizing-with-effects.md",
+      "gold_anchor": "#re-render-with-same-dependencies",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "lifecycle-of-reactive-effects.md#how-react-knows-that-it-needs-to-re-synchronize-the-effect",
+        "lifecycle-of-reactive-effects.md#how-react-knows-that-it-needs-to-re-synchronize-the-effect",
+        "lifecycle-of-reactive-effects.md#how-react-knows-that-it-needs-to-re-synchronize-the-effect"
+      ],
+      "x15_top3_anchors": [
+        "lifecycle-of-reactive-effects.md#how-react-knows-that-it-needs-to-re-synchronize-the-effect",
+        "lifecycle-of-reactive-effects.md#how-react-re-synchronizes-your-effect",
+        "lifecycle-of-reactive-effects.md#effects-react-to-reactive-values"
+      ]
+    },
+    {
+      "id": "react_010",
+      "domain": "React",
+      "query": "为什么文档建议用一个状态变量 status 替代 isSending 和 isSent 两个状态变量？",
+      "gold_doc": "docs/react/choosing-the-state-structure.md",
+      "gold_anchor": "#avoid-contradictions-in-state",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "choosing-the-state-structure.md#avoid-contradictions-in-state",
+        "choosing-the-state-structure.md#avoid-contradictions-in-state",
+        "choosing-the-state-structure.md#avoid-contradictions-in-state"
+      ],
+      "x15_top3_anchors": [
+        "choosing-the-state-structure.md#avoid-contradictions-in-state",
+        "state-as-a-snapshot.md#setting-state-triggers-renders",
+        "referencing-values-with-refs.md#fix-a-broken-chat-input"
+      ]
+    },
+    {
+      "id": "react_011",
+      "domain": "React",
+      "query": "在构建 React 组件的状态时，应遵循哪些原则来避免状态结构中的矛盾？",
+      "gold_doc": "docs/react/choosing-the-state-structure.md",
+      "gold_anchor": "#principles-for-structuring-state",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "understanding-your-ui-as-a-tree.md#top",
+        "reacting-to-input-with-state.md#step-3-represent-the-state-in-memory-with-usestate",
+        "reacting-to-input-with-state.md#step-3-represent-the-state-in-memory-with-usestate"
+      ],
+      "x15_top3_anchors": [
+        "understanding-your-ui-as-a-tree.md#top",
+        "reacting-to-input-with-state.md#step-3-represent-the-state-in-memory-with-usestate",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading"
+      ]
+    },
+    {
+      "id": "react_012",
+      "domain": "React",
+      "query": "在哪里可以开始逐页阅读本章？",
+      "gold_doc": "docs/react/escape-hatches.md",
+      "gold_anchor": "#what-s-next-whats-next",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "describing-the-ui.md#whats-next",
+        "describing-the-ui.md#whats-next",
+        "adding-interactivity.md#whats-next"
+      ],
+      "x15_top3_anchors": [
+        "describing-the-ui.md#whats-next",
+        "adding-interactivity.md#whats-next",
+        "managing-state.md#whats-next"
+      ]
+    },
+    {
+      "id": "react_013",
+      "domain": "React",
+      "query": "在React中，当需要将数据传递多层时，除了使用context，还有哪些更好的做法？",
+      "gold_doc": "docs/react/passing-data-deeply-with-context.md",
+      "gold_anchor": "#before-you-use-context",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "passing-data-deeply-with-context.md#use-cases-for-context",
+        "passing-data-deeply-with-context.md#use-cases-for-context",
+        "passing-data-deeply-with-context.md#use-cases-for-context"
+      ],
+      "x15_top3_anchors": [
+        "passing-data-deeply-with-context.md#use-cases-for-context",
+        "passing-data-deeply-with-context.md#the-problem-with-passing-props",
+        "managing-state.md#passing-data-deeply-with-context"
+      ]
+    },
+    {
+      "id": "react_014",
+      "domain": "React",
+      "query": "React 是如何跟踪不同组件的状态的？",
+      "gold_doc": "docs/react/preserving-and-resetting-state.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "understanding-your-ui-as-a-tree.md#top",
+        "preserving-and-resetting-state.md#top",
+        "you-might-not-need-an-effect.md#passing-data-to-the-parent"
+      ],
+      "x15_top3_anchors": [
+        "understanding-your-ui-as-a-tree.md#top",
+        "preserving-and-resetting-state.md#top",
+        "you-might-not-need-an-effect.md#passing-data-to-the-parent"
+      ]
+    },
+    {
+      "id": "react_015",
+      "domain": "React",
+      "query": "将这段HTML代码转换为有效的JSX时，需要注意哪些语法差异？",
+      "gold_doc": "docs/react/writing-markup-with-jsx.md",
+      "gold_anchor": "#convert-some-html-to-jsx",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "writing-markup-with-jsx.md#converting-html-to-jsx",
+        "index.md#writing-markup-with-jsx",
+        "writing-markup-with-jsx.md#converting-html-to-jsx"
+      ],
+      "x15_top3_anchors": [
+        "writing-markup-with-jsx.md#converting-html-to-jsx",
+        "index.md#writing-markup-with-jsx",
+        "writing-markup-with-jsx.md#convert-some-html-to-jsx"
+      ]
+    },
+    {
+      "id": "react_016",
+      "domain": "React",
+      "query": "为什么说选择合适的渲染策略可以改善应用的性能指标？",
+      "gold_doc": "docs/react/build-a-react-app-from-scratch.md",
+      "gold_anchor": "#improving-application-performance",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "build-a-react-app-from-scratch.md#improving-application-performance",
+        "build-a-react-app-from-scratch.md#improving-application-performance",
+        "build-a-react-app-from-scratch.md#improving-application-performance"
+      ],
+      "x15_top3_anchors": [
+        "build-a-react-app-from-scratch.md#improving-application-performance",
+        "you-might-not-need-an-effect.md#how-to-tell-if-a-calculation-is-expensive",
+        "build-a-react-app-from-scratch.md#consider-using-a-framework"
+      ]
+    },
+    {
+      "id": "react_017",
+      "domain": "React",
+      "query": "如果我已经熟悉当前主题，可以阅读哪个章节？",
+      "gold_doc": "docs/react/managing-state.md",
+      "gold_anchor": "#what-s-next-whats-next",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "describing-the-ui.md#whats-next",
+        "describing-the-ui.md#whats-next",
+        "adding-interactivity.md#whats-next"
+      ],
+      "x15_top3_anchors": [
+        "describing-the-ui.md#whats-next",
+        "adding-interactivity.md#whats-next",
+        "managing-state.md#whats-next"
+      ]
+    },
+    {
+      "id": "react_018",
+      "domain": "React",
+      "query": "在 React Effects 的 playground 示例中，如果注释掉清理函数并快速输入 'abcde'，三秒后控制台会显示什么日志？",
+      "gold_doc": "docs/react/synchronizing-with-effects.md",
+      "gold_anchor": "#putting-it-all-together",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "synchronizing-with-effects.md#putting-it-all-together",
+        "synchronizing-with-effects.md#putting-it-all-together",
+        "synchronizing-with-effects.md#putting-it-all-together"
+      ],
+      "x15_top3_anchors": [
+        "synchronizing-with-effects.md#putting-it-all-together",
+        "rsc-sandbox-test.md#flight-data-types-actions",
+        "synchronizing-with-effects.md#step-3-add-cleanup-if-needed"
+      ]
+    },
+    {
+      "id": "react_019",
+      "domain": "React",
+      "query": "使用context替换prop drilling后，中间组件还需要传递imageSize吗？",
+      "gold_doc": "docs/react/passing-data-deeply-with-context.md",
+      "gold_anchor": "#replace-prop-drilling-with-context",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "passing-data-deeply-with-context.md#replace-prop-drilling-with-context",
+        "passing-data-deeply-with-context.md#replace-prop-drilling-with-context",
+        "passing-data-deeply-with-context.md#replace-prop-drilling-with-context"
+      ],
+      "x15_top3_anchors": [
+        "passing-data-deeply-with-context.md#replace-prop-drilling-with-context",
+        "passing-props-to-a-component.md#extract-a-component",
+        "scaling-up-with-reducer-and-context.md#combining-a-reducer-with-context"
+      ]
+    },
+    {
+      "id": "react_020",
+      "domain": "React",
+      "query": "在井字棋游戏中，显示历史步骤时，squares和move参数分别表示什么？",
+      "gold_doc": "docs/react/tutorial-tic-tac-toe.md",
+      "gold_anchor": "#showing-the-past-moves",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "tutorial-tic-tac-toe.md#showing-the-past-moves",
+        "tutorial-tic-tac-toe.md#what-are-you-building",
+        "tutorial-tic-tac-toe.md#implementing-time-travel"
+      ],
+      "x15_top3_anchors": [
+        "tutorial-tic-tac-toe.md#showing-the-past-moves",
+        "tutorial-tic-tac-toe.md#what-are-you-building",
+        "tutorial-tic-tac-toe.md#implementing-time-travel"
+      ]
+    },
+    {
+      "id": "react_021",
+      "domain": "React",
+      "query": "为什么要在 Effect 中移除不必要的依赖？",
+      "gold_doc": "docs/react/removing-effect-dependencies.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "escape-hatches.md#you-might-not-need-an-effect",
+        "escape-hatches.md#you-might-not-need-an-effect",
+        "escape-hatches.md#you-might-not-need-an-effect"
+      ],
+      "x15_top3_anchors": [
+        "escape-hatches.md#you-might-not-need-an-effect",
+        "you-might-not-need-an-effect.md#top",
+        "escape-hatches.md#removing-effect-dependencies"
+      ]
+    },
+    {
+      "id": "react_022",
+      "domain": "React",
+      "query": "在React中，什么是state？",
+      "gold_doc": "docs/react/adding-interactivity.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "updating-objects-in-state.md#top",
+        "tutorial-tic-tac-toe.md#making-an-interactive-component",
+        "tutorial-tic-tac-toe.md#making-an-interactive-component"
+      ],
+      "x15_top3_anchors": [
+        "updating-objects-in-state.md#top",
+        "tutorial-tic-tac-toe.md#making-an-interactive-component",
+        "adding-interactivity.md#state-as-a-snapshot"
+      ]
+    },
+    {
+      "id": "react_023",
+      "domain": "React",
+      "query": "在JSX中，花括号可以在哪两种情况下使用？",
+      "gold_doc": "docs/react/javascript-in-jsx-with-curly-braces.md",
+      "gold_anchor": "#where-to-use-curly-braces",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "javascript-in-jsx-with-curly-braces.md#where-to-use-curly-braces",
+        "javascript-in-jsx-with-curly-braces.md#where-to-use-curly-braces",
+        "javascript-in-jsx-with-curly-braces.md#using-curly-braces-a-window-into-the-javascript-world"
+      ],
+      "x15_top3_anchors": [
+        "javascript-in-jsx-with-curly-braces.md#where-to-use-curly-braces",
+        "javascript-in-jsx-with-curly-braces.md#using-curly-braces-a-window-into-the-javascript-world",
+        "index.md#displaying-data"
+      ]
+    },
+    {
+      "id": "react_024",
+      "domain": "React",
+      "query": "在 React 中，如何修复一个会意外重置的 interval？",
+      "gold_doc": "docs/react/reusing-logic-with-custom-hooks.md",
+      "gold_anchor": "#fix-a-resetting-interval",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading"
+      ],
+      "x15_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "separating-events-from-effects.md#fix-a-variable-that-doesnt-update",
+        "separating-events-from-effects.md#fix-a-non-adjustable-delay"
+      ]
+    },
+    {
+      "id": "react_025",
+      "domain": "React",
+      "query": "在哪里可以找到关于 React Compiler 的额外信息和讨论？",
+      "gold_doc": "docs/react/introduction.md",
+      "gold_anchor": "#additional-resources",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "introduction.md#additional-resources",
+        "introduction.md#try-react-compiler",
+        "introduction.md#try-react-compiler"
+      ],
+      "x15_top3_anchors": [
+        "introduction.md#additional-resources",
+        "introduction.md#try-react-compiler",
+        "setup.md#react-compiler"
+      ]
+    },
+    {
+      "id": "react_026",
+      "domain": "React",
+      "query": "如何在 Section 组件中提供 LevelContext 给其子组件？",
+      "gold_doc": "docs/react/passing-data-deeply-with-context.md",
+      "gold_anchor": "#step-3-provide-the-context",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "passing-data-deeply-with-context.md#step-3-provide-the-context",
+        "passing-data-deeply-with-context.md#step-3-provide-the-context",
+        "passing-data-deeply-with-context.md#step-3-provide-the-context"
+      ],
+      "x15_top3_anchors": [
+        "passing-data-deeply-with-context.md#step-3-provide-the-context",
+        "managing-state.md#passing-data-deeply-with-context",
+        "passing-data-deeply-with-context.md#using-and-providing-context-from-the-same-component"
+      ]
+    },
+    {
+      "id": "react_027",
+      "domain": "React",
+      "query": "React 未来推荐的数据获取方式是什么？",
+      "gold_doc": "docs/react/reusing-logic-with-custom-hooks.md",
+      "gold_anchor": "#will-react-provide-any-built-in-solution-for-data-fetching",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "manipulating-the-dom-with-refs.md#scrolling-an-image-carousel",
+        "referencing-values-with-refs.md#adding-a-ref-to-your-component",
+        "manipulating-the-dom-with-refs.md#scrolling-an-image-carousel"
+      ],
+      "x15_top3_anchors": [
+        "manipulating-the-dom-with-refs.md#scrolling-an-image-carousel",
+        "referencing-values-with-refs.md#adding-a-ref-to-your-component",
+        "reusing-logic-with-custom-hooks.md#will-react-provide-any-built-in-solution-for-data-fetching"
+      ]
+    },
+    {
+      "id": "react_028",
+      "domain": "React",
+      "query": "在 React 中，如果内置 Hooks 不能满足更特定的需求，比如获取数据或跟踪用户在线状态，应该怎么办？",
+      "gold_doc": "docs/react/escape-hatches.md",
+      "gold_anchor": "#reusing-logic-with-custom-hooks",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "escape-hatches.md#reusing-logic-with-custom-hooks",
+        "escape-hatches.md#reusing-logic-with-custom-hooks",
+        "escape-hatches.md#reusing-logic-with-custom-hooks"
+      ],
+      "x15_top3_anchors": [
+        "escape-hatches.md#reusing-logic-with-custom-hooks",
+        "reusing-logic-with-custom-hooks.md#top",
+        "you-might-not-need-an-effect.md#fetching-data"
+      ]
+    },
+    {
+      "id": "react_029",
+      "domain": "React",
+      "query": "这个CSS代码中，button元素的display属性被设置成了什么？",
+      "gold_doc": "docs/react/state-a-components-memory.md",
+      "gold_anchor": "#adding-a-state-variable",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "referencing-values-with-refs.md#fix-debouncing",
+        "referencing-values-with-refs.md#fix-debouncing",
+        "manipulating-the-dom-with-refs.md#focus-the-search-field"
+      ],
+      "x15_top3_anchors": [
+        "referencing-values-with-refs.md#fix-debouncing",
+        "manipulating-the-dom-with-refs.md#focus-the-search-field",
+        "manipulating-the-dom-with-refs.md#focus-the-search-field-with-separate-components"
+      ]
+    },
+    {
+      "id": "react_030",
+      "domain": "React",
+      "query": "Reducer 函数接受什么参数并返回什么？",
+      "gold_doc": "docs/react/extracting-state-logic-into-a-reducer.md",
+      "gold_anchor": "#step-2-write-a-reducer-function",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function",
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function",
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function"
+      ],
+      "x15_top3_anchors": [
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function",
+        "extracting-state-logic-into-a-reducer.md#implement-usereducer-from-scratch",
+        "typescript.md#typing-usereducer"
+      ]
+    },
+    {
+      "id": "react_031",
+      "domain": "React",
+      "query": "为什么Effect中的逻辑被称为响应式的？",
+      "gold_doc": "docs/react/separating-events-from-effects.md",
+      "gold_anchor": "#logic-inside-effects-is-reactive",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "lifecycle-of-reactive-effects.md#all-variables-declared-in-the-component-body-are-reactive",
+        "lifecycle-of-reactive-effects.md#all-variables-declared-in-the-component-body-are-reactive",
+        "lifecycle-of-reactive-effects.md#all-variables-declared-in-the-component-body-are-reactive"
+      ],
+      "x15_top3_anchors": [
+        "lifecycle-of-reactive-effects.md#all-variables-declared-in-the-component-body-are-reactive",
+        "removing-effect-dependencies.md#is-your-effect-doing-several-unrelated-things",
+        "separating-events-from-effects.md#declaring-an-effect-event"
+      ]
+    },
+    {
+      "id": "react_032",
+      "domain": "React",
+      "query": "在Flight数据类型的演示中，从服务器组件传递了哪些数据类型到客户端组件？",
+      "gold_doc": "docs/react/rsc-sandbox-test.md",
+      "gold_anchor": "#flight-data-types",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rsc-sandbox-test.md#flight-data-types",
+        "rsc-sandbox-test.md#flight-data-types",
+        "rsc-sandbox-test.md#flight-data-types"
+      ],
+      "x15_top3_anchors": [
+        "rsc-sandbox-test.md#flight-data-types",
+        "rsc-sandbox-test.md#flight-data-types-actions",
+        "rest-clients.adoc#rest-http-service-client-group-config"
+      ]
+    },
+    {
+      "id": "react_033",
+      "domain": "React",
+      "query": "在 React 中，声明式编程是什么意思？",
+      "gold_doc": "docs/react/reacting-to-input-with-state.md",
+      "gold_anchor": "#step-5-connect-the-event-handlers-to-set-state",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "reacting-to-input-with-state.md#top",
+        "node-declared-features.md#how-it-works",
+        "node-declared-features.md#how-it-works"
+      ],
+      "x15_top3_anchors": [
+        "reacting-to-input-with-state.md#top",
+        "node-declared-features.md#how-it-works",
+        "reacting-to-input-with-state.md#step-5-connect-the-event-handlers-to-set-state"
+      ]
+    },
+    {
+      "id": "react_034",
+      "domain": "React",
+      "query": "为什么 React 中的代码重复可能会带来维护问题？",
+      "gold_doc": "docs/react/conditional-rendering.md",
+      "gold_anchor": "#conditionally-including-jsx",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading"
+      ],
+      "x15_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "render-and-commit.md#step-2-react-renders-your-components",
+        "synchronizing-with-effects.md#step-3-add-cleanup-if-needed"
+      ]
+    },
+    {
+      "id": "react_035",
+      "domain": "React",
+      "query": "在 React 中，useMemo Hook 的作用是什么？",
+      "gold_doc": "docs/react/typescript.md",
+      "gold_anchor": "#usememo-typing-usememo",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "typescript.md#typing-usememo",
+        "typescript.md#typing-usememo",
+        "typescript.md#typing-usememo"
+      ],
+      "x15_top3_anchors": [
+        "typescript.md#typing-usememo",
+        "introduction.md#what-should-i-do-about-usememo-usecallback-and-reactmemo",
+        "introduction.md#before-react-compiler"
+      ]
+    },
+    {
+      "id": "react_036",
+      "domain": "React",
+      "query": "React 中，如果没灵感编写组件，可以尝试写什么组件？",
+      "gold_doc": "docs/react/your-first-component.md",
+      "gold_anchor": "#your-own-component",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading"
+      ],
+      "x15_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "reusing-logic-with-custom-hooks.md#custom-hooks-help-you-migrate-to-better-patterns",
+        "installation.md#build-a-react-app-from-scratch"
+      ]
+    },
+    {
+      "id": "react_037",
+      "domain": "React",
+      "query": "ReactCompilerFeatureFlags.js模块中的gating函数返回什么？",
+      "gold_doc": "docs/react/incremental-adoption.md",
+      "gold_anchor": "#implementing-the-feature-flag",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "incremental-adoption.md#implementing-the-feature-flag",
+        "incremental-adoption.md#implementing-the-feature-flag",
+        "incremental-adoption.md#runtime-feature-flags-with-gating"
+      ],
+      "x15_top3_anchors": [
+        "incremental-adoption.md#implementing-the-feature-flag",
+        "incremental-adoption.md#runtime-feature-flags-with-gating",
+        "incremental-adoption.md#gating-configuration"
+      ]
+    },
+    {
+      "id": "react_038",
+      "domain": "React",
+      "query": "在React中，使用useState时，index和setIndex分别代表什么？",
+      "gold_doc": "docs/react/state-a-components-memory.md",
+      "gold_anchor": "#adding-a-state-variable",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "state-a-components-memory.md#adding-a-state-variable",
+        "state-a-components-memory.md#adding-a-state-variable",
+        "state-a-components-memory.md#adding-a-state-variable"
+      ],
+      "x15_top3_anchors": [
+        "state-a-components-memory.md#adding-a-state-variable",
+        "sharing-state-between-components.md#step-3-add-state-to-the-common-parent",
+        "adding-interactivity.md#state-a-components-memory"
+      ]
+    },
+    {
+      "id": "react_039",
+      "domain": "React",
+      "query": "如果我已经熟悉了 React 描述 UI 的基础知识，文档建议我阅读什么内容？",
+      "gold_doc": "docs/react/describing-the-ui.md",
+      "gold_anchor": "#what-s-next-whats-next",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "thinking-in-react.md#where-to-go-from-here",
+        "tutorial-tic-tac-toe.md#overview",
+        "conditional-rendering.md#conditionally-assigning-jsx-to-a-variable"
+      ],
+      "x15_top3_anchors": [
+        "thinking-in-react.md#where-to-go-from-here",
+        "tutorial-tic-tac-toe.md#overview",
+        "conditional-rendering.md#conditionally-assigning-jsx-to-a-variable"
+      ]
+    },
+    {
+      "id": "react_040",
+      "domain": "React",
+      "query": "为什么在 `onAppear` 这类 Effect Events 中读取 `duration` 不会导致动画重新触发？",
+      "gold_doc": "docs/react/removing-effect-dependencies.md",
+      "gold_anchor": "#fix-a-retriggering-animation",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "removing-effect-dependencies.md#fix-a-retriggering-animation",
+        "removing-effect-dependencies.md#fix-a-retriggering-animation",
+        "removing-effect-dependencies.md#fix-a-retriggering-animation"
+      ],
+      "x15_top3_anchors": [
+        "removing-effect-dependencies.md#fix-a-retriggering-animation",
+        "separating-events-from-effects.md#fix-a-non-adjustable-delay",
+        "reusing-logic-with-custom-hooks.md#fix-a-resetting-interval"
+      ]
+    },
+    {
+      "id": "react_041",
+      "domain": "React",
+      "query": "为什么示例中的计数器在快速按加减按钮时会暂停计时？",
+      "gold_doc": "docs/react/separating-events-from-effects.md",
+      "gold_anchor": "#fix-a-freezing-counter",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "separating-events-from-effects.md#fix-a-freezing-counter",
+        "separating-events-from-effects.md#fix-a-freezing-counter",
+        "separating-events-from-effects.md#fix-a-freezing-counter"
+      ],
+      "x15_top3_anchors": [
+        "separating-events-from-effects.md#fix-a-freezing-counter",
+        "state-as-a-snapshot.md#rendering-takes-a-snapshot-in-time",
+        "separating-events-from-effects.md#fix-a-variable-that-doesnt-update"
+      ]
+    },
+    {
+      "id": "react_042",
+      "domain": "React",
+      "query": "冗余或重复状态在React应用中会导致什么问题？",
+      "gold_doc": "docs/react/managing-state.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading"
+      ],
+      "x15_top3_anchors": [
+        "preserving-and-resetting-state.md#clear-an-image-while-its-loading",
+        "render-and-commit.md#step-2-react-renders-your-components",
+        "debugging.md#temporarily-disable-compilation"
+      ]
+    },
+    {
+      "id": "react_043",
+      "domain": "React",
+      "query": "什么是React组件？",
+      "gold_doc": "docs/react/describing-the-ui.md",
+      "gold_anchor": "#your-first-component",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "describing-the-ui.md#top",
+        "describing-the-ui.md#your-first-component",
+        "describing-the-ui.md#your-first-component"
+      ],
+      "x15_top3_anchors": [
+        "describing-the-ui.md#top",
+        "describing-the-ui.md#your-first-component",
+        "index.md#components"
+      ]
+    },
+    {
+      "id": "react_044",
+      "domain": "React",
+      "query": "React 中两个使用不同条件渲染方式的 JSX 例子是完全等价的吗？",
+      "gold_doc": "docs/react/conditional-rendering.md",
+      "gold_anchor": "#are-these-two-examples-fully-equivalent",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "conditional-rendering.md#are-these-two-examples-fully-equivalent",
+        "conditional-rendering.md#are-these-two-examples-fully-equivalent",
+        "conditional-rendering.md#are-these-two-examples-fully-equivalent"
+      ],
+      "x15_top3_anchors": [
+        "conditional-rendering.md#are-these-two-examples-fully-equivalent",
+        "passing-props-to-a-component.md#extract-a-component",
+        "conditional-rendering.md#top"
+      ]
+    },
+    {
+      "id": "react_045",
+      "domain": "React",
+      "query": "在 React 中，当在 JSX 标签内嵌套内容时，父组件如何接收这些内容？",
+      "gold_doc": "docs/react/passing-props-to-a-component.md",
+      "gold_anchor": "#passing-jsx-as-children",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "passing-props-to-a-component.md#passing-jsx-in-a-children-prop",
+        "passing-props-to-a-component.md#passing-jsx-in-a-children-prop",
+        "passing-props-to-a-component.md#passing-jsx-in-a-children-prop"
+      ],
+      "x15_top3_anchors": [
+        "passing-props-to-a-component.md#passing-jsx-in-a-children-prop",
+        "passing-props-to-a-component.md#passing-jsx-as-children",
+        "describing-the-ui.md#passing-props-to-a-component"
+      ]
+    },
+    {
+      "id": "react_046",
+      "domain": "React",
+      "query": "在React中，当Effect使用一个依赖于roomId prop的对象时，如何避免这个对象导致不必要的重新连接？",
+      "gold_doc": "docs/react/removing-effect-dependencies.md",
+      "gold_anchor": "#move-dynamic-objects-and-functions-inside-your-effect",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "escape-hatches.md#lifecycle-of-reactive-effects",
+        "escape-hatches.md#lifecycle-of-reactive-effects",
+        "escape-hatches.md#lifecycle-of-reactive-effects"
+      ],
+      "x15_top3_anchors": [
+        "escape-hatches.md#lifecycle-of-reactive-effects",
+        "lifecycle-of-reactive-effects.md#how-react-re-synchronizes-your-effect",
+        "removing-effect-dependencies.md#calculate-primitive-values-from-functions"
+      ]
+    },
+    {
+      "id": "react_047",
+      "domain": "React",
+      "query": "配置好的编辑器能带来哪些好处？",
+      "gold_doc": "docs/react/editor-setup.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "editor-setup.md#top",
+        "editor-setup.md#recommended-text-editor-features",
+        "editor-setup.md#top"
+      ],
+      "x15_top3_anchors": [
+        "editor-setup.md#top",
+        "editor-setup.md#recommended-text-editor-features",
+        "editor-setup.md#your-editor"
+      ]
+    },
+    {
+      "id": "react_048",
+      "domain": "React",
+      "query": "在React中编写reducer时，每个action应该对应什么？",
+      "gold_doc": "docs/react/extracting-state-logic-into-a-reducer.md",
+      "gold_anchor": "#writing-reducers-well",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function",
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function",
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function"
+      ],
+      "x15_top3_anchors": [
+        "extracting-state-logic-into-a-reducer.md#step-2-write-a-reducer-function",
+        "extracting-state-logic-into-a-reducer.md#implement-usereducer-from-scratch",
+        "extracting-state-logic-into-a-reducer.md#step-3-use-the-reducer-from-your-component"
+      ]
+    },
+    {
+      "id": "react_049",
+      "domain": "React",
+      "query": "在现有的 React 项目中添加 TypeScript 时，如何安装 React 的类型定义？",
+      "gold_doc": "docs/react/typescript.md",
+      "gold_anchor": "#adding-typescript-to-an-existing-react-project",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "setup.md#using-typescript",
+        "typescript.md#adding-typescript-to-an-existing-react-project",
+        "typescript.md#adding-typescript-to-an-existing-react-project"
+      ],
+      "x15_top3_anchors": [
+        "setup.md#using-typescript",
+        "typescript.md#adding-typescript-to-an-existing-react-project",
+        "typescript.md#top"
+      ]
+    },
+    {
+      "id": "react_050",
+      "domain": "React",
+      "query": "TypeScript 是什么？",
+      "gold_doc": "docs/react/setup.md",
+      "gold_anchor": "#using-typescript",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "typescript.md#further-learning",
+        "typescript.md#further-learning",
+        "typescript.md#further-learning"
+      ],
+      "x15_top3_anchors": [
+        "typescript.md#further-learning",
+        "setup.md#using-typescript",
+        "typescript.md#top"
+      ]
+    },
+    {
+      "id": "k8s_001",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中用于存放 SSH 身份认证凭据的内置 Secret 类型是什么？",
+      "gold_doc": "docs/kubernetes/配置/secret.md",
+      "gold_anchor": "#ssh-身份认证-secret-ssh-authentication-secrets",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "secret.md#ssh-authentication-secrets",
+        "secret.md#ssh-authentication-secrets",
+        "secret.md#ssh-authentication-secrets"
+      ],
+      "x15_top3_anchors": [
+        "secret.md#ssh-authentication-secrets",
+        "secret.md#basic-authentication-secret",
+        "secret.md#service-account-token-secrets"
+      ]
+    },
+    {
+      "id": "k8s_002",
+      "domain": "Kubernetes",
+      "query": "Kubernetes API 服务器连接到节点、Pod 或服务的默认通信方式安全吗？",
+      "gold_doc": "docs/kubernetes/架构/control-plane-node-communication.md",
+      "gold_anchor": "#api-服务器到节点-pod-和服务-api-server-to-nodes-pods-and-services",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "control-plane-node-communication.md#node-to-control-plane",
+        "control-plane-node-communication.md#node-to-control-plane",
+        "control-plane-node-communication.md#node-to-control-plane"
+      ],
+      "x15_top3_anchors": [
+        "control-plane-node-communication.md#node-to-control-plane",
+        "control-plane-node-communication.md#top",
+        "control-plane-node-communication.md#ssh-tunnels"
+      ]
+    },
+    {
+      "id": "k8s_003",
+      "domain": "Kubernetes",
+      "query": "如果我在Kubernetes中指定容器镜像时没有包含注册表主机名，Kubernetes会默认使用哪个注册表？",
+      "gold_doc": "docs/kubernetes/容器/images.md",
+      "gold_anchor": "#image-names",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "images.md#image-names",
+        "images.md#image-names",
+        "images.md#image-names"
+      ],
+      "x15_top3_anchors": [
+        "images.md#image-names",
+        "images.md#top",
+        "images.md#image-pull-policy"
+      ]
+    },
+    {
+      "id": "k8s_004",
+      "domain": "Kubernetes",
+      "query": "在 Kubernetes 中，为什么不应该尝试在准入期间变更镜像 Pod？",
+      "gold_doc": "docs/kubernetes/集群管理/admission-webhooks-good-practices.md",
+      "gold_anchor": "#不要更改不可变更的对象-dont-change-immutable-objects",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects",
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects",
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects"
+      ],
+      "x15_top3_anchors": [
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects",
+        "images.md#image-pull-policy",
+        "dynamic-resource-allocation.md#limitations"
+      ]
+    },
+    {
+      "id": "k8s_005",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中实现容器本地回路接口 lo 有哪些方式？",
+      "gold_doc": "docs/kubernetes/计算-存储-网络/network-plugins.md",
+      "gold_anchor": "#本地回路-cni-loopback-cni",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "network-plugins.md#loopback-cni",
+        "network-plugins.md#loopback-cni",
+        "network-plugins.md#installation"
+      ],
+      "x15_top3_anchors": [
+        "network-plugins.md#loopback-cni",
+        "network-plugins.md#installation",
+        "system-logs.md#top"
+      ]
+    },
+    {
+      "id": "k8s_006",
+      "domain": "Kubernetes",
+      "query": "在分配计算资源时，每个容器可以为CPU或内存指定哪两种类型的值？",
+      "gold_doc": "docs/kubernetes/规则/resource-quotas.md",
+      "gold_anchor": "#requests-compared-to-limits-requests-vs-limits",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "resource-quotas.md#requests-vs-limits",
+        "resource-quotas.md#requests-vs-limits",
+        "resource-quotas.md#top"
+      ],
+      "x15_top3_anchors": [
+        "resource-quotas.md#requests-vs-limits",
+        "resource-quotas.md#top",
+        "manage-resources-containers.md#how-pods-with-resource-limits-are-run"
+      ]
+    },
+    {
+      "id": "k8s_007",
+      "domain": "Kubernetes",
+      "query": "当Kubernetes集群的容量小于各命名空间配额总和时，系统如何应对资源竞争？",
+      "gold_doc": "docs/kubernetes/规则/resource-quotas.md",
+      "gold_anchor": "#kubernetes-resourcequota-的工作原理-how-kubernetes-resourcequotas-work",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "resource-quotas.md#how-kubernetes-resourcequotas-work",
+        "resource-quotas.md#how-kubernetes-resourcequotas-work",
+        "resource-quotas.md#how-kubernetes-resourcequotas-work"
+      ],
+      "x15_top3_anchors": [
+        "resource-quotas.md#how-kubernetes-resourcequotas-work",
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling",
+        "node-pressure-eviction.md#top"
+      ]
+    },
+    {
+      "id": "k8s_008",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中什么是 orphan 对象？",
+      "gold_doc": "docs/kubernetes/架构/garbage-collection.md",
+      "gold_anchor": "#orphaned-dependents",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "garbage-collection.md#background-deletion",
+        "garbage-collection.md#background-deletion",
+        "garbage-collection.md#background-deletion"
+      ],
+      "x15_top3_anchors": [
+        "garbage-collection.md#background-deletion",
+        "garbage-collection.md#orphaned-dependents",
+        "flow-control.md#maintenance-of-the-mandatory-and-suggested-configuration-objects"
+      ]
+    },
+    {
+      "id": "k8s_009",
+      "domain": "Kubernetes",
+      "query": "在设计 admission webhook 时，为什么不能假设 Kubernetes API 是稳定不变的？",
+      "gold_doc": "docs/kubernetes/集群管理/admission-webhooks-good-practices.md",
+      "gold_anchor": "#plan-for-future-updates-to-fields-plan-future-field-updates",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "admission-webhooks-good-practices.md#plan-future-field-updates",
+        "admission-webhooks-good-practices.md#plan-future-field-updates",
+        "admission-webhooks-good-practices.md#fail-open-validate-final-state"
+      ],
+      "x15_top3_anchors": [
+        "admission-webhooks-good-practices.md#plan-future-field-updates",
+        "admission-webhooks-good-practices.md#fail-open-validate-final-state",
+        "admission-webhooks-good-practices.md#top"
+      ]
+    },
+    {
+      "id": "k8s_010",
+      "domain": "Kubernetes",
+      "query": "云控制器管理器对 ServiceAccount 资源拥有什么权限？",
+      "gold_doc": "docs/kubernetes/架构/cloud-controller.md",
+      "gold_anchor": "#其他-authorization-miscellaneous",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "cloud-controller.md#authorization-miscellaneous",
+        "cloud-controller.md#authorization-miscellaneous",
+        "cloud-controller.md#authorization-miscellaneous"
+      ],
+      "x15_top3_anchors": [
+        "cloud-controller.md#authorization-miscellaneous",
+        "cloud-controller.md#authorization-service-controller",
+        "cloud-controller.md#design"
+      ]
+    },
+    {
+      "id": "k8s_011",
+      "domain": "Kubernetes",
+      "query": "Windows节点在内存耗尽时如何处理进程？",
+      "gold_doc": "docs/kubernetes/配置/windows-resource-management.md",
+      "gold_anchor": "#memory-management-resource-management-memory",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "windows-resource-management.md#resource-management-memory",
+        "windows-resource-management.md#resource-management-memory",
+        "windows-resource-management.md#resource-management-memory"
+      ],
+      "x15_top3_anchors": [
+        "windows-resource-management.md#resource-management-memory",
+        "node-pressure-eviction.md#node-out-of-memory-behavior",
+        "node-pressure-eviction.md#top"
+      ]
+    },
+    {
+      "id": "k8s_012",
+      "domain": "Kubernetes",
+      "query": "如果修改了Kubernetes API服务器中的镜像Pod，静态Pod会受到影响吗？",
+      "gold_doc": "docs/kubernetes/集群管理/admission-webhooks-good-practices.md",
+      "gold_anchor": "#don-t-change-immutable-objects-dont-change-immutable-objects",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects",
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects",
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects"
+      ],
+      "x15_top3_anchors": [
+        "admission-webhooks-good-practices.md#dont-change-immutable-objects",
+        "admission-webhooks-good-practices.md#prevent-webhook-self-trigger",
+        "images.md#image-pull-policy"
+      ]
+    },
+    {
+      "id": "k8s_013",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中节点关闭有哪两种类型？",
+      "gold_doc": "docs/kubernetes/集群管理/node-shutdown.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "node-shutdown.md#top",
+        "garbage-collection.md#cascading-deletion",
+        "garbage-collection.md#cascading-deletion"
+      ],
+      "x15_top3_anchors": [
+        "node-shutdown.md#top",
+        "garbage-collection.md#cascading-deletion",
+        "node-shutdown.md#top"
+      ]
+    },
+    {
+      "id": "k8s_014",
+      "domain": "Kubernetes",
+      "query": "ConfigMap 能否用来存储机密数据？",
+      "gold_doc": "docs/kubernetes/配置/configmap.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "configmap.md#top",
+        "configmap.md#motivation",
+        "configmap.md#motivation"
+      ],
+      "x15_top3_anchors": [
+        "configmap.md#top",
+        "configmap.md#motivation",
+        "configmap.md#using-configmaps"
+      ]
+    },
+    {
+      "id": "k8s_015",
+      "domain": "Kubernetes",
+      "query": "如何禁用kubelet在CGroup v1节点上的启动限制？",
+      "gold_doc": "docs/kubernetes/架构/cgroups.md",
+      "gold_anchor": "#弃用-cgroup-v1",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "cgroups.md#top",
+        "cgroups.md#top",
+        "cgroups.md#top"
+      ],
+      "x15_top3_anchors": [
+        "cgroups.md#top",
+        "node-resource-managers.md#cpu-policy-static--options",
+        "nodes.md#manual-node-administration"
+      ]
+    },
+    {
+      "id": "k8s_016",
+      "domain": "Kubernetes",
+      "query": "kubelet 如何报告 Pod 的资源使用情况？",
+      "gold_doc": "docs/kubernetes/配置/manage-resources-containers.md",
+      "gold_anchor": "#监控计算和内存资源用量-monitoring-compute-memory-resource-usage",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage",
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage",
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage"
+      ],
+      "x15_top3_anchors": [
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage",
+        "manage-resources-containers.md#how-pods-with-resource-limits-are-run",
+        "control-plane-node-communication.md#api-server-to-kubelet"
+      ]
+    },
+    {
+      "id": "k8s_017",
+      "domain": "Kubernetes",
+      "query": "在节点上检查 Pod 的内存 cgroups 时，如何确定 Pod 的标识符？",
+      "gold_doc": "docs/kubernetes/调度与驱逐/pod-overhead.md",
+      "gold_anchor": "#验证-pod-cgroup-限制-verify-pod-cgroup-limits",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "pod-overhead.md#verify-pod-cgroup-limits",
+        "pod-overhead.md#verify-pod-cgroup-limits",
+        "pod-overhead.md#top"
+      ],
+      "x15_top3_anchors": [
+        "pod-overhead.md#verify-pod-cgroup-limits",
+        "pod-overhead.md#top",
+        "topology-spread-constraints.md#example-one-topologyspreadconstraint"
+      ]
+    },
+    {
+      "id": "k8s_018",
+      "domain": "Kubernetes",
+      "query": "如果我创建Pod时省略了imagePullPolicy字段，并且容器镜像的标签是:latest，那么imagePullPolicy会被自动设置成什么？",
+      "gold_doc": "docs/kubernetes/容器/images.md",
+      "gold_anchor": "#默认镜像拉取策略-imagepullpolicy-defaulting",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "images.md#imagepullpolicy-defaulting",
+        "images.md#imagepullpolicy-defaulting",
+        "images.md#imagepullpolicy-defaulting"
+      ],
+      "x15_top3_anchors": [
+        "images.md#imagepullpolicy-defaulting",
+        "images.md#required-image-pull",
+        "images.md#image-pull-policy"
+      ]
+    },
+    {
+      "id": "k8s_019",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中 imagePullPolicy 设置为 Never 时，kubelet 会如何处理镜像拉取？",
+      "gold_doc": "docs/kubernetes/容器/images.md",
+      "gold_anchor": "#镜像拉取策略-image-pull-policy",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "images.md#pre-pulled-images",
+        "images.md#pre-pulled-images",
+        "images.md#pre-pulled-images"
+      ],
+      "x15_top3_anchors": [
+        "images.md#pre-pulled-images",
+        "images.md#image-pull-policy",
+        "images.md#imagepullpolicy-defaulting"
+      ]
+    },
+    {
+      "id": "k8s_020",
+      "domain": "Kubernetes",
+      "query": "Kubernetes节点控制器在节点从云平台中删除时会做什么？",
+      "gold_doc": "docs/kubernetes/架构/cloud-controller.md",
+      "gold_anchor": "#节点控制器-node-controller",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "garbage-collection.md#cascading-deletion",
+        "garbage-collection.md#cascading-deletion",
+        "garbage-collection.md#cascading-deletion"
+      ],
+      "x15_top3_anchors": [
+        "garbage-collection.md#cascading-deletion",
+        "garbage-collection.md#background-deletion",
+        "nodes.md#management"
+      ]
+    },
+    {
+      "id": "k8s_021",
+      "domain": "Kubernetes",
+      "query": "如何为节点设置Pod中的进程数量限制？",
+      "gold_doc": "docs/kubernetes/规则/pid-limiting.md",
+      "gold_anchor": "#pod-级别-pid-限制-pod-pid-limits",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "pid-limiting.md#pod-pid-limits",
+        "pid-limiting.md#pod-pid-limits",
+        "assign-pod-node.md#top"
+      ],
+      "x15_top3_anchors": [
+        "pid-limiting.md#pod-pid-limits",
+        "assign-pod-node.md#top",
+        "manage-resources-containers.md#pid-limiting"
+      ]
+    },
+    {
+      "id": "k8s_022",
+      "domain": "Kubernetes",
+      "query": "在 Kubernetes 中，使用 CRI 容器运行时时，为什么 Pod 可能会因存储配额耗尽而被意外驱逐？",
+      "gold_doc": "docs/kubernetes/规则/resource-quotas.md",
+      "gold_anchor": "#本地临时存储的配额",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "resource-quotas.md#top",
+        "resource-quotas.md#top",
+        "resource-quotas.md#top"
+      ],
+      "x15_top3_anchors": [
+        "resource-quotas.md#top",
+        "manage-resources-containers.md#how-pods-with-resource-limits-are-run",
+        "manage-resources-containers.md#my-container-is-terminated"
+      ]
+    },
+    {
+      "id": "k8s_023",
+      "domain": "Kubernetes",
+      "query": "如果 PreBind 插件执行过程中出错，Kubernetes 调度器会怎么处理这个 Pod？",
+      "gold_doc": "docs/kubernetes/调度与驱逐/scheduling-framework.md",
+      "gold_anchor": "#prebind-pre-bind-2",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "scheduling-framework.md#pre-bind",
+        "scheduling-framework.md#pre-bind",
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling"
+      ],
+      "x15_top3_anchors": [
+        "scheduling-framework.md#pre-bind",
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling",
+        "liveness-readiness-startup-probes.md#readiness-probe"
+      ]
+    },
+    {
+      "id": "k8s_024",
+      "domain": "Kubernetes",
+      "query": "在 Kubernetes 中，集群层面的扩展资源由什么组件管理？",
+      "gold_doc": "docs/kubernetes/配置/manage-resources-containers.md",
+      "gold_anchor": "#集群层面的扩展资源-cluster-level-extended-resources",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "manage-resources-containers.md#cluster-level-extended-resources",
+        "manage-resources-containers.md#cluster-level-extended-resources",
+        "manage-resources-containers.md#cluster-level-extended-resources"
+      ],
+      "x15_top3_anchors": [
+        "manage-resources-containers.md#cluster-level-extended-resources",
+        "controller.md#direct-control",
+        "manage-resources-containers.md#extended-resources"
+      ]
+    },
+    {
+      "id": "k8s_025",
+      "domain": "Kubernetes",
+      "query": "在Kubernetes中，如果我创建了一个Deployment但没有明确指定镜像拉取策略，默认的策略是什么？",
+      "gold_doc": "docs/kubernetes/容器/images.md",
+      "gold_anchor": "#updating-images",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "images.md#imagepullpolicy-defaulting",
+        "images.md#imagepullpolicy-defaulting",
+        "images.md#imagepullpolicy-defaulting"
+      ],
+      "x15_top3_anchors": [
+        "images.md#imagepullpolicy-defaulting",
+        "images.md#updating-images",
+        "images.md#pre-pulled-images"
+      ]
+    },
+    {
+      "id": "k8s_026",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中定义了哪几种类型的探针？",
+      "gold_doc": "docs/kubernetes/配置/liveness-readiness-startup-probes.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "liveness-readiness-startup-probes.md#top",
+        "secret.md#secret-types",
+        "secret.md#secret-types"
+      ],
+      "x15_top3_anchors": [
+        "liveness-readiness-startup-probes.md#top",
+        "secret.md#secret-types",
+        "observability.md#top"
+      ]
+    },
+    {
+      "id": "k8s_027",
+      "domain": "Kubernetes",
+      "query": "LimitRange 是否会检查所应用的默认值的一致性？",
+      "gold_doc": "docs/kubernetes/规则/limit-range.md",
+      "gold_anchor": "#pod-的-limitrange-和准入检查-limitrange-and-admission-checks-for-pod",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "limit-range.md#limitrange-and-admission-checks-for-pod",
+        "limit-range.md#limitrange-and-admission-checks-for-pod",
+        "limit-range.md#limitrange-and-admission-checks-for-pod"
+      ],
+      "x15_top3_anchors": [
+        "limit-range.md#limitrange-and-admission-checks-for-pod",
+        "limit-range.md#top",
+        "limit-range.md#constraints-on-resource-limits-and-requests"
+      ]
+    },
+    {
+      "id": "k8s_028",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中如何限制 Admission Webhook 的作用范围以避免不必要的触发？",
+      "gold_doc": "docs/kubernetes/集群管理/admission-webhooks-good-practices.md",
+      "gold_anchor": "#请求过滤-request-filtering",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "admission-webhooks-good-practices.md#ha-deployment",
+        "admission-webhooks-good-practices.md#ha-deployment",
+        "admission-webhooks-good-practices.md#ha-deployment"
+      ],
+      "x15_top3_anchors": [
+        "admission-webhooks-good-practices.md#ha-deployment",
+        "admission-webhooks-good-practices.md#request-filtering",
+        "admission-webhooks-good-practices.md#patch-required-fields"
+      ]
+    },
+    {
+      "id": "k8s_029",
+      "domain": "Kubernetes",
+      "query": "Secret 在什么情况下不能被编辑？",
+      "gold_doc": "docs/kubernetes/配置/secret.md",
+      "gold_anchor": "#editing-a-secret",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "secret.md#editing-a-secret",
+        "secret.md#editing-a-secret",
+        "secret.md#editing-a-secret"
+      ],
+      "x15_top3_anchors": [
+        "secret.md#editing-a-secret",
+        "secret.md#restriction-data-size",
+        "secret.md#secret-immutable-create"
+      ]
+    },
+    {
+      "id": "k8s_030",
+      "domain": "Kubernetes",
+      "query": "对于CustomResourceDefinitions，推荐用什么方法来验证字段值和设置默认值？",
+      "gold_doc": "docs/kubernetes/集群管理/admission-webhooks-good-practices.md",
+      "gold_anchor": "#use-built-in-validation-and-defaulting-for-customresourcedefinitions-no-crd-validation-defaulting",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "admission-webhooks-good-practices.md#choose-admission-mechanism",
+        "admission-webhooks-good-practices.md#choose-admission-mechanism",
+        "admission-webhooks-good-practices.md#choose-admission-mechanism"
+      ],
+      "x15_top3_anchors": [
+        "admission-webhooks-good-practices.md#choose-admission-mechanism",
+        "admission-webhooks-good-practices.md#no-crd-validation-defaulting",
+        "resource-quotas.md#how-kubernetes-resourcequotas-work"
+      ]
+    },
+    {
+      "id": "k8s_031",
+      "domain": "Kubernetes",
+      "query": "Pod Overhead 是什么？",
+      "gold_doc": "docs/kubernetes/调度与驱逐/pod-overhead.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "runtime-class.md#scheduling",
+        "pod-overhead.md#usage-example",
+        "runtime-class.md#scheduling"
+      ],
+      "x15_top3_anchors": [
+        "runtime-class.md#scheduling",
+        "pod-overhead.md#usage-example",
+        "pod-overhead.md#top"
+      ]
+    },
+    {
+      "id": "k8s_032",
+      "domain": "Kubernetes",
+      "query": "在 Kubernetes 中，如果设置了 PID 限制，当工作负载触及限制值时会发生什么？",
+      "gold_doc": "docs/kubernetes/规则/pid-limiting.md",
+      "gold_anchor": "#基于-pid-的驱逐-pid-based-eviction",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "pid-limiting.md#pid-based-eviction",
+        "pid-limiting.md#pid-based-eviction",
+        "pid-limiting.md#pod-pid-limits"
+      ],
+      "x15_top3_anchors": [
+        "pid-limiting.md#pid-based-eviction",
+        "pid-limiting.md#pod-pid-limits",
+        "pid-limiting.md#top"
+      ]
+    },
+    {
+      "id": "k8s_033",
+      "domain": "Kubernetes",
+      "query": "在 Kubernetes 中，节点在什么情况下会被考虑进行抢占？",
+      "gold_doc": "docs/kubernetes/调度与驱逐/pod-priority-preemption.md",
+      "gold_anchor": "#inter-pod-affinity-on-lower-priority-pods",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "pod-priority-preemption.md#top",
+        "pod-priority-preemption.md#top",
+        "pod-priority-preemption.md#top"
+      ],
+      "x15_top3_anchors": [
+        "pod-priority-preemption.md#top",
+        "pod-priority-preemption.md#top",
+        "dynamic-resource-allocation.md#limitations"
+      ]
+    },
+    {
+      "id": "k8s_034",
+      "domain": "Kubernetes",
+      "query": "kubelet 如何报告 Pod 的资源使用情况？",
+      "gold_doc": "docs/kubernetes/配置/manage-resources-containers.md",
+      "gold_anchor": "#monitoring-compute-memory-resource-usage",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage",
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage",
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage"
+      ],
+      "x15_top3_anchors": [
+        "manage-resources-containers.md#monitoring-compute-memory-resource-usage",
+        "manage-resources-containers.md#how-pods-with-resource-limits-are-run",
+        "control-plane-node-communication.md#api-server-to-kubelet"
+      ]
+    },
+    {
+      "id": "k8s_035",
+      "domain": "Kubernetes",
+      "query": "如何在Kubernetes中启用Pod的流量整形支持？",
+      "gold_doc": "docs/kubernetes/计算-存储-网络/network-plugins.md",
+      "gold_anchor": "#support-traffic-shaping",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "manage-resources-containers.md#top",
+        "manage-resources-containers.md#top",
+        "topology-spread-constraints.md#known-limitations"
+      ],
+      "x15_top3_anchors": [
+        "manage-resources-containers.md#top",
+        "topology-spread-constraints.md#known-limitations",
+        "manage-resources-containers.md#top"
+      ]
+    },
+    {
+      "id": "k8s_036",
+      "domain": "Kubernetes",
+      "query": "为什么API服务器中的某些请求不受流控限制？",
+      "gold_doc": "docs/kubernetes/集群管理/flow-control.md",
+      "gold_anchor": "#exempt-requests",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "flow-control.md#exempt-requests",
+        "flow-control.md#exempt-requests",
+        "flow-control.md#queuing"
+      ],
+      "x15_top3_anchors": [
+        "flow-control.md#exempt-requests",
+        "flow-control.md#queuing",
+        "flow-control.md#top"
+      ]
+    },
+    {
+      "id": "k8s_037",
+      "domain": "Kubernetes",
+      "query": "自动扩缩器配置如何影响所置备节点的具体规格？",
+      "gold_doc": "docs/kubernetes/集群管理/node-autoscaling.md",
+      "gold_anchor": "#node-constraints-imposed-by-autoscaler-configuration-provisioning-node-constraints",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "topology-spread-constraints.md#known-limitations",
+        "topology-spread-constraints.md#known-limitations",
+        "topology-spread-constraints.md#known-limitations"
+      ],
+      "x15_top3_anchors": [
+        "topology-spread-constraints.md#known-limitations",
+        "node-autoscaling.md#top",
+        "node-autoscaling.md#provisioning-node-constraints"
+      ]
+    },
+    {
+      "id": "k8s_038",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 中，名为 foo 的服务公开了一组运行容器 bar 的 Pod，会定义哪些环境变量？",
+      "gold_doc": "docs/kubernetes/容器/container-environment.md",
+      "gold_anchor": "#集群信息",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "container-environment.md#top",
+        "container-environment.md#top",
+        "container-environment.md#top"
+      ],
+      "x15_top3_anchors": [
+        "container-environment.md#top",
+        "container-environment.md#top",
+        "topology-spread-constraints.md#example-one-topologyspreadconstraint"
+      ]
+    },
+    {
+      "id": "k8s_039",
+      "domain": "Kubernetes",
+      "query": "在 Kubernetes 中，如何安全地限制对 mutating webhooks 的访问？",
+      "gold_doc": "docs/kubernetes/集群管理/admission-webhooks-good-practices.md",
+      "gold_anchor": "#limit-edit-access-to-mutating-webhooks-limit-edit-access",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "admission-webhooks-good-practices.md#install-enable-mutating-webhook",
+        "admission-webhooks-good-practices.md#install-enable-mutating-webhook",
+        "admission-webhooks-good-practices.md#install-enable-mutating-webhook"
+      ],
+      "x15_top3_anchors": [
+        "admission-webhooks-good-practices.md#install-enable-mutating-webhook",
+        "admission-webhooks-good-practices.md#limit-edit-access",
+        "admission-webhooks-good-practices.md#choose-admission-mechanism"
+      ]
+    },
+    {
+      "id": "k8s_040",
+      "domain": "Kubernetes",
+      "query": "APF 如何判定 watch 请求的席位占用时长？",
+      "gold_doc": "docs/kubernetes/集群管理/flow-control.md",
+      "gold_anchor": "#watch-请求的执行时间调整-execution-time-tweak-for-watch-requests",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "flow-control.md#execution-time-tweak-for-watch-requests",
+        "flow-control.md#execution-time-tweak-for-watch-requests",
+        "flow-control.md#execution-time-tweak-for-watch-requests"
+      ],
+      "x15_top3_anchors": [
+        "flow-control.md#execution-time-tweak-for-watch-requests",
+        "flow-control.md#good-practice-workload-modifications",
+        "flow-control.md#top"
+      ]
+    },
+    {
+      "id": "k8s_041",
+      "domain": "Kubernetes",
+      "query": "如何启用 Kubernetes API 服务器的混合版本代理功能？",
+      "gold_doc": "docs/kubernetes/架构/mixed-version-proxy.md",
+      "gold_anchor": "#启用对等聚合发现和混合版本代理",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "mixed-version-proxy.md#top",
+        "mixed-version-proxy.md#mixed-version-proxying",
+        "mixed-version-proxy.md#mixed-version-proxying"
+      ],
+      "x15_top3_anchors": [
+        "mixed-version-proxy.md#top",
+        "mixed-version-proxy.md#mixed-version-proxying",
+        "mixed-version-proxy.md#peer-aggregated-discovery"
+      ]
+    },
+    {
+      "id": "k8s_042",
+      "domain": "Kubernetes",
+      "query": "如何检查集群中是否存在任何可变准入 Webhook？",
+      "gold_doc": "docs/kubernetes/集群管理/admission-webhooks-good-practices.md",
+      "gold_anchor": "#identify-whether-you-use-admission-webhooks-identify-admission-webhooks",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "admission-webhooks-good-practices.md#identify-admission-webhooks",
+        "admission-webhooks-good-practices.md#identify-admission-webhooks",
+        "admission-webhooks-good-practices.md#identify-admission-webhooks"
+      ],
+      "x15_top3_anchors": [
+        "admission-webhooks-good-practices.md#identify-admission-webhooks",
+        "admission-webhooks-good-practices.md#why-good-webhook-design-matters",
+        "admission-webhooks-good-practices.md#validate-mutations"
+      ]
+    },
+    {
+      "id": "k8s_043",
+      "domain": "Kubernetes",
+      "query": "如何启用Kubernetes的设备健康监控功能？",
+      "gold_doc": "docs/kubernetes/调度与驱逐/dynamic-resource-allocation.md",
+      "gold_anchor": "#设备健康监控-device-health-monitoring",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "dynamic-resource-allocation.md#device-health-monitoring",
+        "dynamic-resource-allocation.md#device-health-monitoring",
+        "dynamic-resource-allocation.md#device-health-monitoring"
+      ],
+      "x15_top3_anchors": [
+        "dynamic-resource-allocation.md#device-health-monitoring",
+        "dynamic-resource-allocation.md#observability-dynamic-resources",
+        "device-plugins.md#grpc-endpoint-getallocatableresources"
+      ]
+    },
+    {
+      "id": "k8s_044",
+      "domain": "Kubernetes",
+      "query": "在Kubernetes中，自定义workload使用Lease时，应该如何命名Lease？",
+      "gold_doc": "docs/kubernetes/架构/leases.md",
+      "gold_anchor": "#workloads-custom-workload",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "leases.md#api-server-identity",
+        "leases.md#api-server-identity",
+        "leases.md#api-server-identity"
+      ],
+      "x15_top3_anchors": [
+        "leases.md#api-server-identity",
+        "leases.md#custom-workload",
+        "coordinated-leader-election.md#leader-selection-for-kubernetes-components"
+      ]
+    },
+    {
+      "id": "k8s_045",
+      "domain": "Kubernetes",
+      "query": "如何在Kubernetes中为系统整体和Kubernetes系统守护进程预留进程ID数量？",
+      "gold_doc": "docs/kubernetes/规则/pid-limiting.md",
+      "gold_anchor": "#node-pid-limits",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "pid-limiting.md#node-pid-limits",
+        "pid-limiting.md#node-pid-limits",
+        "pid-limiting.md#top"
+      ],
+      "x15_top3_anchors": [
+        "pid-limiting.md#node-pid-limits",
+        "pid-limiting.md#top",
+        "pid-limiting.md#top"
+      ]
+    },
+    {
+      "id": "k8s_046",
+      "domain": "Kubernetes",
+      "query": "在kubelet配置中，samplingRatePerMillion设置为100时，表示每多少个请求记录一个追踪span？",
+      "gold_doc": "docs/kubernetes/集群管理/system-traces.md",
+      "gold_anchor": "#enabling-tracing-in-the-kubelet",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "system-traces.md#enabling-tracing-in-the-kubelet",
+        "system-traces.md#enabling-tracing-in-the-kubelet",
+        "system-traces.md#enabling-tracing-in-the-kubelet"
+      ],
+      "x15_top3_anchors": [
+        "system-traces.md#enabling-tracing-in-the-kubelet",
+        "system-traces.md#kubelet-traces",
+        "system-traces.md#enabling-tracing-in-the-kube-apiserver"
+      ]
+    },
+    {
+      "id": "k8s_047",
+      "domain": "Kubernetes",
+      "query": "怎么为Kubernetes集群生成证书？",
+      "gold_doc": "docs/kubernetes/集群管理/certificates.md",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "control-plane-node-communication.md#node-to-control-plane",
+        "control-plane-node-communication.md#node-to-control-plane",
+        "control-plane-node-communication.md#node-to-control-plane"
+      ],
+      "x15_top3_anchors": [
+        "control-plane-node-communication.md#node-to-control-plane",
+        "certificates.md#top",
+        "secret.md#use-case-pod-with-ssh-keys"
+      ]
+    },
+    {
+      "id": "k8s_048",
+      "domain": "Kubernetes",
+      "query": "如何检查 Kubernetes 中动态分配资源的状态？",
+      "gold_doc": "docs/kubernetes/调度与驱逐/dynamic-resource-allocation.md",
+      "gold_anchor": "#动态资源的可观测性-observability-dynamic-resources",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling",
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling",
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling"
+      ],
+      "x15_top3_anchors": [
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling",
+        "device-plugins.md#grpc-endpoint-list",
+        "device-plugins.md#grpc-endpoint-get"
+      ]
+    },
+    {
+      "id": "k8s_049",
+      "domain": "Kubernetes",
+      "query": "node controller 在什么情况下会更新 Node 对象？",
+      "gold_doc": "docs/kubernetes/架构/cloud-controller.md",
+      "gold_anchor": "#node-controller",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "cloud-controller.md#functions-of-the-ccm",
+        "cloud-controller.md#node-controller",
+        "cloud-controller.md#node-controller"
+      ],
+      "x15_top3_anchors": [
+        "cloud-controller.md#functions-of-the-ccm",
+        "cloud-controller.md#node-controller",
+        "controller.md#control-via-API-server"
+      ]
+    },
+    {
+      "id": "k8s_050",
+      "domain": "Kubernetes",
+      "query": "在 Kubernetes 的 Linux 节点上，memory.available 信号的值是从哪里获取的？",
+      "gold_doc": "docs/kubernetes/调度与驱逐/node-pressure-eviction.md",
+      "gold_anchor": "#内存信号-memory-signals",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "node-pressure-eviction.md#eviction-signals",
+        "node-pressure-eviction.md#eviction-signals",
+        "node-pressure-eviction.md#eviction-signals"
+      ],
+      "x15_top3_anchors": [
+        "node-pressure-eviction.md#eviction-signals",
+        "node-pressure-eviction.md#memory-signals",
+        "manage-resources-containers.md#my-pods-are-pending-with-event-message-failedscheduling"
+      ]
+    },
+    {
+      "id": "spring_001",
+      "domain": "Spring Framework",
+      "query": "DataBufferFactory 是用来做什么的？",
+      "gold_doc": "docs/spring/databuffer-codec.adoc",
+      "gold_anchor": "#databufferfactory",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "databuffer-codec.adoc#databuffers-factory",
+        "databuffer-codec.adoc#databuffers-factory",
+        "databuffer-codec.adoc#databuffers-factory"
+      ],
+      "x15_top3_anchors": [
+        "databuffer-codec.adoc#databuffers-factory",
+        "webflux-websocket.adoc#webflux-websocket-databuffer",
+        "databuffer-codec.adoc#databuffers"
+      ]
+    },
+    {
+      "id": "spring_002",
+      "domain": "Spring Framework",
+      "query": "`@RegisterReflection`注解的主要作用是什么？",
+      "gold_doc": "docs/spring/aot.adoc",
+      "gold_anchor": "#registerreflection",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "aot.adoc#reflective",
+        "aot.adoc#reflective",
+        "aot.adoc#reflective"
+      ],
+      "x15_top3_anchors": [
+        "aot.adoc#reflective",
+        "aot.adoc#registerreflection",
+        "resilience.adoc#resilience"
+      ]
+    },
+    {
+      "id": "spring_003",
+      "domain": "Spring Framework",
+      "query": "ServletContextResource 什么时候支持 File 访问？",
+      "gold_doc": "docs/spring/resources.adoc",
+      "gold_anchor": "#servletcontextresource",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "resources.adoc#resources-implementations-pathresource",
+        "resources.adoc#resources-implementations-pathresource",
+        "resources.adoc#resources-implementations-servletcontextresource"
+      ],
+      "x15_top3_anchors": [
+        "resources.adoc#resources-implementations-pathresource",
+        "resources.adoc#resources-implementations-servletcontextresource",
+        "resources.adoc#resources-implementations-classpathresource"
+      ]
+    },
+    {
+      "id": "spring_004",
+      "domain": "Spring Framework",
+      "query": "RestClient在错误响应处理上与RestTemplate相比有什么不同？",
+      "gold_doc": "docs/spring/rest-clients.adoc",
+      "gold_anchor": "#migrating-to-restclient",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rest-clients.adoc#migrating-to-restclient",
+        "rest-clients.adoc#migrating-to-restclient",
+        "rest-clients.adoc#migrating-to-restclient"
+      ],
+      "x15_top3_anchors": [
+        "rest-clients.adoc#migrating-to-restclient",
+        "webmvc-client.adoc#webmvc-resttemplate",
+        "rest-clients.adoc#rest-resttemplate"
+      ]
+    },
+    {
+      "id": "spring_005",
+      "domain": "Spring Framework",
+      "query": "在WebFlux应用中，谁负责释放Encoder输出的数据缓冲区？",
+      "gold_doc": "docs/spring/databuffer-codec.adoc",
+      "gold_anchor": "#using-databuffer",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "databuffer-codec.adoc#databuffers-using",
+        "databuffer-codec.adoc#databuffers-using",
+        "databuffer-codec.adoc#databuffers-using"
+      ],
+      "x15_top3_anchors": [
+        "databuffer-codec.adoc#databuffers-using",
+        "webflux-websocket.adoc#webflux-websocket-databuffer",
+        "webflux-functional.adoc#webflux-fn-serving-resources"
+      ]
+    },
+    {
+      "id": "spring_006",
+      "domain": "Spring Framework",
+      "query": "在 Spring 中，如何强制使用 ClassPathResource 加载资源？",
+      "gold_doc": "docs/spring/resources.adoc",
+      "gold_anchor": "#the-resourceloader-interface",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "resources.adoc#resources-implementations-urlresource",
+        "resources.adoc#resources-implementations-urlresource",
+        "resources.adoc#resources-implementations-urlresource"
+      ],
+      "x15_top3_anchors": [
+        "resources.adoc#resources-implementations-urlresource",
+        "resources.adoc#resources-resourceloader",
+        "resources.adoc#resources-as-dependencies"
+      ]
+    },
+    {
+      "id": "spring_007",
+      "domain": "Spring Framework",
+      "query": "代理服务器如何传递原始请求的信息？",
+      "gold_doc": "docs/spring/forwarded-headers.adoc",
+      "gold_anchor": "#top",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "forwarded-headers.adoc#x-forwarded-host",
+        "forwarded-headers.adoc#x-forwarded-for",
+        "forwarded-headers.adoc#x-forwarded-proto"
+      ],
+      "x15_top3_anchors": [
+        "forwarded-headers.adoc#x-forwarded-host",
+        "forwarded-headers.adoc#x-forwarded-for",
+        "forwarded-headers.adoc#x-forwarded-proto"
+      ]
+    },
+    {
+      "id": "spring_008",
+      "domain": "Spring Framework",
+      "query": "Spring cron 表达式中，字段 `L` 在星期几字段里代表什么意思？",
+      "gold_doc": "docs/spring/scheduling.adoc",
+      "gold_anchor": "#cron-expressions",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "scheduling.adoc#scheduling-cron-expression",
+        "scheduling.adoc#scheduling-cron-expression",
+        "scheduling.adoc#scheduling-cron-expression"
+      ],
+      "x15_top3_anchors": [
+        "scheduling.adoc#scheduling-cron-expression",
+        "scheduling.adoc#macros",
+        "scheduling.adoc#scheduling-annotation-support-scheduled"
+      ]
+    },
+    {
+      "id": "spring_009",
+      "domain": "Spring Framework",
+      "query": "在 Spring REST Client 中发送 multipart 数据时，如何为某个部分指定自定义的 Content-Type？",
+      "gold_doc": "docs/spring/rest-clients.adoc",
+      "gold_anchor": "#multipart",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rest-clients.adoc#multipart",
+        "rest-clients.adoc#multipart",
+        "rest-clients.adoc#multipart"
+      ],
+      "x15_top3_anchors": [
+        "rest-clients.adoc#multipart",
+        "webflux-functional.adoc#webflux-fn-request",
+        "extracting-state-logic-into-a-reducer.md#step-1-move-from-setting-state-to-dispatching-actions"
+      ]
+    },
+    {
+      "id": "spring_010",
+      "domain": "Spring Framework",
+      "query": "在 Spring WebFlux 的功能端点中，嵌套路由中定义的过滤器是否应用于顶级路由？",
+      "gold_doc": "docs/spring/webflux-functional.adoc",
+      "gold_anchor": "#filtering-handler-functions",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "observability.adoc#servlet-applications",
+        "observability.adoc#servlet-applications",
+        "observability.adoc#servlet-applications"
+      ],
+      "x15_top3_anchors": [
+        "observability.adoc#servlet-applications",
+        "mixed-version-proxy.md#mixed-version-proxying",
+        "admission-webhooks-good-practices.md#filter-match-conditions"
+      ]
+    },
+    {
+      "id": "spring_011",
+      "domain": "Spring Framework",
+      "query": "如何指定 @Scheduled 注解中使用的时间单位？",
+      "gold_doc": "docs/spring/scheduling.adoc",
+      "gold_anchor": "#the-scheduled-annotation",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "scheduling.adoc#scheduling-enable-annotation-support",
+        "scheduling.adoc#scheduling-enable-annotation-support",
+        "scheduling.adoc#scheduling-enable-annotation-support"
+      ],
+      "x15_top3_anchors": [
+        "scheduling.adoc#scheduling-enable-annotation-support",
+        "observability.adoc#using-custom-observation-conventions",
+        "scheduling.adoc#scheduling-annotation-support-scheduled"
+      ]
+    },
+    {
+      "id": "spring_012",
+      "domain": "Spring Framework",
+      "query": "如何为@Scheduled任务启用观测记录？",
+      "gold_doc": "docs/spring/observability.adoc",
+      "gold_anchor": "#scheduled-tasks-instrumentation",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "observability.adoc#scheduled-tasks-instrumentation",
+        "observability.adoc#scheduled-tasks-instrumentation",
+        "observability.adoc#scheduled-tasks-instrumentation"
+      ],
+      "x15_top3_anchors": [
+        "observability.adoc#scheduled-tasks-instrumentation",
+        "observability.adoc#using-custom-observation-conventions",
+        "scheduling.adoc#scheduling-enable-annotation-support"
+      ]
+    },
+    {
+      "id": "spring_013",
+      "domain": "Spring Framework",
+      "query": "@Async注解的value属性可以接受哪些值？",
+      "gold_doc": "docs/spring/scheduling.adoc",
+      "gold_anchor": "#executor-qualification-with-async",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "scheduling.adoc#scheduling-annotation-support-scheduled-reactive",
+        "scheduling.adoc#scheduling-annotation-support-scheduled-reactive",
+        "scheduling.adoc#scheduling-annotation-support-scheduled-reactive"
+      ],
+      "x15_top3_anchors": [
+        "scheduling.adoc#scheduling-annotation-support-scheduled-reactive",
+        "scheduling.adoc#scheduling-annotation-support-qualification",
+        "scheduling.adoc#scheduling-annotation-support-async"
+      ]
+    },
+    {
+      "id": "spring_014",
+      "domain": "Spring Framework",
+      "query": "Trigger接口的基本思想是什么？",
+      "gold_doc": "docs/spring/scheduling.adoc",
+      "gold_anchor": "#trigger-interface",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "scheduling.adoc#scheduling-trigger-interface",
+        "scheduling.adoc#scheduling-trigger-interface",
+        "scheduling.adoc#scheduling-trigger-interface"
+      ],
+      "x15_top3_anchors": [
+        "scheduling.adoc#scheduling-trigger-interface",
+        "scheduling.adoc#scheduling-task-scheduler",
+        "scheduling.adoc#scheduling-trigger-implementations"
+      ]
+    },
+    {
+      "id": "spring_015",
+      "domain": "Spring Framework",
+      "query": "在Spring Framework中，如何使用RetryListener来监控重试过程中的异常和结果？",
+      "gold_doc": "docs/spring/resilience.adoc",
+      "gold_anchor": "#programmatic-retry-support",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "resilience.adoc#resilience-programmatic-retry",
+        "resilience.adoc#resilience-programmatic-retry",
+        "resilience.adoc#resilience-programmatic-retry"
+      ],
+      "x15_top3_anchors": [
+        "resilience.adoc#resilience-programmatic-retry",
+        "resilience.adoc#resilience-annotations-retryable",
+        "resilience.adoc#resilience"
+      ]
+    },
+    {
+      "id": "spring_016",
+      "domain": "Spring Framework",
+      "query": "Spring REST客户端中有哪些设置请求体的方法？",
+      "gold_doc": "docs/spring/rest-clients.adoc",
+      "gold_anchor": "#request-headers-and-body",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "rsocket.adoc#rsocket-requester-client-responder",
+        "rsocket.adoc#rsocket-requester-client-responder",
+        "rsocket.adoc#rsocket-requester-client-responder"
+      ],
+      "x15_top3_anchors": [
+        "rsocket.adoc#rsocket-requester-client-responder",
+        "rest-clients.adoc#rest-client-access",
+        "rest-clients.adoc#create-a-restclient"
+      ]
+    },
+    {
+      "id": "spring_017",
+      "domain": "Spring Framework",
+      "query": "DataBuffer 接口相比 java.nio.ByteBuffer 有哪些额外优势？",
+      "gold_doc": "docs/spring/databuffer-codec.adoc",
+      "gold_anchor": "#databuffer",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "databuffer-codec.adoc#databuffers-buffer",
+        "databuffer-codec.adoc#databuffers-buffer",
+        "databuffer-codec.adoc#databuffers-buffer"
+      ],
+      "x15_top3_anchors": [
+        "databuffer-codec.adoc#databuffers-buffer",
+        "databuffer-codec.adoc#databuffers",
+        "databuffer-codec.adoc#databuffers-factory"
+      ]
+    },
+    {
+      "id": "spring_018",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 中 HTTP 服务器交换观测的默认名称是什么？",
+      "gold_doc": "docs/spring/observability.adoc",
+      "gold_anchor": "#http-server-instrumentation",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "observability.adoc#default-semantic-convention",
+        "observability.adoc#default-semantic-convention",
+        "observability.adoc#default-semantic-convention"
+      ],
+      "x15_top3_anchors": [
+        "observability.adoc#default-semantic-convention",
+        "observability.adoc#reactive-applications",
+        "observability.adoc#http-server-instrumentation"
+      ]
+    },
+    {
+      "id": "spring_019",
+      "domain": "Spring Framework",
+      "query": "在Spring Framework中，使用CORS进行带凭证的请求时，启用allowedCredentials选项会带来哪些安全风险？",
+      "gold_doc": "docs/spring/webmvc-cors.adoc",
+      "gold_anchor": "#credentialed-requests",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "webflux-cors.adoc#webflux-cors-credentialed-requests",
+        "webmvc-cors.adoc#mvc-cors-credentialed-requests",
+        "webflux-cors.adoc#webflux-cors-credentialed-requests"
+      ],
+      "x15_top3_anchors": [
+        "webflux-cors.adoc#webflux-cors-credentialed-requests",
+        "webmvc-cors.adoc#mvc-cors-credentialed-requests",
+        "webflux-cors.adoc#webflux-cors-global"
+      ]
+    },
+    {
+      "id": "spring_020",
+      "domain": "Spring Framework",
+      "query": "在 Spring 应用上下文构造器的资源路径中，使用 `classpath*:` 前缀或 Ant 样式模式有什么作用？",
+      "gold_doc": "docs/spring/resources.adoc",
+      "gold_anchor": "#wildcards-in-application-context-constructor-resource-paths",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "resources.adoc#resources-app-ctx-wildcards-in-resource-paths",
+        "resources.adoc#resources-app-ctx-wildcards-in-resource-paths",
+        "resources.adoc#resources-app-ctx-wildcards-in-resource-paths"
+      ],
+      "x15_top3_anchors": [
+        "resources.adoc#resources-app-ctx-wildcards-in-resource-paths",
+        "resources.adoc#resources-as-dependencies",
+        "resources.adoc#resources-classpath-wildcards"
+      ]
+    },
+    {
+      "id": "spring_021",
+      "domain": "Spring Framework",
+      "query": "Spring WebFlux 支持 API 版本化吗？",
+      "gold_doc": "docs/spring/webflux-versioning.adoc",
+      "gold_anchor": "#api-versioning",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "webflux-versioning.adoc#webflux-versioning",
+        "webflux-versioning.adoc#webflux-versioning",
+        "webflux-versioning.adoc#webflux-versioning"
+      ],
+      "x15_top3_anchors": [
+        "webflux-versioning.adoc#webflux-versioning",
+        "webflux-versioning.adoc#webflux-versioning-resolver",
+        "webflux.adoc#spring-webflux"
+      ]
+    },
+    {
+      "id": "spring_022",
+      "domain": "Spring Framework",
+      "query": "使用RestClient的exchange()方法时，状态处理器会被应用吗？",
+      "gold_doc": "docs/spring/rest-clients.adoc",
+      "gold_anchor": "#exchange",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rest-clients.adoc#exchange",
+        "rest-clients.adoc#exchange",
+        "rest-clients.adoc#exchange"
+      ],
+      "x15_top3_anchors": [
+        "rest-clients.adoc#exchange",
+        "rest-clients.adoc#rest-http-service-client-return-values",
+        "rest-clients.adoc#error-handling"
+      ]
+    },
+    {
+      "id": "spring_023",
+      "domain": "Spring Framework",
+      "query": "在Spring Framework中，RequestPredicates类提供了哪些常见匹配需求的预置选项？",
+      "gold_doc": "docs/spring/webmvc-functional.adoc",
+      "gold_anchor": "#predicates",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "webflux-functional.adoc#webflux-fn-predicates",
+        "webmvc-functional.adoc#webmvc-fn-predicates",
+        "webflux-functional.adoc#webflux-fn-predicates"
+      ],
+      "x15_top3_anchors": [
+        "webflux-functional.adoc#webflux-fn-predicates",
+        "webmvc-functional.adoc#webmvc-fn-predicates",
+        "rest-clients.adoc#rest-http-service-client-group-config"
+      ]
+    },
+    {
+      "id": "spring_024",
+      "domain": "Spring Framework",
+      "query": "UrlResource 能够访问哪些类型的资源？",
+      "gold_doc": "docs/spring/resources.adoc",
+      "gold_anchor": "#urlresource",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "resources.adoc#resources-implementations-urlresource",
+        "resources.adoc#resources-implementations-urlresource",
+        "resources.adoc#resources-implementations-urlresource"
+      ],
+      "x15_top3_anchors": [
+        "resources.adoc#resources-implementations-urlresource",
+        "resources.adoc#resources-implementations",
+        "resources.adoc#resources-resourceloader"
+      ]
+    },
+    {
+      "id": "spring_025",
+      "domain": "Spring Framework",
+      "query": "在 Spring 中，@MessageMapping 和 @ConnectMapping 方法分别处理什么类型的 RSocket 请求？",
+      "gold_doc": "docs/spring/rsocket.adoc",
+      "gold_anchor": "#annotated-responders",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rsocket.adoc#rsocket-annot-responders",
+        "rsocket.adoc#rsocket-annot-responders",
+        "rsocket.adoc#rsocket-annot-responders-client"
+      ],
+      "x15_top3_anchors": [
+        "rsocket.adoc#rsocket-annot-responders",
+        "rsocket.adoc#rsocket-annot-responders-client",
+        "rsocket.adoc#rsocket-annot-rsocketexchange"
+      ]
+    },
+    {
+      "id": "spring_026",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 从哪个版本开始支持缓存抽象？",
+      "gold_doc": "docs/spring/cache.adoc",
+      "gold_anchor": "#cache-abstraction",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "cache.adoc#cache",
+        "cache.adoc#cache",
+        "overview.adoc#overview-history"
+      ],
+      "x15_top3_anchors": [
+        "cache.adoc#cache",
+        "overview.adoc#overview-history",
+        "rest-clients.adoc#rest-resttemplate"
+      ]
+    },
+    {
+      "id": "spring_027",
+      "domain": "Spring Framework",
+      "query": "什么时候应该避免使用 InputStreamResource？",
+      "gold_doc": "docs/spring/resources.adoc",
+      "gold_anchor": "#inputstreamresource",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "resources.adoc#resources-implementations-inputstreamresource",
+        "resources.adoc#resources-implementations-inputstreamresource",
+        "resources.adoc#resources-implementations-inputstreamresource"
+      ],
+      "x15_top3_anchors": [
+        "resources.adoc#resources-implementations-inputstreamresource",
+        "resources.adoc#resources-implementations-servletcontextresource",
+        "resources.adoc#resources-resource"
+      ]
+    },
+    {
+      "id": "spring_028",
+      "domain": "Spring Framework",
+      "query": "Spring AOT 处理带自定义参数创建 Bean 时会遇到什么问题？",
+      "gold_doc": "docs/spring/aot.adoc",
+      "gold_anchor": "#avoid-creating-beans-with-custom-arguments",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "aot.adoc#avoid-creating-beans-with-custom-arguments",
+        "aot.adoc#avoid-creating-beans-with-custom-arguments",
+        "aot.adoc#avoid-creating-beans-with-custom-arguments"
+      ],
+      "x15_top3_anchors": [
+        "aot.adoc#avoid-creating-beans-with-custom-arguments",
+        "aot.adoc#avoid-complex-data-structures-for-constructor-parameters-and-properties",
+        "aot.adoc#introduction-to-ahead-of-time-optimizations"
+      ]
+    },
+    {
+      "id": "spring_029",
+      "domain": "Spring Framework",
+      "query": "RSocketRequester.Builder 中的 RSocketStrategies 默认注册了哪些编解码器？",
+      "gold_doc": "docs/spring/rsocket.adoc",
+      "gold_anchor": "#strategies",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rsocket.adoc#rsocket-requester-client-strategies",
+        "rsocket.adoc#rsocket-requester-client-strategies",
+        "rsocket.adoc#rsocket-requester-client-strategies"
+      ],
+      "x15_top3_anchors": [
+        "rsocket.adoc#rsocket-requester-client-strategies",
+        "rsocket.adoc#rsocket-annot-responders-server",
+        "rsocket.adoc#rsocket-metadata-extractor"
+      ]
+    },
+    {
+      "id": "spring_030",
+      "domain": "Spring Framework",
+      "query": "在Spring中，如何使用UriComponentsBuilder构建URI时，将构建和展开变量合并成一个操作？",
+      "gold_doc": "docs/spring/web-uris.adoc",
+      "gold_anchor": "#uricomponents",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "web-uris.adoc#uri-encoding",
+        "web-uris.adoc#uri-encoding",
+        "web-uris.adoc#uri-encoding"
+      ],
+      "x15_top3_anchors": [
+        "web-uris.adoc#uri-encoding",
+        "web-uris.adoc#uribuilder",
+        "web-uris.adoc#uricomponents"
+      ]
+    },
+    {
+      "id": "spring_031",
+      "domain": "Spring Framework",
+      "query": "RestClient 在接收到 4xx 或 5xx 状态码的响应时，默认会如何处理？",
+      "gold_doc": "docs/spring/rest-clients.adoc",
+      "gold_anchor": "#error-handling",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rest-clients.adoc#error-handling",
+        "rest-clients.adoc#error-handling",
+        "rest-clients.adoc#error-handling"
+      ],
+      "x15_top3_anchors": [
+        "rest-clients.adoc#error-handling",
+        "rest-clients.adoc#rest-http-service-client-exceptions",
+        "rest-clients.adoc#exchange"
+      ]
+    },
+    {
+      "id": "spring_032",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 的数据访问参考文档主要关注什么？",
+      "gold_doc": "docs/spring/data-access.adoc",
+      "gold_anchor": "#data-access",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "core.adoc#spring-core",
+        "core.adoc#spring-core",
+        "core.adoc#spring-core"
+      ],
+      "x15_top3_anchors": [
+        "core.adoc#spring-core",
+        "appendix.adoc#appendix",
+        "overview.adoc#top"
+      ]
+    },
+    {
+      "id": "spring_033",
+      "domain": "Spring Framework",
+      "query": "Spring 框架的资源章节包含哪些主题？",
+      "gold_doc": "docs/spring/resources.adoc",
+      "gold_anchor": "#resources",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "appendix.adoc#appendix",
+        "appendix.adoc#appendix",
+        "resources.adoc#resources"
+      ],
+      "x15_top3_anchors": [
+        "appendix.adoc#appendix",
+        "resources.adoc#resources",
+        "resources.adoc#resources-implementations"
+      ]
+    },
+    {
+      "id": "spring_034",
+      "domain": "Spring Framework",
+      "query": "在Spring Framework中，重定向到资源功能主要用于什么场景？",
+      "gold_doc": "docs/spring/webmvc-functional.adoc",
+      "gold_anchor": "#redirecting-to-a-resource",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "resilience.adoc#resilience-programmatic-retry",
+        "resilience.adoc#resilience-programmatic-retry",
+        "resilience.adoc#resilience-programmatic-retry"
+      ],
+      "x15_top3_anchors": [
+        "resilience.adoc#resilience-programmatic-retry",
+        "scheduling.adoc#scheduling-task-namespace-scheduled-tasks",
+        "rest-clients.adoc#rest-http-service-client-group-config"
+      ]
+    },
+    {
+      "id": "spring_035",
+      "domain": "Spring Framework",
+      "query": "在 Spring WebFlux 中，HttpMessageWriterView 如何确定要序列化的模型属性？",
+      "gold_doc": "docs/spring/webflux-view.adoc",
+      "gold_anchor": "#json-and-xml",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "webflux-view.adoc#webflux-view-httpmessagewriter",
+        "webflux-view.adoc#webflux-view-httpmessagewriter",
+        "webflux-view.adoc#webflux-view-httpmessagewriter"
+      ],
+      "x15_top3_anchors": [
+        "webflux-view.adoc#webflux-view-httpmessagewriter",
+        "webflux-view.adoc#webflux-view-fragments",
+        "observability.adoc#servlet-applications"
+      ]
+    },
+    {
+      "id": "spring_036",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 中的 Validator 契约设计目的是什么？",
+      "gold_doc": "docs/spring/validation.adoc",
+      "gold_anchor": "#validation-data-binding-and-type-conversion",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "validation.adoc#validation",
+        "validation.adoc#validation",
+        "validation.adoc#validation"
+      ],
+      "x15_top3_anchors": [
+        "validation.adoc#validation",
+        "webflux-functional.adoc#webflux-fn-handler-validation",
+        "webmvc-functional.adoc#webmvc-fn-handler-validation"
+      ]
+    },
+    {
+      "id": "spring_037",
+      "domain": "Spring Framework",
+      "query": "WebFlux 的 API 通常返回什么类型？",
+      "gold_doc": "docs/spring/webflux-reactive-libraries.adoc",
+      "gold_anchor": "#reactive-libraries",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "webflux-versioning.adoc#webflux-versioning-resolver",
+        "webflux-versioning.adoc#webflux-versioning-resolver",
+        "webflux-versioning.adoc#webflux-versioning-resolver"
+      ],
+      "x15_top3_anchors": [
+        "webflux-versioning.adoc#webflux-versioning-resolver",
+        "webflux-functional.adoc#webflux-fn-overview",
+        "webflux-webclient.adoc#webflux-client"
+      ]
+    },
+    {
+      "id": "spring_038",
+      "domain": "Spring Framework",
+      "query": "在 `@NullMarked` 代码中，`List<String>` 表示什么？",
+      "gold_doc": "docs/spring/null-safety.adoc",
+      "gold_anchor": "#generics",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "null-safety.adoc#generics",
+        "null-safety.adoc#generics",
+        "null-safety.adoc#generics"
+      ],
+      "x15_top3_anchors": [
+        "null-safety.adoc#generics",
+        "null-safety.adoc#defaults-to-non-null",
+        "null-safety.adoc#arrays-and-varargs"
+      ]
+    },
+    {
+      "id": "spring_039",
+      "domain": "Spring Framework",
+      "query": "在 Spring REST Client 中，如何指定请求的 URL？",
+      "gold_doc": "docs/spring/rest-clients.adoc",
+      "gold_anchor": "#request-url",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "rest-clients.adoc#request-url",
+        "rest-clients.adoc#request-url",
+        "rest-clients.adoc#request-url"
+      ],
+      "x15_top3_anchors": [
+        "rest-clients.adoc#request-url",
+        "rsocket.adoc#rsocket-requester-client-responder",
+        "lifecycle-of-reactive-effects.md#why-synchronization-may-need-to-happen-more-than-once"
+      ]
+    },
+    {
+      "id": "spring_040",
+      "domain": "Spring Framework",
+      "query": "JSpecify 的 @Nullable 和 @NonNull 注解与其他可空性注解的主要区别是什么？",
+      "gold_doc": "docs/spring/null-safety.adoc",
+      "gold_anchor": "#explicit-nullability",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "null-safety.adoc#explicit-nullability",
+        "null-safety.adoc#explicit-nullability",
+        "null-safety.adoc#explicit-nullability"
+      ],
+      "x15_top3_anchors": [
+        "null-safety.adoc#explicit-nullability",
+        "null-safety.adoc#null-safety-migrating",
+        "null-safety.adoc#generics"
+      ]
+    },
+    {
+      "id": "spring_041",
+      "domain": "Spring Framework",
+      "query": "在Spring中，当路径位置包含Ant风格模式且URL是jar URL时，解析器如何解析通配符？",
+      "gold_doc": "docs/spring/resources.adoc",
+      "gold_anchor": "#ant-style-patterns",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "resources.adoc#resources-app-ctx-ant-patterns-in-paths",
+        "resources.adoc#resources-app-ctx-ant-patterns-in-paths",
+        "resources.adoc#resources-app-ctx-ant-patterns-in-paths"
+      ],
+      "x15_top3_anchors": [
+        "resources.adoc#resources-app-ctx-ant-patterns-in-paths",
+        "rsocket.adoc#rsocket-annot-responders-server",
+        "resources.adoc#resources-wildcards-in-path-other-stuff"
+      ]
+    },
+    {
+      "id": "spring_042",
+      "domain": "Spring Framework",
+      "query": "在 Spring WebMvc.fn 中，如何共享路径谓词以避免路由函数的重复声明？",
+      "gold_doc": "docs/spring/webmvc-functional.adoc",
+      "gold_anchor": "#nested-routes",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "webmvc-functional.adoc#nested-routes",
+        "webmvc-functional.adoc#nested-routes",
+        "webmvc-functional.adoc#nested-routes"
+      ],
+      "x15_top3_anchors": [
+        "webmvc-functional.adoc#nested-routes",
+        "webflux-functional.adoc#nested-routes",
+        "managing-state.md#sharing-state-between-components"
+      ]
+    },
+    {
+      "id": "spring_043",
+      "domain": "Spring Framework",
+      "query": "@CrossOrigin 注解的默认配置允许哪些 HTTP 方法？",
+      "gold_doc": "docs/spring/webmvc-cors.adoc",
+      "gold_anchor": "#crossorigin",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "webmvc-cors.adoc#mvc-cors-controller",
+        "webmvc-cors.adoc#mvc-cors-controller",
+        "webmvc-cors.adoc#mvc-cors-controller"
+      ],
+      "x15_top3_anchors": [
+        "webmvc-cors.adoc#mvc-cors-controller",
+        "webflux-cors.adoc#webflux-cors-controller",
+        "webmvc-cors.adoc#mvc-cors-filter"
+      ]
+    },
+    {
+      "id": "spring_044",
+      "domain": "Spring Framework",
+      "query": "使用RestClient执行HTTP请求的第一步是什么？",
+      "gold_doc": "docs/spring/rest-clients.adoc",
+      "gold_anchor": "#use-the-restclient",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "rest-clients.adoc#rest-request-factories",
+        "rest-clients.adoc#rest-request-factories",
+        "rest-clients.adoc#rest-request-factories"
+      ],
+      "x15_top3_anchors": [
+        "rest-clients.adoc#rest-request-factories",
+        "rest-clients.adoc#migrating-to-restclient",
+        "rest-clients.adoc#rest-restclient"
+      ]
+    },
+    {
+      "id": "spring_045",
+      "domain": "Spring Framework",
+      "query": "当API版本控制启用时，如果请求中没有提供版本信息，会发生什么？",
+      "gold_doc": "docs/spring/webmvc-versioning.adoc",
+      "gold_anchor": "#validation",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "webflux-versioning.adoc#webflux-versioning-validation",
+        "webmvc-versioning.adoc#mvc-versioning-validation",
+        "webmvc-versioning.adoc#mvc-versioning-validation"
+      ],
+      "x15_top3_anchors": [
+        "webflux-versioning.adoc#webflux-versioning-validation",
+        "webmvc-versioning.adoc#mvc-versioning-validation",
+        "mixed-version-proxy.md#top"
+      ]
+    },
+    {
+      "id": "spring_046",
+      "domain": "Spring Framework",
+      "query": "在Spring WebFlux中，如何使用ServerRequest访问表单数据？",
+      "gold_doc": "docs/spring/webflux-functional.adoc",
+      "gold_anchor": "#serverrequest",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "webflux-webclient.adoc#webflux-client",
+        "observability.adoc#default-semantic-convention",
+        "webflux-webclient.adoc#webflux-client"
+      ],
+      "x15_top3_anchors": [
+        "webflux-webclient.adoc#webflux-client",
+        "observability.adoc#default-semantic-convention",
+        "webmvc-functional.adoc#webmvc-fn-overview"
+      ]
+    },
+    {
+      "id": "spring_047",
+      "domain": "Spring Framework",
+      "query": "ApiVersionParser 的主要用途是什么？",
+      "gold_doc": "docs/spring/webmvc-versioning.adoc",
+      "gold_anchor": "#apiversionparser",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "webmvc-versioning.adoc#mvc-versioning-resolver",
+        "webflux-versioning.adoc#webflux-versioning-resolver",
+        "webmvc-versioning.adoc#mvc-versioning-resolver"
+      ],
+      "x15_top3_anchors": [
+        "webmvc-versioning.adoc#mvc-versioning-resolver",
+        "webflux-versioning.adoc#webflux-versioning-resolver",
+        "webmvc-versioning.adoc#mvc-versioning-strategy"
+      ]
+    },
+    {
+      "id": "spring_048",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 中关于响应式栈 Web 应用的支持文档包含哪些主要内容？",
+      "gold_doc": "docs/spring/web-reactive.adoc",
+      "gold_anchor": "#web-on-reactive-stack",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "web-reactive.adoc#spring-web-reactive",
+        "web-reactive.adoc#spring-web-reactive",
+        "rest-clients.adoc#rest-http-service-client-group-config"
+      ],
+      "x15_top3_anchors": [
+        "web-reactive.adoc#spring-web-reactive",
+        "rest-clients.adoc#rest-http-service-client-group-config",
+        "webflux.adoc#spring-webflux"
+      ]
+    },
+    {
+      "id": "spring_049",
+      "domain": "Spring Framework",
+      "query": "Spring中处理@Async注解的默认建议模式是什么？",
+      "gold_doc": "docs/spring/scheduling.adoc",
+      "gold_anchor": "#enable-scheduling-annotations",
+      "x0_anchor_hit": false,
+      "x15_anchor_hit": false,
+      "x0_evidence_hit": true,
+      "x15_evidence_hit": true,
+      "x0_top3_anchors": [
+        "scheduling.adoc#scheduling-enable-annotation-support",
+        "scheduling.adoc#scheduling-enable-annotation-support",
+        "scheduling.adoc#scheduling-enable-annotation-support"
+      ],
+      "x15_top3_anchors": [
+        "scheduling.adoc#scheduling-enable-annotation-support",
+        "scheduling.adoc#scheduling-annotation-support-async",
+        "scheduling.adoc#scheduling-annotation-support"
+      ]
+    },
+    {
+      "id": "spring_050",
+      "domain": "Spring Framework",
+      "query": "Spring项目中，通常在哪个级别设置@NullMarked注解来让类型默认为非空？",
+      "gold_doc": "docs/spring/null-safety.adoc",
+      "gold_anchor": "#defaults-to-non-null",
+      "x0_anchor_hit": true,
+      "x15_anchor_hit": true,
+      "x0_evidence_hit": false,
+      "x15_evidence_hit": false,
+      "x0_top3_anchors": [
+        "null-safety.adoc#defaults-to-non-null",
+        "null-safety.adoc#defaults-to-non-null",
+        "null-safety.adoc#null-safety-migrating"
+      ],
+      "x15_top3_anchors": [
+        "null-safety.adoc#defaults-to-non-null",
+        "null-safety.adoc#null-safety-migrating",
+        "null-safety.adoc#null-safety"
+      ]
+    },
+    {
+      "id": "k8s_trap_001",
+      "domain": "Kubernetes",
+      "query": "如何在 Deployment 的 YAML 中配置 `backupPolicy` 字段来自动备份 Pod 数据？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_002",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 2.0 是否计划引入名为 `ClusterMesh` 的原生多集群服务发现功能？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_003",
+      "domain": "Kubernetes",
+      "query": "为 Pod 配置资源请求时，是否必须遵循官方推荐的 `requests` 必须小于或等于 `limits` 的强制策略？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_004",
+      "domain": "Kubernetes",
+      "query": "`kubectl apply` 命令的 `--prune-whitelist` 参数应该如何使用来避免误删某些类型的资源？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_005",
+      "domain": "Kubernetes",
+      "query": "StatefulSet 的滚动更新策略和 Spring Boot 应用的蓝绿部署在理念上有何本质区别？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_006",
+      "domain": "Kubernetes",
+      "query": "HorizontalPodAutoscaler (HPA) 和 VerticalPodAutoscaler (VPA) 在触发缩容时，哪个会优先考虑 Pod 的 `terminationGracePeriodSeconds` 设置？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_007",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 官方是否强制要求所有生产环境中的 Deployment 必须配置 `PodDisruptionBudget` (PDB)？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_008",
+      "domain": "Kubernetes",
+      "query": "如何通过 `kubectl edit` 命令直接修改一个正在运行的 Pod 的 `env` 字段以实现环境变量的热更新？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_009",
+      "domain": "Kubernetes",
+      "query": "Service 资源的 `spec.internalTrafficPolicy` 字段设置为 `Cluster` 和 `Local` 时，对 Ingress 控制器接收的外部流量路由有何影响？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_010",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 1.30 会默认将 `SeccompDefault` 设置为 `true` 吗？这对现有工作负载有何影响？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_011",
+      "domain": "Kubernetes",
+      "query": "`kubectl describe` 命令输出的 `Conditions` 部分里，`PodScheduled` 状态为 `True` 是否一定意味着容器已经成功拉取镜像？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_012",
+      "domain": "Kubernetes",
+      "query": "ConfigMap 的 `immutable` 字段设置为 `true` 后，如何通过 `kubectl patch` 命令的 `--force` 参数对其进行紧急覆盖更新？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_013",
+      "domain": "Kubernetes",
+      "query": "在定义 CronJob 时，`spec.jobTemplate.spec.template.spec.affinity` 和 `spec.affinity` 这两个字段有什么区别，应该优先使用哪一个？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_014",
+      "domain": "Kubernetes",
+      "query": "是否所有使用 `emptyDir` 卷的 Pod 在节点重启后，其 `emptyDir` 中的数据都会根据 `medium: Memory` 的设置而丢失？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_015",
+      "domain": "Kubernetes",
+      "query": "如何使用 `kubectl logs` 命令的 `--since-creation` 参数来只获取 Pod 自创建以来产生的日志？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_016",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 的 `ClusterRole` 绑定机制，与 MySQL 数据库的 `GRANT` 语句在权限继承模型上有何相似之处？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_017",
+      "domain": "Kubernetes",
+      "query": "Pod 定义中的 `spec.securityContext` 和 `spec.containers[*].securityContext` 都设置了 `runAsNonRoot: true` 时，哪个优先级更高？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_018",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 官方是否推荐使用 `kubectl proxy` 作为访问生产集群 API Server 的长期方案？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_019",
+      "domain": "Kubernetes",
+      "query": "如何在创建 `PersistentVolumeClaim` (PVC) 时，通过 `spec.storageClassName` 字段指定使用本地 SSD 存储，并通过 `spec.dataShards` 字段配置数据分片数？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_020",
+      "domain": "Kubernetes",
+      "query": "`kubectl top pod` 命令显示的 CPU 使用率，是取自容器 `resources.limits.cpu` 的百分比，还是取自节点总 CPU 的百分比？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_021",
+      "domain": "Kubernetes",
+      "query": "为了提升 `kubectl get` 命令的查询性能，是否应该总是启用 `--chunk-size=0` 参数来避免分块传输？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_022",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 的 `etcd` 数据存储，其一致性模型与 Apache ZooKeeper 的 Zab 协议在应对网络分区时有何根本不同？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_023",
+      "domain": "Kubernetes",
+      "query": "当 `Job` 的 `spec.completions` 设置为 5，`spec.parallelism` 设置为 2 时，是否可以通过 `spec.backoffLimitPerIndex` 字段为每个失败的任务索引单独设置重试次数？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_024",
+      "domain": "Kubernetes",
+      "query": "在 RollingUpdate Deployment 时，如何通过 `kubectl rollout` 命令的 `--pause-after-pod` 参数在每成功更新一个 Pod 后自动暂停，以便进行手动验证？",
+      "is_trap": true
+    },
+    {
+      "id": "k8s_trap_025",
+      "domain": "Kubernetes",
+      "query": "Kubernetes 的 `Service` 类型 `LoadBalancer` 在 AWS 上默认创建的 NLB，其 TLS 终止策略是否可以通过 `service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy` 这个注解来配置？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_001",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 中 @Autowired 注解的 `requiredStrategy` 参数是用来控制依赖注入失败时采用哪种备用策略的？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_002",
+      "domain": "Spring Framework",
+      "query": "Spring 6.2 版本是否计划将 Project Loom 的虚拟线程深度集成到 `@Async` 和 `@Transactional` 注解的底层实现中，以实现真正的轻量级并发？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_003",
+      "domain": "Spring Framework",
+      "query": "如何在 Spring Boot 应用的 `application.yml` 中为 `Deployment` 资源配置 `Pod` 的亲和性和反亲和性调度策略？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_004",
+      "domain": "Spring Framework",
+      "query": "Spring 官方是否强制规定所有生产环境的 Bean 名称必须遵循驼峰命名法，否则在组件扫描阶段会被拒绝注册？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_005",
+      "domain": "Spring Framework",
+      "query": "`@Controller` 注解的 `cache` 参数设置为 `true` 时，是否会自动启用该控制器所有处理器方法的响应缓存？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_006",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 的 `prototype` Bean 作用域和数据库事务的 `READ_UNCOMMITTED` 隔离级别在并发场景下的行为有何本质区别？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_007",
+      "domain": "Spring Framework",
+      "query": "在 Spring 配置类中使用 `@Bean` 注解时，`dependsOnGroups` 属性是用来声明对另一个配置类中特定 Bean 组的依赖吗？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_008",
+      "domain": "Spring Framework",
+      "query": "如何在 Spring Boot 启动过程中，通过 `EnvironmentPostProcessor` 动态热重载已存在的 `BeanDefinition` 并立即生效，而无需重启应用？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_009",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 7.0 是否会引入 `@ReactiveTransaction` 注解来统一管理 Reactive 编程模型下的事务边界？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_010",
+      "domain": "Spring Framework",
+      "query": "所有标注了 `@RestController` 的类，其内部方法是否都必须显式使用 `@ResponseStatus` 注解，否则 Spring 会抛出 `HttpStatusNotDefinedException`？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_011",
+      "domain": "Spring Framework",
+      "query": "`ApplicationContext` 接口的 `getBeanByType` 方法在存在多个同类型 Bean 时，是如何决定返回哪一个的？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_012",
+      "domain": "Spring Framework",
+      "query": "Spring AOP 中的 `@Around` 通知和 Servlet 过滤器（Filter）在请求处理链中的执行顺序和优先级是如何协调的？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_013",
+      "domain": "Spring Framework",
+      "query": "在 `application.yml` 中配置 `spring.docker.healthcheck.interval` 的作用是什么？它如何影响 Spring Boot Actuator 的健康端点？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_014",
+      "domain": "Spring Framework",
+      "query": "`@Transactional` 注解的 `rollbackOnError` 属性，当设置为 `false` 时，是否意味着所有 `RuntimeException` 都不会触发回滚？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_015",
+      "domain": "Spring Framework",
+      "query": "Spring Boot 4.0 是否会默认集成 gRPC 作为除 REST 和 WebSocket 之外的第三种一等公民通信协议，并提供自动配置和 Actuator 监控？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_016",
+      "domain": "Spring Framework",
+      "query": "使用 `@Qualifier` 注解时，其 `order` 属性值的大小是否决定了依赖注入时候选 Bean 的优先选择顺序？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_017",
+      "domain": "Spring Framework",
+      "query": "如何通过实现一个特殊的 `BeanFactoryPostProcessor`，在 Spring 容器启动后，直接向 `BeanFactory` 注册一个已经实例化的单例对象，并使其能正常参与后续的依赖注入和 AOP 代理？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_018",
+      "domain": "Spring Framework",
+      "query": "Spring MVC 中，是否可以通过在 `@RequestMapping` 注解中设置 `consumesFormat` 属性为 `\"json\"` 或 `\"xml\"` 来智能协商请求内容类型，而无需使用 `consumes` 或 `ContentNegotiationConfigurer`？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_019",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 官方是否推荐所有 `@Async` 修饰的方法其返回类型都必须是 `Future` 或 `CompletableFuture`，否则线程池将无法正确回收任务资源？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_020",
+      "domain": "Spring Framework",
+      "query": "`@Configuration` 注解的 `proxyMode` 参数设置为 `ScopedProxyMode.TARGET_CLASS` 时，是否会同时启用对该配置类内部所有 `@Bean` 方法的调用跟踪日志？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_021",
+      "domain": "Spring Framework",
+      "query": "Spring Security 6.0 是否强制要求所有 OAuth2 客户端配置都必须使用 PKCE 流程，否则在启动阶段会抛出配置验证异常？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_022",
+      "domain": "Spring Framework",
+      "query": "在 Spring Data JPA 实体类中，使用 `@KafkaPartitionKey` 注解是否可以让该实体在保存时自动发送到 Kafka 的特定分区？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_023",
+      "domain": "Spring Framework",
+      "query": "Spring Framework 6.5 是否会引入一个名为 `@AutoConfig` 的注解，用于实现基于类路径检测的“零配置”模块自动装配，从而完全取代 `@Configuration` 和 `@Bean`？",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_024",
+      "domain": "Spring Framework",
+      "query": "`@Scheduled` 注解的 `timeUnit` 参数应该如何使用？我想用 `TimeUnit.MINUTES` 来指定 `fixedDelay` 的单位。",
+      "is_trap": true
+    },
+    {
+      "id": "spring_trap_025",
+      "domain": "Spring Framework",
+      "query": "是否所有 Spring 管理的 Bean 都必须实现 `ApplicationListener` 接口以监听上下文事件，否则会被视为“惰性组件”而延迟初始化？",
+      "is_trap": true
+    }
+  ]
+}

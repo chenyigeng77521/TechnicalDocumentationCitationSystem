@@ -2,10 +2,10 @@
 
 ## 进度总览（自动更新）
 
-- **当前阶段**：Phase 2 完成 → Phase 3 Task 18 (Codex review baseline)
-- **进度**：17/19 (89%) — 单测 30/30 通过，集成测试 8/8 通过，baseline release gate PASS（X1.5 救活 +10 题）
+- **当前阶段**：Phase 3 Task 19 (push 准备)
+- **进度**：18/19 (95%) — Codex review 完成，发现 normalize 兜底问题已修，baseline v2 release gate 大幅 PASS
 - **卡点**：无
-- **最近更新**：2026-05-01 Task 15 baseline 完成（X0=35/150 → X1.5=45/150，+10 题，0 搞砸）
+- **最近更新**：2026-05-01 baseline v2 完成（X0=47/150 → X1.5=60/150，+13 题，3 个 domain 全部提升，0 搞砸）
 
 ## Plan 文件
 [docs/superpowers/plans/2026-04-30-x15-rigorous-implementation.md](../plans/2026-04-30-x15-rigorous-implementation.md)
