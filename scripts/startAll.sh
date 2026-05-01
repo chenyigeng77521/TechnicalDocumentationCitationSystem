@@ -13,14 +13,14 @@ current_path=`dirname $(pwd)`
 PYTHON=`which python`
 PIP=`which pip`
 
-
+#本机环境测试
+PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 
 echo '项目目录:' $current_path
 current_path=$current_path/src
 echo '源代码:' $current_path
 
 bash "$current_path/buildAll.sh"
-
 
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）
 echo "🔍 获取本机 IP 地址..."
@@ -197,7 +197,8 @@ echo "========================================"
 echo ""
 echo "📊 服务状态:"
 echo "  Nginx: $LOCAL_IP  端口 80 (代理)"
-echo "  FirstLayer: 问题分类服务  端口 3004 (独立服务)"
+echo "  Question Filter : 问题过滤服务  端口 3005 (独立服务)"
+echo "  Category_classifier : 问题分类服务  端口 3004 (独立服务)"
 echo "  Context Memory: 上下文记忆服务  端口 3006 (独立服务)"
 echo "  Ingestion: 数据层服务  端口 3003 (Layer 1)"
 echo "  后端：3002 (通过 Nginx 代理)"
