@@ -152,9 +152,22 @@ else
     fi
 fi
 
+# 检查并启动 Ingestion 数据层服务（Layer 1）
+echo ""
+echo "5️⃣ 检查 Ingestion 数据层服务状态..."
+INGEST_CHECK=$(lsof -i:3003 2>/dev/null | grep LISTEN)
+if [ -n "$INGEST_CHECK" ]; then
+    echo "   ✅ Ingestion 已运行 (3003)"
+else
+    echo "   🔄 启动 Ingestion 服务..."
+    # ingestion/start.sh 内部用 conda run -n sqllineage 自激活，不依赖外部 conda activate
+    # 也会自动 source src/.env + src/.env.aigw（含 AIGW_API_KEY）
+    bash "$current_path/backend/ingestion/start.sh" --bg
+fi
+
 # 检查并启动后端
 echo ""
-echo "5️⃣ 检查后端服务状态..."
+echo "6️⃣ 检查后端服务状态..."
 if lsof -i:3002 | grep -q LISTEN; then
     echo "   ✅ 后端已运行 (3002)"
 else
@@ -166,7 +179,7 @@ else
 fi
 # 检查并启动前端
 echo ""
-echo "6️⃣ 检查前端服务状态..."
+echo "7️⃣ 检查前端服务状态..."
 if lsof -i:3000 | grep -q LISTEN; then
     echo "   ✅ 前端已运行 (3000)"
 else
@@ -186,6 +199,7 @@ echo "📊 服务状态:"
 echo "  Nginx: $LOCAL_IP  端口 80 (代理)"
 echo "  FirstLayer: 问题分类服务  端口 3004 (独立服务)"
 echo "  Context Memory: 上下文记忆服务  端口 3006 (独立服务)"
+echo "  Ingestion: 数据层服务  端口 3003 (Layer 1)"
 echo "  后端：3002 (通过 Nginx 代理)"
 echo "  前端：3000 (通过 Nginx 代理)"
 echo ""
