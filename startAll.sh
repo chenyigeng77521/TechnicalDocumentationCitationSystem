@@ -34,7 +34,7 @@ if pgrep -x "nginx" > /dev/null; then
     echo "   ✅ Nginx 已运行"
 else
     echo "   🔄 启动 Nginx..."
-    /usr/local/nginx/sbin/nginx
+    /usr/local/nginx/sbin/nginx -c "$current_path/nginx.conf"
     sleep 1
     echo "   ✅ Nginx 已启动"
 fi

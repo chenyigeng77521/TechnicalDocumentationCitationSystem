@@ -4,22 +4,25 @@
  */
 
 export const config = {
-  // 上传配置（静态）
-  upload: {
-    uploadDir: '../storage/raw',
-    maxFileSize: 300,
-    allowedFormats: [
-      '.json', '.yaml', '.yml', '.cpp', '.java', '.py', '.xml', '.sql',
-      '.html', '.md', '.txt', '.ppt', '.pptx',
-      '.doc', '.docx', '.pdf'
-    ],
-    maxFiles: 30,
-  },
   // 服务器配置（运行时读取）
   get server() {
     return {
       port: parseInt(process.env.PORT || '3002'),
       host: process.env.HOST || '0.0.0.0',
+    };
+  },
+  // 上传配置（运行时读取）
+  get upload() {
+    return {
+      uploadDir: '../storage/raw',
+      batchTestDir: '../storage/batchtest',
+      maxFileSize: 300,
+      allowedFormats: [
+        '.json', '.yaml', '.yml', '.cpp', '.java', '.py', '.xml', '.sql',
+        '.html', '.md', '.txt', '.ppt', '.pptx',
+        '.doc', '.docx', '.pdf', '.xlsx', '.adoc', '.jsonl'
+      ],
+      maxFiles: 100,
     };
   },
   // category_classifier 配置（运行时读取）
@@ -36,6 +39,38 @@ export const config = {
       url: process.env.QUESTION_FILTER_URL || 'http://localhost:3005',
       enabled: process.env.ENABLE_QUESTION_FILTER !== 'false',  // 默认启用
       timeout: parseInt(process.env.FILTER_TIMEOUT || '5000'),
+    };
+  },
+  // Context Memory 配置（运行时读取）
+  get contextMemory() {
+    return {
+      url: process.env.CONTEXT_MEMORY_URL || 'http://localhost:3006',
+      enabled: process.env.ENABLE_CONTEXT_MEMORY === 'true',  // 默认不启用
+      timeout: parseInt(process.env.CONTEXT_MEMORY_TIMEOUT || '3000'),
+    };
+  },
+  // 检索层配置（运行时读取）
+  get retrieval() {
+    return {
+      url: process.env.RETRIEVAL_URL || 'http://172.25.178.29:18020/query',
+      enabled: !!process.env.RETRIEVAL_URL,  // 配置了 URL 就启用
+      timeout: parseInt(process.env.HTTP_TIMEOUT || '60000'),
+      // 批量查询接口地址
+      batchQueryUrl: process.env.BATCH_QUERY_URL || 'http://172.25.178.29:18020/batch-query',
+    };
+  },
+  // NLU 配置（运行时读取）
+  get nlu() {
+    return {
+      enabled: process.env.ENABLE_NLU === 'true',  // 默认不启用
+      pipelineUrl: process.env.NLU_PIPELINE_URL || 'http://localhost:3004/api/nlu/process',
+    };
+  },
+  // 存储配置
+  get storage() {
+    return {
+      // 结果文件目录
+      resultDir: '../storage/result',
     };
   },
 };

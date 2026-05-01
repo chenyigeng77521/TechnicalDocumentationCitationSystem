@@ -265,7 +265,8 @@ router.get('/raw-files', (req, res) => {
           path: filePath,
           size: stats.size,
           createdAt: stats.birthtime,
-          modifiedAt: stats.mtime
+          modifiedAt: stats.mtime,
+          downloadUrl: `/api/upload/download/${encodeURIComponent(file)}`
         };
       })
       .sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
@@ -288,6 +289,31 @@ router.get('/raw-files', (req, res) => {
       success: false,
       message: error.message || '获取文档列表失败'
     });
+  }
+});
+
+/**
+ * GET /api/upload/download/:filename
+ * 下载 raw 目录下的文件
+ */
+router.get('/download/:filename', (req: Request, res: Response) => {
+  try {
+    const filename = decodeURIComponent(req.params.filename);
+    const rawDir = path.resolve(config.upload.uploadDir);
+    const filePath = path.join(rawDir, filename);
+
+    if (!fs.existsSync(filePath)) {
+      console.log(`❌ [上传] 文件不存在：${filename}`);
+      return res.status(404).json({ success: false, message: '文件不存在' });
+    }
+
+    console.log(`📥 [上传] 下载文件：${filename}`);
+    res.download(filePath, filename, (err) => {
+      if (err) console.error(`❌ [上传] 下载失败：`, err);
+    });
+  } catch (error: any) {
+    console.error('❌ [上传] 下载失败：', error);
+    res.status(500).json({ success: false, message: `下载失败：${error.message}` });
   }
 });
 

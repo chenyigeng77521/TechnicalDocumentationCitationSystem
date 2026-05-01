@@ -55,9 +55,21 @@ else
     echo "   ⚠️  后端未运行"
 fi
 
+# 停止 Context Memory 上下文记忆服务
+echo ""
+echo "5️⃣ 停止 Context Memory 上下文记忆服务 (3006)..."
+CONTEXT_PID=$(lsof -ti:3006 2>/dev/null)
+if [ -n "$CONTEXT_PID" ]; then
+    kill -9 $CONTEXT_PID 2>/dev/null
+    sleep 1
+    echo "   ✅ Context Memory 已停止 (PID: $CONTEXT_PID)"
+else
+    echo "   ⚠️  Context Memory 未运行"
+fi
+
 # 停止 Nginx
 echo ""
-echo "5️⃣ 停止 Nginx..."
+echo "6️⃣ 停止 Nginx..."
 NGINX_PID=$(pgrep -x "nginx" 2>/dev/null)
 if [ -n "$NGINX_PID" ]; then
     /usr/local/nginx/sbin/nginx -s stop 2>/dev/null
@@ -75,6 +87,7 @@ echo ""
 echo "📊 最终状态:"
 echo "  Question Filter: $(lsof -i:3005 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  Category_classifier: $(lsof -i:3004 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
+echo "  Context Memory: $(lsof -i:3006 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  后端：$(lsof -i:3002 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  前端：$(lsof -i:3000 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo ""

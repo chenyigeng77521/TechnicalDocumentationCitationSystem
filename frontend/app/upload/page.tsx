@@ -19,7 +19,7 @@ export default function UploadPage() {
   const allowedExtensions = [
     '.json', '.yaml', '.yml', '.cpp', '.java', '.py', '.xml', '.sql',
     '.html', '.md', '.txt', '.ppt', '.pptx', '.xls', '.xlsx',
-    '.doc', '.docx', '.pdf'
+    '.doc', '.docx', '.pdf', '.adoc'
   ];
 
   // 验证文件格式
@@ -30,7 +30,7 @@ export default function UploadPage() {
     if (!allowedExtensions.includes(ext)) {
       return {
         valid: false,
-        error: `不支持的文件格式：${ext}。仅支持 PDF、Word、Excel、TXT、MD 文件`
+        error: `不支持的文件格式：${ext}。仅支持 PDF、Word、Excel、TXT、MD、ADOC 文件`
       };
     }
     
@@ -64,8 +64,8 @@ export default function UploadPage() {
     const droppedFiles = Array.from(e.dataTransfer.files);
     
     // 检查总数限制
-    if (files.length + droppedFiles.length > 30) {
-      setError(`文件数量超过限制。最多支持 30 个文件，当前已选择 ${files.length} 个，尝试添加 ${droppedFiles.length} 个`);
+    if (files.length + droppedFiles.length > 100) {
+      setError(`文件数量超过限制。最多支持 100 个文件，当前已选择 ${files.length} 个，尝试添加 ${droppedFiles.length} 个`);
       return;
     }
     
@@ -97,8 +97,8 @@ export default function UploadPage() {
       setError(null);
       
       // 检查总数限制
-      if (files.length + selectedFiles.length > 30) {
-        setError(`文件数量超过限制。最多支持 30 个文件，当前已选择 ${files.length} 个，尝试添加 ${selectedFiles.length} 个`);
+      if (files.length + selectedFiles.length > 100) {
+        setError(`文件数量超过限制。最多支持 100 个文件，当前已选择 ${files.length} 个，尝试添加 ${selectedFiles.length} 个`);
         return;
       }
       
@@ -135,8 +135,8 @@ export default function UploadPage() {
       return;
     }
     
-    if (files.length > 30) {
-      setError(`文件数量超过限制。最多支持 30 个文件，当前已选择 ${files.length} 个`);
+    if (files.length > 100) {
+      setError(`文件数量超过限制。最多支持 100 个文件，当前已选择 ${files.length} 个`);
       return;
     }
 
@@ -217,7 +217,7 @@ export default function UploadPage() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".json,.yaml,.yml,.cpp,.java,.py,.xml,.sql,.html,.md,.txt,.ppt,.pptx,.xls,.xlsx,.doc,.docx,.pdf"
+            accept=".json,.yaml,.yml,.cpp,.java,.py,.xml,.sql,.html,.md,.txt,.ppt,.pptx,.xls,.xlsx,.doc,.docx,.pdf,.adoc"
             onChange={handleSelect}
             className="hidden"
           />
@@ -229,7 +229,7 @@ export default function UploadPage() {
             支持代码、文档、表格、演示文稿等常见文件格式
           </p>
           <p className="text-xs text-slate-400 font-medium">
-            最多 30 个文件，单个文件最大 300MB
+            最多 100 个文件，单个文件最大 300MB
           </p>
         </div>
 
@@ -249,7 +249,7 @@ export default function UploadPage() {
           <div className="mt-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
               <p className="text-sm font-medium text-slate-700">
-                已选择 {files.length} / 30 个文件
+                已选择 {files.length} / 100 个文件
               </p>
               <button
                 onClick={() => {
@@ -318,7 +318,7 @@ export default function UploadPage() {
             disabled={files.length === 0 || uploading}
             className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium btn-transition"
           >
-            {uploading ? '上传中...' : `上传 ${files.length} 个文件${files.length >= 30 ? '（已达上限）' : ''}`}
+            {uploading ? '上传中...' : `上传 ${files.length} 个文件${files.length >= 100 ? '（已达上限）' : ''}`}
           </button>
         </div>
 

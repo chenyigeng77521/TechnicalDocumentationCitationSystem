@@ -27,6 +27,16 @@ PORT = int(PORT_STR) if PORT_STR.strip() else 3004
 # 日志配置
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+# NLU 流程配置
+CONTEXT_MEMORY_URL = os.getenv("CONTEXT_MEMORY_URL", "http://localhost:3006")
+RETRIEVAL_URL = os.getenv("RETRIEVAL_URL", "http://172.25.178.29:18020/query")
+HTTP_TIMEOUT = int(os.getenv("HTTP_TIMEOUT", "60"))
+
+# NLU 模型配置（实际使用时需要配置真实模型路径或 API）
+REXUNINLU_MODEL_PATH = os.getenv("REXUNINLU_MODEL_PATH", "rex_uninlu")
+SLIMPLM_MODEL_PATH = os.getenv("SLIMPLM_MODEL_PATH", "slimplm_query_rewriting")
+TURNSENSE_MODEL_PATH = os.getenv("TURNSENSE_MODEL_PATH", "turnsense")
+
 # 关键字配置（用于规则匹配）
 FACT_KEYWORDS = ["什么", "哪个", "何时", "哪里", "谁", "多少", "几", "年", "月", "日"]
 PROC_KEYWORDS = ["如何", "怎样", "怎么", "步骤", "流程", "方法", "操作", "步骤"]
@@ -47,3 +57,10 @@ class Config:
     EXPL_KEYWORDS = EXPL_KEYWORDS
     COMP_KEYWORDS = COMP_KEYWORDS
     META_KEYWORDS = META_KEYWORDS
+    # NLU 配置
+    CONTEXT_MEMORY_URL = CONTEXT_MEMORY_URL
+    RETRIEVAL_URL = RETRIEVAL_URL
+    HTTP_TIMEOUT = HTTP_TIMEOUT
+    REXUNINLU_MODEL_PATH = REXUNINLU_MODEL_PATH
+    SLIMPLM_MODEL_PATH = SLIMPLM_MODEL_PATH
+    TURNSENSE_MODEL_PATH = TURNSENSE_MODEL_PATH

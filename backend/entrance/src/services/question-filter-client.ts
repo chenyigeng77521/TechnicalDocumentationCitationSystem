@@ -45,7 +45,7 @@ export async function filterQuestion(question: string): Promise<FilterResult> {
   }
 
   try {
-    console.log(`🔍 正在过滤问题：${question.substring(0, 50)}...`);
+    console.log(`🔍 2.正在过滤问题：${question.substring(0, 50)}...`);
     
     const response = await axios.post(
       `${config.questionFilter.url}/api/filter`,
@@ -60,7 +60,7 @@ export async function filterQuestion(question: string): Promise<FilterResult> {
 
     const result: FilterResult = response.data;
     
-    console.log(`✅ 过滤完成：${result.category} (置信度：${result.confidence})`);
+    console.log(`✅ 3.过滤完成：${result.category} (置信度：${result.confidence})`);
     
     return result;
 

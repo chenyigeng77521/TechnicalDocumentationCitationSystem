@@ -52,9 +52,17 @@ async def classify_question(request: ClassifyRequest):
     }
     ```
     """
+    # 📝 调用接口前日志
+    import logging
+    logger = logging.getLogger("category_classifier")
+    logger.info(f"📥 [classify_question] 收到请求 - question: {request.question[:50]}...")
+    
     try:
         classifier = get_classifier()
         result = classifier.classify(request.question)
+        
+        # 📝 调用接口后日志（成功）
+        logger.info(f"✅ [classify_question] 接口调用成功 - category: {result.get('category')}, confidence: {result.get('confidence')}")
         
         return ClassifyResponse(
             success=result.get("success", False),
@@ -65,6 +73,10 @@ async def classify_question(request: ClassifyRequest):
             error=result.get("error") if not result.get("success") else None
         )
     except Exception as e:
+        # 📝 调用接口后日志（错误）
+        import logging
+        logger = logging.getLogger("category_classifier")
+        logger.error(f"❌ [classify_question] 接口调用失败 - error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"分类失败：{str(e)}")
 
 

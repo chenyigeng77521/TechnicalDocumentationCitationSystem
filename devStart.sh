@@ -33,7 +33,7 @@ if pgrep -x "nginx" > /dev/null; then
     echo "   ✅ Nginx 已运行"
 else
     echo "   🔄 启动 Nginx..."
-    /usr/local/nginx/sbin/nginx
+    /usr/local/nginx/sbin/nginx -c "$current_path/nginx.conf"
     sleep 1
     echo "   ✅ Nginx 已启动"
 fi
@@ -103,6 +103,41 @@ else
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
         echo "   ❌ category_classifier 启动超时，请检查日志"
         echo "   💡 日志路径：$current_path/logs/firstlayer.log"
+    fi
+fi
+
+
+# 检查并启动 Context Memory 上下文记忆服务
+echo ""
+echo "4️⃣ 检查 Context Memory 上下文记忆服务状态..."
+CONTEXT_CHECK=$(lsof -i:3006 2>/dev/null | grep LISTEN)
+if [ -n "$CONTEXT_CHECK" ]; then
+    echo "   ✅ Context Memory 已运行 (3006)"
+else
+    echo "   🔄 启动 Context Memory 服务..."
+    cd "$current_path/backend/firstlayer/context_memory/src"
+    # 使用 uvicorn 启动（解决相对导入问题）
+    nohup /usr/local/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 3006 > "$current_path/logs/context_memory.log" 2>&1 &
+    CONTEXT_PID=$!
+    echo "   进程 PID: $CONTEXT_PID"
+    # 使用循环检测服务是否启动成功
+    echo "   ⏳ 等待服务启动..."
+    MAX_RETRIES=20
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        sleep 3
+        CONTEXT_CHECK2=$(lsof -i:3006 2>/dev/null | grep LISTEN)
+        if [ -n "$CONTEXT_CHECK2" ]; then
+            echo "   ✅ Context Memory 已启动 (3006)"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        echo "   ⏳ 等待中... ($RETRY_COUNT/$MAX_RETRIES)"
+    done
+
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "   ❌ Context Memory 启动超时，请检查日志"
+        echo "   💡 日志路径：$current_path/logs/context_memory.log"
     fi
 fi
 

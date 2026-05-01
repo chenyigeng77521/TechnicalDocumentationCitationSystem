@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FirstLayer 问题分类服务启动脚本
+# category_classifier 问题分类服务启动脚本
 # 位于 category_classifier 目录下
 
 echo "========================================"

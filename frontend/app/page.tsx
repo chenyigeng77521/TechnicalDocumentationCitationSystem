@@ -21,7 +21,13 @@ export default function Home() {
   const [docCount, setDocCount] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingTime, setProcessingTime] = useState<number | null>(null);
   const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [historyConversations, setHistoryConversations] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [rawFiles, setRawFiles] = useState<any[]>([]);
   const [rawTotal, setRawTotal] = useState(0);
   const [rawPage, setRawPage] = useState(1);
@@ -29,10 +35,32 @@ export default function Home() {
   const [isServerConnected, setIsServerConnected] = useState(true);
   const [hasMounted, setHasMounted] = useState(false);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [favorites, setFavorites] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem('favorites') || '[]'); }
+    catch { return []; }
+  });
+  const [sessionId, setSessionId] = useState<string>('');
+  const [showLogPanel, setShowLogPanel] = useState(false);
+  const [logLines, setLogLines] = useState<string[]>([]);
+  const [logStream, setLogStream] = useState<EventSource | null>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+  // 批量测试相关状态
+  const [isBatchUploading, setIsBatchUploading] = useState(false);
+  const [batchUploadProgress, setBatchUploadProgress] = useState(0);
+  const [batchUploadMessage, setBatchUploadMessage] = useState('');
+  const [batchResultFiles, setBatchResultFiles] = useState<any[]>([]);
+  const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [resultPage, setResultPage] = useState(1);
+  const [resultTotalPages, setResultTotalPages] = useState(1);
+  const batchFileInputRef = useRef<HTMLInputElement>(null);
+  const resultFileInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thinkingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const logPanelRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // API 基础 URL
   const getApiBaseUrl = () => {
@@ -54,9 +82,37 @@ export default function Home() {
     return baseUrl.endsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/${path}`;
   };
 
-  // 初始化时获取文档数量
+  // 初始化时获取文档数量并创建 session
   useEffect(() => {
     setHasMounted(true);
+    
+    // 1. 创建新 session（每次页面加载都创建）
+    const initSession = async () => {
+      try {
+        // 调用 entrance 的 /api/context/create-session 接口
+        // entrance 服务会自动调用 3006 端口生成 session
+        const res = await fetch(buildApiUrl('/api/context/create-session'), {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success) {
+          const newSid = data.session_id;
+          localStorage.setItem('context_session_id', newSid);
+          console.log('✅ 创建新 session:', newSid);
+          setSessionId(newSid);
+          console.log('📝 当前 session:', newSid);
+        } else {
+          console.error('❌ 创建 session 失败:', data.error);
+        }
+      } catch (err) {
+        console.error('❌ 创建 session 失败:', err);
+      }
+    };
+    
+    initSession();
+    
+    // 2. 检查后端连接
     const checkConnection = async () => {
       try {
         const res = await fetch(buildApiUrl('/api/qa/stats'));
@@ -95,8 +151,14 @@ export default function Home() {
 
   // 点击知识库时加载文档列表
   const handleKnowledgeBaseClick = () => {
-    setShowKnowledgeBase(!showKnowledgeBase);
-    if (!showKnowledgeBase) {
+    const willOpen = !showKnowledgeBase;
+    setShowKnowledgeBase(willOpen);
+    if (willOpen) {
+      setShowResults(false);
+      setShowHistoryPanel(false);
+      setShowLogPanel(false);
+      if (logStream) { logStream.close(); setLogStream(null); }
+      setLogLines([]);
       loadRawFiles(1);
     }
   };
@@ -129,9 +191,6 @@ export default function Home() {
       const steps = [
         '🔍 正在理解您的问题...',
         '📚 正在检索知识库...',
-        '🧠 正在分析相关信息...',
-        '🔗 正在关联知识点...',
-        '✍️ 正在组织答案...',
         '📝 正在生成回答...'
       ];
       let index = 0;
@@ -171,6 +230,7 @@ export default function Home() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
+      if (isLoading) { handleStop(); return; }
       handleSend();
     }
   };
@@ -190,6 +250,191 @@ export default function Home() {
   const clearChat = () => {
     setMessages([]);
   };
+
+  // ========== 批量测试相关函数 ==========
+  
+  const handleBatchFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsBatchUploading(true);
+    setBatchUploadProgress(30);
+    setBatchUploadMessage(`⬆️ 正在上传：${file.name}...`);
+
+    // 2 秒后模拟"上传完成，正在调用远程服务"
+    const remoteTimer = setTimeout(() => {
+      setBatchUploadMessage(`🌐 上传成功，正在调用远程服务...`);
+      setBatchUploadProgress(60);
+    }, 2000);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // 模拟上传进度
+      setTimeout(() => setBatchUploadProgress(80), 400);
+
+      const response = await fetch(buildApiUrl('/api/batch-test/upload'), {
+        method: 'POST',
+        body: formData
+      });
+
+      clearTimeout(remoteTimer);
+      setBatchUploadProgress(90);
+      const data = await response.json();
+      setBatchUploadProgress(100);
+
+      if (data.success) {
+        setBatchUploadMessage(`✅ 处理完成！共 ${data.questionCount} 个问题`);
+        // 自动刷新结果列表
+        loadResultFiles();
+      } else {
+        setBatchUploadMessage(`❌ ${data.message || '处理失败'}`);
+      }
+    } catch (error: any) {
+      clearTimeout(remoteTimer);
+      console.error('❌ [批量测试] 上传失败:', error);
+      setBatchUploadMessage(`❌ 上传失败：${error.message}`);
+    } finally {
+      setIsBatchUploading(false);
+      setBatchUploadProgress(0);
+      // 清空文件选择
+      if (batchFileInputRef.current) {
+        batchFileInputRef.current.value = '';
+      }
+      // 5 秒后清除消息
+      setTimeout(() => {
+        setBatchUploadMessage('');
+      }, 5000);
+    }
+  };
+
+  const loadResultFiles = async (page: number = resultPage) => {
+    setIsLoadingResults(true);
+    try {
+      const response = await fetch(buildApiUrl(`/api/batch-test/results?page=${page}&limit=5`));
+      const data = await response.json();
+
+      if (data.success) {
+        setBatchResultFiles(data.files || []);
+        setResultPage(data.page || 1);
+        setResultTotalPages(data.totalPages || 1);
+      } else {
+        console.error('❌ [批量测试] 获取结果列表失败:', data.message);
+      }
+    } catch (error: any) {
+      console.error('❌ [批量测试] 获取结果列表失败:', error);
+    } finally {
+      setIsLoadingResults(false);
+    }
+  };
+
+  // 点击结果列表时加载
+  const handleResultListClick = () => {
+    const willOpen = !showResults;
+    setShowResults(willOpen);
+    if (willOpen) {
+      setShowKnowledgeBase(false);
+      setShowHistoryPanel(false);
+      setShowLogPanel(false);
+      if (logStream) { logStream.close(); setLogStream(null); }
+      setLogLines([]);
+      loadResultFiles(1);
+    }
+  };
+
+  // 历史会话切换
+  const handleHistoryToggle = async () => {
+    const willOpen = !showHistoryPanel;
+    setShowHistoryPanel(willOpen);
+    if (willOpen) {
+      setShowKnowledgeBase(false);
+      setShowResults(false);
+      setShowLogPanel(false);
+      if (logStream) { logStream.close(); setLogStream(null); }
+      setLogLines([]);
+      setIsLoadingHistory(true);
+      console.log('📋 [历史会话] sessionId:', sessionId);
+      try {
+        const res = await fetch(buildApiUrl(`/api/context/get-all-messages/${sessionId}`));
+        const data = await res.json();
+        console.log('📋 [历史会话] 返回数据:', JSON.stringify(data, null, 2));
+        setHistoryConversations(data.messages || []);
+      } catch (e) {
+        console.error('获取历史会话失败', e);
+        setHistoryConversations([]);
+      }
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // 后台日志切换
+  const handleLogToggle = () => {
+    const willOpen = !showLogPanel;
+    setShowLogPanel(willOpen);
+
+    if (willOpen) {
+      setShowKnowledgeBase(false);
+      setShowResults(false);
+      setShowHistoryPanel(false);
+      if (logStream) logStream.close();
+      const url = buildApiUrl('/api/logs/stream?file=backend.log');
+      console.log('📋 [调试] 连接日志服务:', url);
+      setLogLines([`正在连接日志服务: ${url}`]);
+      const es = new EventSource(url);
+      setLogStream(es);
+
+      es.onopen = () => {
+        console.log('📋 [调试] EventSource 连接已建立');
+        setLogLines(prev => [...prev, '✅ 连接已建立']);
+      };
+
+      es.onmessage = (event) => {
+        console.log('📋 [调试] 收到消息:', event.data.substring(0, 80));
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'init' && Array.isArray(data.lines)) {
+            setLogLines(data.lines);
+            console.log(`📋 [调试] 初始日志 ${data.lines.length} 行`);
+          } else if (data.type === 'append' && Array.isArray(data.lines)) {
+            setLogLines(prev => [...prev, ...data.lines]);
+          }
+        } catch (e) {
+          console.log('📋 [调试] 解析失败:', e);
+          setLogLines(prev => [...prev, `⚠️ 解析失败: ${event.data.substring(0, 50)}`]);
+        }
+      };
+      es.onerror = (e) => {
+        console.log('📋 [调试] EventSource 错误:', es.readyState, EventSource.CONNECTING, EventSource.OPEN, EventSource.CLOSED);
+        setLogLines(prev => [...prev, `⚠️ 连接断开 (readyState=${es.readyState}), 重连中...`]);
+      };
+    } else {
+      if (logStream) { logStream.close(); setLogStream(null); }
+      setLogLines([]);
+    }
+  };
+
+  // 自动滚动日志
+  useEffect(() => {
+    if (logContainerRef.current && showLogPanel) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logLines, showLogPanel]);
+
+  // 点击空白处关闭弹窗（历史会话、后台日志除外）
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const inSidebar = sidebarRef.current && sidebarRef.current.contains(target);
+      const inLogPanel = logPanelRef.current && logPanelRef.current.contains(target);
+      if (!inSidebar && !inLogPanel) {
+        setShowKnowledgeBase(false);
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -216,11 +461,75 @@ export default function Home() {
       const data = await response.json();
 
       if (data.success) {
-        setUploadMessage(`✅ ${data.message}`);
+        console.log('📤 [上传] 本地上传成功，文件数量:', data.files?.length || 0);
+        
         // 刷新文档数量
         const statsRes = await fetch(buildApiUrl('/api/qa/stats'));
         const statsData = await statsRes.json();
         setDocCount(statsData.totalFiles || 0);
+        console.log('📊 [上传] 本地文档数量已更新:', statsData.totalFiles || 0);
+        
+        // 开关控制：是否同时上传到远程索引服务器
+        const ENABLE_REMOTE_UPLOAD = false;
+        console.log('🔧 [上传] 远程上传开关:', ENABLE_REMOTE_UPLOAD);
+        
+        if (ENABLE_REMOTE_UPLOAD) {
+          setUploadMessage(`✅ 本地上传成功，正在上传远程...`);
+          setIsProcessing(true);
+          setProcessingTime(null);
+          const startTime = Date.now();
+          
+          const remoteUrl = 'http://172.25.178.21:3003/upload?index=true';
+          console.log('🌐 [上传] 远程上传地址:', remoteUrl);
+          console.log('📁 [上传] 待上传文件:', data.files?.map((f: any) => f.originalName).join(', '));
+          
+          // 同步逐个上传，等待每个文件处理完成
+          let successCount = 0;
+          let failCount = 0;
+          
+          for (let i = 0; i < (data.files || []).length; i++) {
+            const file = data.files[i];
+            console.log(`📤 [上传] 正在上传第 ${i + 1}/${data.files.length} 个文件：${file.originalName}`);
+            
+            try {
+              // 创建新的 FormData，按照新格式
+              const remoteFormData = new FormData();
+              // 从本地文件读取内容
+              const fileBlob = await fetch(URL.createObjectURL(files[i])).then(res => res.blob());
+              remoteFormData.append('files', fileBlob, file.originalName);
+              remoteFormData.append('index', 'true');
+              
+              const resp = await fetch(remoteUrl, {
+                method: 'POST',
+                body: remoteFormData
+              });
+              
+              const result = await resp.json();
+              console.log(`📥 [上传] 第 ${i + 1} 个文件响应:`, result);
+              
+              if (result.success || resp.ok) {
+                successCount++;
+                console.log(`✅ [上传] 第 ${i + 1} 个文件上传成功`);
+              } else {
+                failCount++;
+                console.error(`❌ [上传] 第 ${i + 1} 个文件上传失败:`, result.message);
+              }
+            } catch (err) {
+              failCount++;
+              console.error(`❌ [上传] 第 ${i + 1} 个文件异常:`, (err as Error).message);
+            }
+          }
+          
+          const endTime = Date.now();
+          const duration = ((endTime - startTime) / 1000).toFixed(2);
+          setProcessingTime(Number(duration));
+          
+          console.log('📊 [上传] 远程上传完成 - 成功:', successCount, '失败:', failCount, '总用时:', duration, '秒');
+          setUploadMessage(`✅ 本地 + 远程上传完成 (${successCount}/${data.files.length}), 用时 ${duration} 秒`);
+        } else {
+          console.log('⏭️ [上传] 跳过远程上传');
+          setUploadMessage(`✅ 上传成功！`);
+        }
       } else {
         setUploadMessage(`❌ ${data.message}`);
       }
@@ -228,12 +537,13 @@ export default function Home() {
       setUploadMessage(`❌ 上传失败: ${(error as Error).message}`);
     } finally {
       setIsUploading(false);
+      setIsProcessing(false);
       // 清空文件选择
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       // 3秒后清除消息
-      setTimeout(() => setUploadMessage(''), 3000);
+      setTimeout(() => { setUploadMessage(""); setProcessingTime(null); }, 5000);
     }
   };
 
@@ -277,6 +587,34 @@ export default function Home() {
     }
   };
 
+  // 收藏切换
+  const toggleFavorite = (text: string) => {
+    if (favorites.some((f: any) => f.text === text)) {
+      const newFavs = favorites.filter((f: any) => f.text !== text);
+      setFavorites(newFavs);
+      localStorage.setItem('favorites', JSON.stringify(newFavs));
+      setCopySuccess('已取消收藏');
+    } else {
+      const newFavs = [...favorites, { text, timestamp: new Date().toISOString() }];
+      setFavorites(newFavs);
+      localStorage.setItem('favorites', JSON.stringify(newFavs));
+      setCopySuccess('已添加到收藏');
+    }
+    setTimeout(() => setCopySuccess(null), 2000);
+  };
+
+  // 判断是否已收藏
+  const isFavorited = (text: string) => favorites.some((f: any) => f.text === text);
+
+  // 停止请求
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+  };
+
   const handleSend = async () => {
     const q = question.trim();
     if (!q || isLoading) return;
@@ -288,14 +626,25 @@ export default function Home() {
     setIsLoading(true);
     console.log('🚀 开始思考动画');
 
+    // 记录用户消息到 context memory（不再提前记录，等成功后再一起保存）
+    const userQuestion = q;
+
     try {
+      // 创建 AbortController 用于停止请求
+      abortControllerRef.current = new AbortController();
+      const { signal } = abortControllerRef.current;
+
       // 调用后端 API
       const response = await fetch(buildApiUrl('/api/qa/ask-stream'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: q }),
+        signal,
+        body: JSON.stringify({ 
+          question: q,
+          session_id: sessionId || undefined  // 传递 session_id
+        }),
       });
 
       if (!response.ok) throw new Error('API 请求失败');
@@ -306,13 +655,14 @@ export default function Home() {
       let answer = '';
       let sources: string[] = [];
       let classification: any = null;
+      let isCompleteAnswer = false; // 标记是否收到完整答案（非流式）
 
-      console.log('📡 开始接收流式响应...');
+      console.log('📡 开始接收响应...');
 
       while (true) {
         const { done, value } = await reader!.read();
         if (done) {
-          console.log('✅ 流式响应结束');
+          console.log('✅ 响应结束');
           break;
         }
 
@@ -329,9 +679,7 @@ export default function Home() {
               // 处理不同类型的事件
               if (data.type === 'start') {
                 console.log('🚀 开始处理:', data.message);
-                // 显示加载状态
               } else if (data.type === 'classification') {
-                // 保存分类结果
                 classification = {
                   category: data.category,
                   confidence: data.confidence,
@@ -340,16 +688,23 @@ export default function Home() {
                 };
                 console.log('📊 分类结果:', classification);
               } else if (data.type === 'answer') {
-                answer += data.text;
-                // 实时更新（可选）
+                // 检查是否是完整答案格式（包含 answer 和 sources 字段）
+                if (data.answer && Array.isArray(data.sources)) {
+                  // 完整答案格式，直接接收
+                  answer = data.answer;
+                  sources = data.sources;
+                  isCompleteAnswer = true;
+                  console.log('✅ 收到完整答案，来源数:', sources.length);
+                } else {
+                  // 流式答案格式，逐字接收
+                  answer += data.text;
+                }
               } else if (data.type === 'sources') {
                 sources = data.sources;
               } else if (data.type === 'end') {
                 console.log('🏁 问答完成:', data.classification);
               } else if (data.type === 'error') {
-                // 处理错误 - 区分业务提示和系统错误
                 const errorMsg = data.message || '发生错误';
-                // 如果是语言检测提示，显示为普通消息而非错误
                 const isLanguageHint = errorMsg.includes('中文') || errorMsg.includes('语言');
                 
                 console.error('❌ 发生错误:', data.message);
@@ -359,7 +714,7 @@ export default function Home() {
                   text: isLanguageHint ? `💡 ${errorMsg}` : `❌ ${errorMsg}`,
                   sources: []
                 }]);
-                return; // 立即返回，不继续处理
+                return;
               }
             } catch (e) {
               console.error('❌ JSON 解析错误:', e, '原始行:', line);
@@ -382,6 +737,7 @@ export default function Home() {
 
       console.log('📝 最终答案:', answer);
       console.log('📊 最终分类:', classification);
+      console.log('📚 最终来源:', sources);
 
       // 添加 AI 回复（包含分类信息）
       const categoryEmoji: Record<string, string> = {
@@ -396,12 +752,42 @@ export default function Home() {
       const categoryInfo = classification ? 
         `${categoryEmoji[classification.category] || '❓'} **${classification.category}** (${Math.round(classification.confidence * 100)}% 置信度)\n\n` : '';
       
+      const finalAnswer = categoryInfo + answer;
+      
+      // 提取唯一来源并去重
+      const uniqueSources = Array.from(new Set(sources.filter(s => s && s.trim())));
+      
       setMessages(prev => [...prev, { 
         role: 'bot', 
-        text: categoryInfo + answer,
-        sources: sources.length > 0 ? sources : ['知识库文档']
+        text: finalAnswer,
+        sources: uniqueSources.length > 0 ? uniqueSources : undefined
       }]);
-    } catch (error) {
+
+      // 记录用户问题和助手回答到 context memory（仅限有效回答）
+      if (sessionId && answer && answer !== '' && !answer.includes('检索服务暂时不可用') && !answer.includes('无法连接到知识库服务') && !answer.includes('问题不够清晰')) {
+        try {
+          // 记录用户问题
+          await fetch(buildApiUrl('/api/context/add-user-message'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId, content: userQuestion })
+          });
+          // 记录助手回答
+          await fetch(buildApiUrl('/api/context/add-assistant-message'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId, content: finalAnswer })
+          });
+          console.log('✅ 问题和回答已记录到 context memory');
+        } catch (err) {
+          console.error('❌ 记录到 context memory 失败:', err);
+        }
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('⏹ 用户已停止请求');
+        return;
+      }
       console.error('请求失败:', error);
       setMessages(prev => [...prev, { 
         role: 'bot', 
@@ -410,6 +796,7 @@ export default function Home() {
       }]);
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -422,6 +809,7 @@ export default function Home() {
 
   return (
     <div style={styles.container} className="container-mobile">
+
       <div style={styles.mainContent} className="main-mobile">
         {/* Header */}
         <div style={styles.header}>
@@ -473,22 +861,51 @@ export default function Home() {
                     dangerouslySetInnerHTML={{ __html: formatText(msg.text) }}
                   />
                   {msg.role === 'user' && (
-                    <button 
-                      style={styles.copyBtn}
-                      onClick={() => copyToClipboard(msg.text, true)}
-                      title="复制问题"
-                    >
-                      📋 复制
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '6px', justifyContent: 'flex-end' }}>
+                      <button 
+                        style={styles.copyBtn}
+                        onClick={() => copyToClipboard(msg.text, true)}
+                        title="复制问题"
+                      >
+                        📋 复制
+                      </button>
+                      <button 
+                        style={{
+                          ...styles.copyBtn,
+                          background: isFavorited(msg.text) ? '#e5e7eb' : 'transparent',
+                          border: isFavorited(msg.text) ? 'none' : '1px solid var(--border)',
+                        }}
+                        onClick={() => toggleFavorite(msg.text)}
+                        title={isFavorited(msg.text) ? '取消收藏' : '收藏'}
+                      >
+                        {isFavorited(msg.text) ? '⭐ 已收藏' : '☆ 收藏'}
+                      </button>
+                    </div>
                   )}
                   {msg.role === 'bot' && (
-                    <button 
-                      style={{...styles.copyBtn, ...styles.copyBtnBot}}
-                      onClick={() => copyToClipboard(msg.text, false)}
-                      title="复制答案"
-                    >
-                      📋 复制
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                      <button 
+                        style={{...styles.copyBtn, ...styles.copyBtnBot}}
+                        onClick={() => copyToClipboard(msg.text, false)}
+                        title="复制答案"
+                      >
+                        📋 复制
+                      </button>
+                      <button 
+                        style={{
+                          ...styles.copyBtn,
+                          ...styles.copyBtnBot,
+                          background: index > 0 && isFavorited(messages[index - 1]?.text) ? '#e5e7eb' : 'transparent',
+                          border: index > 0 && isFavorited(messages[index - 1]?.text) ? 'none' : '1px solid var(--border)',
+                        }}
+                        onClick={() => {
+                          if (index > 0) toggleFavorite(messages[index - 1].text);
+                        }}
+                        title={index > 0 && isFavorited(messages[index - 1]?.text) ? '取消收藏问题' : '收藏问题'}
+                      >
+                        {index > 0 && isFavorited(messages[index - 1]?.text) ? '⭐ 已收藏' : '☆ 收藏'}
+                      </button>
+                    </div>
                   )}
                   {msg.sources && msg.sources.length > 0 && (
                     <div style={styles.sources}>
@@ -508,14 +925,14 @@ export default function Home() {
                 <div style={styles.thinkingBubble}>
                   <span style={styles.thinkingIcon}>⏳</span>
                   <span style={styles.thinkingText}>
-                    {['🔍 正在理解您的问题...', '📚 正在检索知识库...', '🧠 正在分析相关信息...', '🔗 正在关联知识点...', '✍️ 正在组织答案...', '📝 正在生成回答...'][thinkingStep]}
+                    {['🔍 正在理解您的问题...', '📚 正在检索知识库...','📝 正在生成回答...'][thinkingStep]}
                   </span>
                 </div>
-                <div style={styles.typing}>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
+                {/*<div style={styles.typing}>*/}
+                {/*  <span></span>*/}
+                {/*  <span></span>*/}
+                {/*  <span></span>*/}
+                {/*</div>*/}
               </div>
             </div>
           )}
@@ -553,11 +970,17 @@ export default function Home() {
               </div>
             </div>
             <button 
-              style={styles.sendBtn} 
-              onClick={handleSend}
-              disabled={!question.trim() || isLoading}
+              style={{
+                ...styles.sendBtn,
+                transform: isLoading ? 'none' : undefined,
+                opacity: (!isLoading && !question.trim()) ? 0.4 : 1,
+                cursor: (!isLoading && !question.trim()) ? 'default' : 'pointer',
+              }}
+              onClick={isLoading ? handleStop : handleSend}
+              disabled={!isLoading && (!question.trim())}
+              title={isLoading ? '停止' : '发送'}
             >
-              ➤
+              {isLoading ? '⏹' : '➤'}
             </button>
           </div>
           <p style={styles.hint}>
@@ -620,7 +1043,7 @@ export default function Home() {
                   <span className="mobile-panel-text" title={file.name}>
                     {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
                   </span>
-                  <span className="mobile-panel-meta">{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+                  <span className="mobile-panel-meta">{(file.size / 1024).toFixed(1)}KB</span>
                 </div>
               ))
             )}
@@ -634,20 +1057,27 @@ export default function Home() {
           if (!hasSources || !lastMsg.sources) return null;
           return (
             <div className="mobile-info-panel">
-              <div className="mobile-panel-title">📖 引用来源</div>
-              {lastMsg.sources.slice(0, 3).map((source, idx) => (
+              <div className="mobile-panel-title">📚 引用来源 ({lastMsg.sources.length} 个)</div>
+              {lastMsg.sources.slice(0, 5).map((source, idx) => (
                 <div key={idx} className="mobile-panel-item">
                   <span className="mobile-panel-icon">📄</span>
-                  <span className="mobile-panel-text">{source}</span>
+                  <span className="mobile-panel-text" title={source}>
+                    {source.length > 20 ? source.substring(0, 20) + '...' : source}
+                  </span>
                 </div>
               ))}
+              {lastMsg.sources.length > 5 && (
+                <div style={{ padding: '10px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                  还有 {lastMsg.sources.length - 5} 个来源...
+                </div>
+              )}
             </div>
           );
         })()}
       </div>
 
       {/* 右侧边栏 */}
-      <div style={styles.sidebar} className="sidebar-mobile">
+      <div style={styles.sidebar} className="sidebar-mobile" ref={sidebarRef}>
         {/* 按钮行：上传按钮在左，知识库按钮和知识库列表在右 */}
         <div style={styles.btnRow}>
           <button 
@@ -689,10 +1119,15 @@ export default function Home() {
                     rawFiles.map((file, idx) => (
                       <div key={idx} style={styles.kbPanelItem}>
                         <span style={styles.kbPanelIcon}>📄</span>
-                        <span style={styles.kbPanelText} title={file.name}>
+                        <a
+                          href={buildApiUrl(file.downloadUrl)}
+                          download={file.name}
+                          style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none'}}
+                          title="下载"
+                        >
                           {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
-                        </span>
-                        <span style={styles.kbPanelMeta}>{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+                        </a>
+                        <span style={styles.kbPanelMeta}>{(file.size / 1024).toFixed(1)}KB</span>
                       </div>
                     ))
                   )}
@@ -728,9 +1163,18 @@ export default function Home() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".docx,.xlsx,.pptx,.pdf,.md"
+          accept=".docx,.xlsx,.pptx,.pdf,.md,.adoc,.jsonl"
           multiple
           onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+        
+        {/* 隐藏的批量测试文件输入 */}
+        <input
+          ref={batchFileInputRef}
+          type="file"
+          accept=".json,.jsonl,.csv,.txt"
+          onChange={handleBatchFileChange}
           style={{ display: 'none' }}
         />
         
@@ -739,13 +1183,213 @@ export default function Home() {
           <div style={styles.uploadStatus}>{uploadMessage}</div>
         )}
 
+        {/* 批量测试状态提示 */}
+        {batchUploadMessage && (
+          <div style={styles.uploadStatus}>{batchUploadMessage}</div>
+        )}
+
+        {/* 批量测试按钮行 - 和上传文档、知识库按钮并排 */}
+        <div style={styles.btnRow}>
+          <button 
+            className="upload-btn" 
+            style={styles.uploadBtn} 
+            title="批量测试"
+            onClick={() => batchFileInputRef.current?.click()}
+            disabled={isBatchUploading}
+          >
+            <span style={styles.uploadIcon}>{isBatchUploading ? '⏳' : '🧪'}</span>
+            <span style={styles.uploadText}>{isBatchUploading ? '处理中...' : '批量测试'}</span>
+          </button>
+          
+          <div style={styles.btnGroup}>
+            <button 
+              className="upload-btn" 
+              style={styles.uploadBtn} 
+              title="批量测试结果"
+              onClick={handleResultListClick}
+              disabled={isLoadingResults}
+            >
+              <span style={styles.uploadIcon}>📥</span>
+              <span style={styles.uploadText}>结果列表</span>
+            </button>
+            
+            {/* 结果文件列表 */}
+            {showResults && (
+              <div style={styles.knowledgeBasePanel}>
+                <div style={styles.kbPanelTitle}>📥 批量测试结果 {isLoadingResults ? '（加载中...）' : `(${batchResultFiles.length} 个)`}</div>
+                <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '0 10px 10px' }}>
+                  {isLoadingResults ? (
+                    <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                      加载中...
+                    </div>
+                  ) : batchResultFiles.length === 0 ? (
+                    <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                      暂无结果
+                    </div>
+                  ) : (
+                    batchResultFiles.map((file, idx) => (
+                      <div key={idx} style={styles.kbPanelItem}>
+                        <span style={styles.kbPanelIcon}>📄</span>
+                        <a
+                          href={buildApiUrl(file.downloadUrl)}
+                          download={file.name}
+                          style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none'}}
+                          title="下载"
+                        >
+                          {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+                        </a>
+                        <a
+                          href={buildApiUrl(file.downloadUrl)}
+                          download={file.name}
+                          style={{...styles.kbPanelMeta, color: 'var(--primary)', textDecoration: 'none'}}
+                          title="下载"
+                        >
+                          ⬇️ {(file.size / 1024).toFixed(0)}KB
+                        </a>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {/* 分页控件 */}
+                {resultTotalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '8px 10px', borderTop: '1px solid #f0f0f0' }}>
+                    <button
+                      onClick={() => loadResultFiles(resultPage - 1)}
+                      disabled={resultPage <= 1}
+                      style={{ ...styles.paginationBtn, opacity: resultPage <= 1 ? 0.4 : 1 }}
+                    >
+                      ‹ 上一页
+                    </button>
+                    <span style={{ fontSize: '11px', color: 'var(--text-light)' }}>
+                      {resultPage} / {resultTotalPages}
+                    </span>
+                    <button
+                      onClick={() => loadResultFiles(resultPage + 1)}
+                      disabled={resultPage >= resultTotalPages}
+                      style={{ ...styles.paginationBtn, opacity: resultPage >= resultTotalPages ? 0.4 : 1 }}
+                    >
+                      下一页 ›
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 历史会话 + 后台日志 */}
+        <div style={styles.btnRow}>
+          <div style={styles.btnGroup}>
+            <button 
+              className="upload-btn" 
+              style={styles.uploadBtn} 
+              title="历史会话"
+              onClick={handleHistoryToggle}
+            >
+              <span style={styles.uploadIcon}>📋</span>
+              <span style={styles.uploadText}>历史会话</span>
+            </button>
+            
+            {/* 历史会话列表 */}
+            {showHistoryPanel && (
+              <div style={styles.knowledgeBasePanel}>
+                <div style={styles.kbPanelTitle}>📋 历史会话 {isLoadingHistory ? '（加载中...）' : `(${historyConversations.length} 条)`}</div>
+                <div style={{ maxHeight: '555px', overflowY: 'auto', padding: '0 10px 10px' }}>
+                  {/* 当前会话 ID */}
+                  <div style={styles.kbPanelItem}>
+                    <span style={{...styles.kbPanelIcon, fontSize: '10px'}}>🆔</span>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{...styles.kbPanelText, fontSize: '10px', color: 'var(--primary)'}}>
+                        会话ID:
+                      </div>
+                      <div style={{...styles.kbPanelText, fontSize: '10px', color: 'var(--text)', wordBreak: 'break-all', marginTop: '2px'}}>
+                        {sessionId || '暂无会话'}
+                      </div>
+                    </div>
+                  </div>
+                  {isLoadingHistory ? (
+                    <div style={{ padding: '20px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                      加载中...
+                    </div>
+                  ) : historyConversations.length === 0 ? (
+                    <div style={{ padding: '10px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+                      暂无历史问答记录
+                    </div>
+                  ) : (
+                    [...historyConversations].reverse().map((msg: any, idx: number) => (
+                      <div key={idx} style={{
+                        ...styles.kbPanelItem,
+                        flexDirection: 'column',
+                        alignItems: 'stretch',
+                        padding: '10px 8px',
+                        gap: '6px',
+                        borderBottom: idx < historyConversations.length - 1 ? '1px solid var(--border)' : 'none',
+                        transition: 'background 0.3s ease',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <span style={{ ...styles.kbPanelIcon, fontSize: '12px', marginTop: '1px' }}>💬</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              fontSize: '11px',
+                              fontWeight: 500,
+                              color: '#4b5563',
+                              lineHeight: '1.5',
+                              wordBreak: 'break-word',
+                              whiteSpace: 'pre-wrap',
+                              padding: '4px 8px',
+                              background: 'var(--surface-2)',
+                              borderRadius: '6px',
+                            }}>
+                              {msg.user ? `Q: ${msg.user}` : `会话 ${idx + 1}`}
+                            </div>
+                          </div>
+                          <span style={{...styles.kbPanelMeta, flexShrink: 0, fontSize: '9px', marginTop: '3px'}}>
+                            {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+                          </span>
+                        </div>
+                        {msg.assistant && (
+                          <div style={{
+                            fontSize: '10px',
+                            color: '#4338ca',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap',
+                            padding: '4px 8px 4px 24px',
+                            background: 'var(--primary-light)',
+                            borderRadius: '6px',
+                            marginTop: '2px',
+                          }}>
+                            A: {msg.assistant}
+                            <div style={{ fontSize: '9px', color: 'var(--text-light)', marginTop: '4px', textAlign: 'right' }}>
+                              {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <button 
+            className="upload-btn" 
+            style={styles.uploadBtn} 
+            title="后台日志"
+            onClick={handleLogToggle}
+          >
+            <span style={styles.uploadIcon}>📋</span>
+            <span style={styles.uploadText}>后台日志</span>
+          </button>
+        </div>
+
         {/* 上传文档要求 */}
         <div style={styles.sourcePanel} className="source-panel-mobile-hide">
           <div style={styles.sourcePanelTitle}>📤 上传文档要求</div>
           <div style={{ padding: '10px 12px', fontSize: '11px' }}>
             <div style={styles.reqItem}>
               <span style={styles.reqLabel}>文件数量：</span>
-              <span style={styles.reqValue}>最多 30 个</span>
+              <span style={styles.reqValue}>最多 100 个</span>
             </div>
             <div style={styles.reqItem}>
               <span style={styles.reqLabel}>单个大小：</span>
@@ -755,7 +1399,7 @@ export default function Home() {
               <span style={styles.reqLabel}>文件格式：</span>
             </div>
             <div style={styles.formatTags}>
-              {['PDF', 'Word', 'Excel', 'PPT', 'TXT', 'MD', 'JSON', 'XML', 'SQL', '文本类'].map(fmt => (
+              {['PDF', 'Word', 'Excel', 'PPT', 'TXT', 'MD', 'ADOC','文本类'].map(fmt => (
                 <span key={fmt} style={styles.formatTag}>{fmt}</span>
               ))}
             </div>
@@ -778,6 +1422,51 @@ export default function Home() {
             )}
           </div>
         </div>
+
+      {/* 右侧面板 - 后台日志 */}
+      <div ref={logPanelRef} style={{
+        ...styles.sidebarLeft,
+        display: showLogPanel ? 'flex' : 'none',
+        overflow: 'hidden',
+      }} className="sidebar-mobile-left">
+        <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text)', padding: '8px 50px', background: 'var(--surface)', borderBottom: '3px solid var(--border)', width: '100%', flexShrink: 0, borderRadius: 'var(--radius) var(--radius) 0 0' }}>
+          📋 后台日志
+          <button onClick={handleLogToggle} style={{ float: 'right', border: 'none', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+        </div>
+        <div ref={logContainerRef} style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '3px 3px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif',
+          fontSize: '10px',
+          marginBottom:'10px',
+          marginRight:'3px',
+          lineHeight: '1.5',
+          width: '100%',
+          background: 'var(--surface)',
+        }}>
+          {logLines.length === 0 ? (
+            <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
+              暂无日志
+            </div>
+          ) : (
+          logLines.map((line, i) => {
+            const isError = /❌|Error|error/.test(line);
+            const isWarn = /⚠️|WARN/.test(line);
+            return (
+              <div key={i} style={{
+                padding: '2px 10px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                color: isError ? '#ef4444' : isWarn ? '#f59e0b' : 'var(--text-sub)',
+                fontWeight: isError ? 'bold' : 'normal',
+                background: i % 2 === 0 ? 'var(--surface-2)' : 'transparent',
+              }}>{line}</div>
+            );
+          })
+          )}
+        </div>
+      </div>
       </div>
     </div>
   );
@@ -788,26 +1477,36 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif',
     background: 'var(--bg)',
     minHeight: '100vh',
+    width: '100%',
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    gap: '5px',
+    alignItems: 'stretch',
+    justifyContent:'center',
+    position: 'relative',
+    gap: '1px',
     padding: '16px 0 48px 0',
     color: 'var(--text)',
-    marginLeft: '160px',
   },
   mainContent: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    maxWidth: '800px',
+    paddingTop: '0px',
+    paddingBottom: '10px',
+    paddingLeft: '3px',
+    paddingRight: '3px',
+    overflow: 'hidden',
   },
   uploadBtn: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '6px',
+    gap: '5px',
     width: '72px',
     height: '72px',
     background: 'var(--surface)',
@@ -817,7 +1516,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
     transition: 'all 0.2s',
     padding: '8px',
-    marginRight: '2px',
   },
   uploadIcon: {
     fontSize: '24px',
@@ -830,9 +1528,39 @@ const styles: { [key: string]: React.CSSProperties } = {
   sidebar: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    paddingTop: '100px',
-    alignItems: 'flex-end',
+    width: '180px',
+    minWidth: '180px',
+    height: '553px',
+    maxHeight: '553px',
+    overflow: 'hidden',
+    gap: '10px',
+    alignItems: 'center',
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
+    padding: '2px',
+    // paddingTop: '100px',   ← 删掉这个
+    marginTop: '100px',        //← 改成这个！整体下移，阴影也跟着走
+    marginBottom:'64px',
+  },
+  sidebarLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '190px',
+    minWidth: '190px',
+    height: '555px',
+    maxHeight: '555px',
+    overflow: 'hidden',
+    gap: '3px',
+    position: 'absolute',
+    right: 3,
+    top: '116px',
+    marginBottom:'230px',
+    // height: 'calc(100% - 230px)',
+    zIndex: 10,
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
   },
   reqItem: {
     display: 'flex',
@@ -865,20 +1593,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   btnRow: {
     display: 'flex',
     flexDirection: 'row',
-    gap: '10px',
-    width: '180px',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-end',
+    gap: '19px',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: '0px',
   },
   btnGroup: {
     display: 'flex',
     flexDirection: 'row',
-    gap: '12px',
-    alignItems: 'flex-start',
-    position: 'relative',
+    gap: '0px',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: '0px',
   },
   knowledgeBasePanel: {
-    width: '150px',
+    width: '180px',
     background: 'var(--surface)',
     border: '1.5px solid var(--border)',
     borderRadius: 'var(--radius)',
@@ -886,9 +1615,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     overflow: 'hidden',
     flexShrink: 0,
     position: 'absolute',
-    left: '78px',
-    top: 0,
+    left: '86%',
+    top: 118,
   },
+  // knowledgeBasePanel2: {
+  //   width: '140px',
+  //   background: 'var(--surface)',
+  //   border: '1.5px solid var(--border)',
+  //   borderRadius: 'var(--radius)',
+  //   boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
+  //   overflow: 'hidden',
+  //   flexShrink: 0,
+  //   position: 'absolute',
+  //   left: '89%',
+  //   top: '200px',
+  // },
   kbPanelTitle: {
     padding: '8px 10px',
     fontSize: '11px',
@@ -930,7 +1671,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: 'var(--radius)',
     boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
     overflow: 'hidden',
-    alignSelf: 'flex-end',
+    alignSelf: 'center',
   },
   sourcePanelTitle: {
     padding: '10px 12px',
@@ -1109,14 +1850,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: 'var(--radius)',
     boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
     overflow: 'hidden',
+    marginTop:'1px',
     display: 'flex',
     flexDirection: 'column',
   },
   resultArea: {
     padding: '24px 28px 20px',
     minHeight: '260px',
-    maxHeight: '520px',
+    maxHeight: '260px',
     overflowY: 'auto',
+    scrollbarGutter: 'stable',
     background: 'var(--surface-2)',
     borderBottom: '1px solid var(--border)',
     display: 'flex',
@@ -1175,10 +1918,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#fff',
   },
   bubbleBody: {
-    maxWidth: '80%',
+    maxWidth: '60%',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '1px',
   },
   bubbleName: {
     fontSize: '11px',
@@ -1186,10 +1929,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '0 4px',
   },
   bubbleText: {
-    padding: '12px 16px',
+    padding: '10px 10px',
     borderRadius: '16px',
     fontSize: '14px',
-    lineHeight: 1.7,
+    lineHeight: 1.6,
     wordBreak: 'break-word',
   },
   bubbleTextUser: {
@@ -1199,7 +1942,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   bubbleTextBot: {
     background: 'var(--surface)',
-    border: '1px solid var(--border)',
+    border: '2px solid var(--border)',
     color: 'var(--text)',
     borderBottomLeftRadius: '4px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
@@ -1235,30 +1978,30 @@ const styles: { [key: string]: React.CSSProperties } = {
   copyBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '4px',
-    padding: '4px 10px',
+    gap: '1px',
+    padding: '2px 3px',
     background: 'var(--primary-light)',
     border: 'none',
-    borderRadius: '6px',
-    fontSize: '12px',
+    borderRadius: '5px',
+    fontSize: '11px',
     color: 'var(--primary)',
     cursor: 'pointer',
     transition: 'all 0.15s',
     alignSelf: 'flex-start',
-    marginTop: '6px',
+    marginTop: '1px',
     fontWeight: 500,
   },
   copyBtnBot: {
     background: 'rgba(255,255,255,0.9)',
     color: 'var(--primary)',
     alignSelf: 'flex-end',
-    marginTop: '8px',
+    marginTop: '1px',
     fontWeight: 500,
   },
   copyToast: {
     position: 'fixed',
     top: '25vh',
-    left: '50%',
+    left: '45%',
     transform: 'translateX(-50%)',
     background: 'rgba(16, 185, 129, 0.98)',
     color: '#fff',
@@ -1283,11 +2026,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   thinkingBubble: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '2px',
     padding: '10px 14px',
     background: 'linear-gradient(135deg, #f0f4ff, #e8f4f8)',
     border: '1px solid #c9d6ff',
-    borderRadius: '16px',
+    borderRadius: '14px',
     borderBottomLeftRadius: '4px',
     fontSize: '13px',
     color: 'var(--text)',
@@ -1297,7 +2040,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     animation: 'spin 2s linear infinite',
   },
   thinkingText: {
-    fontSize: '13px',
+    fontSize: '12px',
     color: 'var(--text)',
     fontWeight: 500,
   },
@@ -1327,7 +2070,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   inputArea: {
     padding: '20px 24px 24px',
-    background: 'var(--surface)',
+    background: 'var(--surface-2)',
   },
   inputRow: {
     display: 'flex',
@@ -1352,9 +2095,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '14px',
     color: 'var(--text)',
     fontFamily: 'inherit',
-    lineHeight: 1.6,
-    minHeight: '52px',
-    maxHeight: '140px',
+    lineHeight: 1.5,
+    minHeight: '70px',
+    maxHeight: '70px',
     overflowY: 'auto',
     height: 'auto',
   },
@@ -1424,8 +2167,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   stats: {
     display: 'flex',
     justifyContent: 'center',
-    gap: '24px',
-    marginTop: '20px',
+    gap: '20px',
+    marginTop: '10px',
   },
   statItem: {
     display: 'flex',
@@ -1450,5 +2193,15 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   dotPurple: {
     background: 'var(--accent)',
+  },
+  paginationBtn: {
+    padding: '4px 10px',
+    fontSize: '11px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    background: '#fff',
+    cursor: 'pointer',
+    color: 'var(--text)',
+    lineHeight: '1.4',
   },
 };

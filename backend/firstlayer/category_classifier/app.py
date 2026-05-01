@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import Config
 from routes.classify import router as classify_router
+from routes.nlu import router as nlu_router
 
 
 # 创建 FastAPI 应用
@@ -38,6 +39,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(classify_router)
+app.include_router(nlu_router)
 
 
 @app.get("/", tags=["健康检查"])
@@ -64,7 +66,7 @@ async def health_check():
 async def startup_event():
     """服务启动时的操作"""
     print("=" * 60)
-    print("  FirstLayer 问题分类服务启动中...")
+    print("  category_classifier 问题分类服务启动中...")
     print("=" * 60)
     
     # 预加载分类器模型

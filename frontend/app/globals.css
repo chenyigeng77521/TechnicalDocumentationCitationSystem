@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 禁用浏览器窗口滚动条 */
+html, body, #__next {
+  overflow: hidden !important;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 :root {
   /* 参考文件样式变量 */
   --bg: #f0f4ff;
@@ -235,9 +243,10 @@ body {
 /* ========== 响应式设计 - 自动适应手机和电脑 ========== */
 
 /* 大屏幕 (>1200px) */
-@media (min-width: 1200px) {
+@media (min-width: 1400px) {
   .container-mobile {
-    max-width: 1200px !important;
+    max-width: 1400px !important;
+    margin: 0 auto !important;
   }
 }
 

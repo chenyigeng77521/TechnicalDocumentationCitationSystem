@@ -28,6 +28,9 @@ import cors from 'cors';
 import multer from 'multer';
 import uploadRoutes from './routes/upload.js';
 import qaRoutes from './routes/qa.js';
+import contextRoutes from './routes/context.js';
+import batchTestRoutes from './routes/batch-test.js';
+import logsRoutes from './routes/logs.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -46,8 +49,8 @@ app.use((req, res, next) => {
 
 // 中间件
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // 静态文件服务
 app.use('/storage', express.static(path.join(process.cwd(), 'storage')));
@@ -55,6 +58,9 @@ app.use('/storage', express.static(path.join(process.cwd(), 'storage')));
 // API 路由
 app.use('/api/upload', uploadRoutes);
 app.use('/api/qa', qaRoutes);
+app.use('/api/context', contextRoutes);
+app.use('/api/batch-test', batchTestRoutes);
+app.use('/api/logs', logsRoutes);
 
 // 健康检查
 app.get('/health', (req, res) => {
@@ -97,6 +103,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
       return res.status(400).json({
         success: false,
         message: '文件大小超过限制（最大 300MB）'
+      });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        message: '文件数量超过限制（最多 100 个）'
       });
     }
   }
