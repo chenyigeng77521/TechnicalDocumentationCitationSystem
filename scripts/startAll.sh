@@ -8,10 +8,19 @@ echo "  知识问答系统启动脚本"
 echo "========================================"
 echo ""
 
-current_path=$(pwd)
-echo $current_path
+current_path=`dirname $(pwd)`
+
+PYTHON=`which python`
+PIP=`which pip`
+
+
+
+echo '项目目录:' $current_path
+current_path=$current_path/src
+echo '源代码:' $current_path
 
 bash "$current_path/buildAll.sh"
+
 
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）
 echo "🔍 获取本机 IP 地址..."
@@ -49,7 +58,7 @@ else
     echo "   🔄 启动 Question Filter 服务..."
     cd "$current_path/backend/firstlayer/question_filter"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
-    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/question_filter.log" 2>&1 &
+    nohup $PYTHON app.py > "$current_path/logs/question_filter.log" 2>&1 &
     FILTER_PID=$!
     echo "   进程 PID: $FILTER_PID"
     # 等待服务完全启动
@@ -85,7 +94,7 @@ else
     echo "   🔄 启动 Category_classifier 服务..."
     cd "$current_path/backend/firstlayer/category_classifier"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
-    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/category_classifier.log" 2>&1 &
+    nohup $PYTHON app.py > "$current_path/logs/category_classifier.log" 2>&1 &
     FIRSTLAYER_PID=$!
     echo "   进程 PID: $FIRSTLAYER_PID"
     # 使用循环检测服务是否启动成功
@@ -119,7 +128,7 @@ else
     echo "   🔄 启动 Context Memory 服务..."
     cd "$current_path/backend/firstlayer/context_memory/src"
     # 使用 uvicorn 启动（解决相对导入问题）
-    nohup /usr/local/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 3006 > "$current_path/logs/context_memory.log" 2>&1 &
+    nohup $PYTHON -m uvicorn app:app --host 0.0.0.0 --port 3006 > "$current_path/logs/context_memory.log" 2>&1 &
     CONTEXT_PID=$!
     echo "   进程 PID: $CONTEXT_PID"
     # 使用循环检测服务是否启动成功

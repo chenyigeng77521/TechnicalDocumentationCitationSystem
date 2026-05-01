@@ -10,9 +10,13 @@ echo ""
 
 # 获取脚本所在目录（项目根目录）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+current_path=`dirname $(pwd)`
+
+SCRIPT_DIR=$current_path/src
 cd "$SCRIPT_DIR"
 
-echo "📁 项目根目录：$SCRIPT_DIR"
+echo "📁 项目根目录：current_path"
 echo ""
 
 # 检查 Node.js 版本
@@ -94,19 +98,3 @@ echo ""
 echo "========================================"
 echo "  ✅ 全量编译完成！"
 echo "========================================"
-echo ""
-echo "📊 编译结果:"
-echo "   后端：backend/entrance/dist/"
-echo "   前端：frontend/.next/"
-echo ""
-echo "🚀 启动服务:"
-echo "   方式 1: 使用一键启动脚本"
-echo "      ./start_all.sh"
-echo ""
-echo "   方式 2: 手动启动"
-echo "      # 启动后端"
-echo "      cd backend/entrance && npm start"
-echo ""
-echo "      # 启动前端（新窗口）"
-echo "      cd frontend && npm start"
-echo ""
