@@ -11,25 +11,25 @@ from sentence_transformers import CrossEncoder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ------------------------------------------------------------------
-# 环境变量说明（请在 .env 或系统环境中配置）
+# 环境变量说明（请在 retrieval/.env 或系统环境中配置）
 # ------------------------------------------------------------------
-# VECTOR_API_URL           向量库 API 地址，默认 http://localhost:18082
+# VECTOR_API_URL           向量库 API 地址，默认 https://equivalent-handling-heritage-hat.trycloudflare.com/
 # VECTOR_API_KEY           向量库 API 密钥（可选）
 # RETRIEVAL_SCORE_THRESHOLD  兼容旧配置：向量检索结果最低 score（已废弃，请用 VECTOR_SCORE_THRESHOLD）
-# VECTOR_SCORE_THRESHOLD   向量检索结果最低 cosine score，低于此值过滤，默认 0.0
+# VECTOR_SCORE_THRESHOLD   向量检索结果最低 cosine score，低于此值过滤，默认 0.55
 # BM25_SCORE_THRESHOLD     BM25 检索结果最低 score，低于此值过滤，默认 -999.0（不过滤）
 # EMBEDDING_DIMENSION      Embedding 输出维度，默认 1024（bge-m3）
 # QUERY_EXPANSION_ENABLED  是否启用查询扩展，默认 false
-# QUERY_EXPANSION_MODEL    查询扩展用 retrieval 模型，默认 gpt-3.5-turbo
+# QUERY_EXPANSION_MODEL    查询扩展用 retrieval 模型，默认 aliyun/deepseek-v3.2
 # QUERY_EXPANSION_NUM      扩展变体数量，默认 3，最大 5
 # OPENAI_API_KEY           查询扩展用 retrieval API Key（启用查询扩展时必需）
-# OPENAI_API_BASE          查询扩展用 retrieval API 基础地址，默认 https://api.openai.com/v1
-# RERANK_TOP_N             重排序后返回的文档数量，默认 3
+# OPENAI_API_BASE          查询扩展用 retrieval API 基础地址，默认 https://aigw.asiainfo.com/v1
+# RERANK_TOP_N             重排序后返回的文档数量，默认 5
 # RERANK_CONTEXT_WINDOW    重排序上下文扩展窗口，前后各取 N 个相邻 chunk，默认 1
-# RERANK_API_URL           外部重排序 API 地址（如 https://aigw.asiainfo.com/v1/rerank），配置后优先使用 API 而非本地模型
+# RERANK_API_URL           外部重排序 API 地址（默认 https://aigw.asiainfo.com/v1/rerank），置空则回退本地 CrossEncoder
 # RERANK_API_KEY           外部重排序 API 密钥（Bearer Token）
 # RERANK_API_MODEL         外部重排序 API 模型名，默认 10086/bge-reranker-v2-m3
-# EMBEDDING_API_URL        外部 Embedding API 地址（如 https://aigw.asiainfo.com/v1/embeddings），配置后替代本地模型
+# EMBEDDING_API_URL        外部 Embedding API 地址（默认 https://aigw.asiainfo.com/v1/embeddings），置空则回退本地模型
 # EMBEDDING_API_KEY        外部 Embedding API 密钥（Bearer Token）
 # EMBEDDING_API_MODEL      外部 Embedding API 模型名，默认 10086/bge-m3
 # SEARCH_TIMEOUT           向量/BM25 检索 API 超时时间（秒），默认 30
@@ -37,7 +37,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ADAPTIVE_TOPK_MIN        自适应 TopK 最小返回数量，默认 5
 # ADAPTIVE_TOPK_MAX        自适应 TopK 最大返回数量，默认 25
 # ------------------------------------------------------------------
-load_dotenv()
+# 显式加载 retrieval 目录下的 .env，确保无论从哪里启动都能读取到配置
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 # 向量库 API 配置
 VECTOR_API_URL = os.getenv("VECTOR_API_URL", "https://equivalent-handling-heritage-hat.trycloudflare.com/")
 VECTOR_API_KEY = os.getenv("VECTOR_API_KEY", None)
