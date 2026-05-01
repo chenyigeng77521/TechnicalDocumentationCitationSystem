@@ -28,3 +28,25 @@ backend/ingestion/logs/*
 .pytest_cache/
 .coverage
 
+# 环境变量文件（含 API key 等敏感信息，绝不提交）
+.env.local
+src/.env.aigw
+src/.env.local
+src/backend/**/.env.local
+backend/**/.env.local
+# 但保留 .env.example / .env.aigw.example（团队共享模板）
+!.env.example
+!**/.env.example
+!**/.env.aigw.example
+# 注：src/.env 是团队共享的非敏感配置（已在 git tracked），不 ignore
+
+# 新结构：DB 和 raw 文件（迁到 src/）
+src/backend/storage/raw/*
+src/backend/storage/index/*.db*
+!src/backend/storage/raw/.gitkeep
+!src/backend/storage/index/.gitkeep
+
+# 新结构：ingestion logs
+src/backend/ingestion/logs/*
+!src/backend/ingestion/logs/.gitkeep
+
