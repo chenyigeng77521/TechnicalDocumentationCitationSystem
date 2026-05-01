@@ -36,6 +36,22 @@ class TextSearchRequest(BaseModel):
     filters: Optional[dict] = None
 
 
+def _normalize_anchor(a: str | None) -> str:
+    """归一化 markdown_anchor 为 '#section-id' 格式。
+
+    chunker 偶发遗漏 # 前缀（AsciiDoc parser 已知 bug，影响 Spring 域），
+    API 输出层兜底，保证下游拿到的契约永远是 '#section-id' 形式。
+    chunker 修好后本函数 idempotent（已带 # 的不重复加），无副作用。
+
+    None / 空 → "#top"
+    "data-fetching" → "#data-fetching"
+    "#data-fetching" → "#data-fetching"（不变）
+    """
+    if not a:
+        return "#top"
+    return a if a.startswith("#") else f"#{a}"
+
+
 def _row_to_metadata(row: dict) -> dict:
     # doc_indexed_at 来自 search SQL 的 JOIN documents（vector/text-search 都带）
     # by-id 没 JOIN，没这字段时 fallback null
@@ -49,11 +65,11 @@ def _row_to_metadata(row: dict) -> dict:
         "char_offset_start": row["char_offset_start"],
         "char_offset_end": row["char_offset_end"],
         "is_truncated": bool(row["is_truncated"]),
-        "is_x15_truncated": False,  # 新增：X1.5 max_chars 截断标记，默认 False，仅 X1.5 路径会改 True
+        "is_x15_truncated": False,  # X1.5 max_chars 截断标记，默认 False，仅 X1.5 路径会改 True
         "content_type": row["content_type"],
         "language": row["language"],
         "last_modified": last_modified,
-        "markdown_anchor": row.get("markdown_anchor") or "#top",  # 新增：section 标识，赛题 citation 用
+        "markdown_anchor": _normalize_anchor(row.get("markdown_anchor")),  # section 标识，赛题 citation 用，输出契约 '#xxx' 形式
     }
 
 
