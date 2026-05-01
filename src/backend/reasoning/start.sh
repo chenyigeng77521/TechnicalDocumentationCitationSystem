@@ -54,7 +54,7 @@ cd "$BACKEND_DIR"
 if lsof -i :$PORT -sTCP:LISTEN >/dev/null 2>&1; then
     EXISTING_PID=$(lsof -ti :$PORT -sTCP:LISTEN)
     echo "❌ 端口 $PORT 已被进程 $EXISTING_PID 占用"
-    echo "   想杀掉旧进程？运行: ./backend/reasoning/stop.sh"
+    echo "   想杀掉旧进程？运行: ./src/backend/reasoning/stop.sh"
     exit 1
 fi
 
