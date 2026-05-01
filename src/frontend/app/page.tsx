@@ -1458,7 +1458,7 @@ export default function Home() {
                 padding: '2px 10px',
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-all',
-                color: isError ? '#ef4444' : isWarn ? '#f59e0b' : 'var(--text-sub)',
+                color: isError ? '#ef4444' : isWarn ? '#f59e0b' : '#5b6570',
                 fontWeight: isError ? 'bold' : 'normal',
                 background: i % 2 === 0 ? 'var(--surface-2)' : 'transparent',
               }}>{line}</div>
