@@ -78,7 +78,7 @@ if (-not $Bg) {
 
     for ($i = 1; $i -le 10; $i++) {
         try {
-            $Resp = Invoke-WebRequest -Uri "http://localhost:$Port/api/reasoning/health" -Method GET -TimeoutSec 2 -ErrorAction Stop
+            $Resp = Invoke-WebRequest -Uri "http://localhost:$Port/health" -Method GET -TimeoutSec 2 -ErrorAction Stop
             if ($Resp.StatusCode -eq 200) {
                 Write-Host "[OK] Service is ready: http://localhost:$Port" -ForegroundColor Green
                 Write-Host

@@ -13,7 +13,7 @@ set -e
 
 # ---- 路径 ----
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+BACKEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 PID_FILE="$SCRIPT_DIR/.reasoning.pid"
 SERVER_LOG="$LOG_DIR/reasoning.log"
@@ -48,7 +48,7 @@ while [ $# -gt 0 ]; do
 done
 
 mkdir -p "$LOG_DIR"
-cd "$PROJECT_ROOT"
+cd "$BACKEND_DIR"
 
 # ---- 端口占用检查 ----
 if lsof -i :$PORT -sTCP:LISTEN >/dev/null 2>&1; then
@@ -61,7 +61,7 @@ fi
 echo "──────────────────────────────────────────────"
 echo " Reasoning Service (Layer 3)"
 echo "──────────────────────────────────────────────"
-echo "  Project root : $PROJECT_ROOT"
+echo "  Backend dir  : $BACKEND_DIR"
 echo "  Port         : $PORT"
 echo "  Log dir      : $LOG_DIR"
 echo "  Mode         : $MODE"
@@ -85,7 +85,7 @@ else
     echo
     echo "等待服务就绪..."
     for i in $(seq 1 10); do
-        if curl -sf "http://localhost:$PORT/api/reasoning/health" >/dev/null 2>&1; then
+        if curl -sf "http://localhost:$PORT/health" >/dev/null 2>&1; then
             echo "✅ 服务已就绪: http://localhost:$PORT"
             echo
             echo "查日志:  tail -f $SERVER_LOG"
