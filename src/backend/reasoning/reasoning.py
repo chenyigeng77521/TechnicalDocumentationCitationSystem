@@ -360,17 +360,17 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
         )
 
     # ---------- Step 5：语义一致性验证 ----------
-    cited_chunks = [used_chunks[cid - 1] for cid in valid_citation_ids]
+    #cited_chunks = [used_chunks[cid - 1] for cid in valid_citation_ids]
 
-    if valid_citation_ids and not verify_semantic_support(answer_text, cited_chunks):
-        logger.warning("语义验证失败（疑似幻觉）→ 拒答")
-        return ReasoningResult(
-            answer=REFUSAL_TEXT,
-            is_refusal=True,
-            refuse_reason="semantic_mismatch",
-            max_score=max_score,
-            confidence=0.0,
-        )
+    #if valid_citation_ids and not verify_semantic_support(answer_text, cited_chunks):
+    #    logger.warning("语义验证失败（疑似幻觉）→ 拒答")
+    #    return ReasoningResult(
+    #        answer=REFUSAL_TEXT,
+    #        is_refusal=True,
+    #        refuse_reason="semantic_mismatch",
+    #        max_score=max_score,
+    #        confidence=0.0,
+    #    )
 
     # ---------- Step 6：成功响应 ----------
     confidence = round(max_score, 4)
