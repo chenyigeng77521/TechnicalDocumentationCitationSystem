@@ -1,0 +1,40 @@
+=== E2E Integration Test Results ===
+Date: Thu Apr 23 09:31:15 PKT 2026
+HEAD: 53182e0 chore(backend): point uploadDir to shared /storage/raw
+
+--- 1. health ---
+{"status":"ok","timestamp":"2026-04-23T04:31:15.504Z","version":"1.0.0"}
+--- 2. empty stats ---
+{"success":true,"totalFiles":0,"stats":{"fileCount":0,"chunkCount":0,"indexedCount":0}}
+--- 3. upload eval fixture ---
+Sample file: eval/fixtures/deployment.md
+{"success":true,"files":[{"id":"0bd42449-cfe3-4346-8afb-861215424d5a","originalName":"deployment.md","originalPath":"/Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem/storage/raw/deployment.md","convertedPath":"storage/converted/8246d1da-fda9-426c-91d9-04c60e0c90f9.md","format":"md","size":2041,"uploadTime":"2026-04-23T04:31:15.566Z","status":"completed"}],"message":"成功处理 1 / 1 个文件"}
+--- 4. stats after upload ---
+{"success":true,"totalFiles":1,"stats":{"fileCount":1,"chunkCount":8,"indexedCount":8}}
+--- 5. raw-files paginated ---
+{"success":true,"files":[{"name":"deployment.md","path":"/Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem/storage/raw/deployment.md","size":2041,"createdAt":"2026-04-23T04:31:15.564Z","modifiedAt":"2026-04-23T04:31:15.565Z"}],"total":1,"page":1,"limit":10,"totalPages":1}
+--- 6. files list ---
+{"success":true,"files":[{"name":"deployment.md","size":2041,"mtime":"2026-04-23T04:31:15.565Z","id":"0bd42449-cfe3-4346-8afb-861215424d5a","format":"md","uploadTime":"2026-04-23T04:31:15.566Z","category":""}],"total":1}
+--- 7. ask-stream (no LLM key → refuse path) ---
+data: {"answer":"抱歉，在文档库中未找到与您问题相关的内容。请尝试重新表述您的问题，或确保已上传相关文档。"}
+
+data: {"sources":[]}
+
+
+--- 8. delete file ---
+Deleting: deployment.md
+{"success":true,"message":"文件已删除"}
+--- 9. stats after delete (should be 0) ---
+{"success":true,"totalFiles":0,"stats":{"fileCount":0,"chunkCount":0,"indexedCount":0}}
+=== Assertions ===
+Assertion 1 (health status=ok): PASS
+Assertion 2 (empty stats totalFiles=0): PASS
+Assertion 3 (upload success:true, files[0].status=completed): PASS
+Assertion 4 (stats after upload totalFiles=1, chunkCount>=1): PASS
+Assertion 5 (raw-files page1 has name/path/size/createdAt/modifiedAt): PASS
+Assertion 6 (files list 1 item with 7 fields name/size/mtime/id/format/uploadTime/category): PASS
+Assertion 7 (ask-stream 2 SSE lines data:{answer} + data:{sources:[]}, no type/content nesting): PASS
+Assertion 8 (delete returns success:true, message=文件已删除): PASS
+Assertion 9 (stats after delete totalFiles=0): PASS
+
+Overall: 9/9 PASS
