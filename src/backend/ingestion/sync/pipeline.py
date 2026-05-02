@@ -21,8 +21,9 @@ from backend.ingestion.parser.dispatcher import parse_document
 from backend.ingestion.chunker.document_splitter import split_document
 from backend.ingestion.sync.file_lock import file_lock
 
-DB_PATH = Path("backend/storage/index/knowledge.db")
-RAW_DIR = Path("backend/storage/raw")
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+STORAGE_DIR = PROJECT_ROOT / "data"
+DB_PATH = PROJECT_ROOT / "src" / "backend" / "database" / "knowledge.db"
 INDEX_VERSION = "v1"   # MVP 固定
 LOG_FILE = Path("backend/ingestion/logs/ingestion.log")
 
@@ -41,18 +42,22 @@ def _sha256_of_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _resolve_under_raw(file_path: str) -> Path:
-    """把相对 file_path 解析成绝对路径，并校验不逃逸 RAW_DIR。"""
-    base = RAW_DIR.resolve()
+def _resolve_under_storage(file_path: str) -> Path:
+    """把相对 file_path（形如 docs/<domain>/<basename>）解析成绝对路径，并校验不逃逸 STORAGE_DIR。"""
+    base = STORAGE_DIR.resolve()
     abs_path = (base / file_path).resolve()
     if not str(abs_path).startswith(str(base)):
-        raise ValueError(f"file_path 逃逸 RAW_DIR: {file_path}")
+        raise ValueError(f"file_path 逃逸 STORAGE_DIR: {file_path}")
     return abs_path
 
 
 async def index_pipeline(file_path: str) -> dict:
-    """主流程：解析 → 切 chunk → embed → 写 DB。"""
-    abs_path = _resolve_under_raw(file_path)
+    """主流程：解析 → 切 chunk → embed → 写 DB。
+
+    入参 file_path 应为相对 STORAGE_DIR 的路径，形如 ``docs/<domain>/<basename>``。
+    该 file_path 也作为 chunks 表的 file_path 字段值（含 ``docs/`` 前缀）。
+    """
+    abs_path = _resolve_under_storage(file_path)
     if not abs_path.exists():
         raise FileNotFoundError(file_path)
 

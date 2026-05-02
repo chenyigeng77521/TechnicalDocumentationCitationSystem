@@ -13,15 +13,17 @@ from backend.ingestion.sync.pipeline import index_pipeline
 def setup(tmp_db_path, tmp_raw_dir, monkeypatch):
     init_db(tmp_db_path)
     monkeypatch.setattr("backend.ingestion.sync.pipeline.DB_PATH", tmp_db_path)
-    monkeypatch.setattr("backend.ingestion.sync.pipeline.RAW_DIR", tmp_raw_dir)
+    monkeypatch.setattr("backend.ingestion.sync.pipeline.STORAGE_DIR", tmp_raw_dir)
     return tmp_db_path, tmp_raw_dir
 
 
 @pytest.mark.asyncio
 async def test_small_md_under_5s(setup):
     """10KB markdown < 5s（不含真实 embedding）。"""
-    _, raw = setup
-    f = raw / "small.md"
+    _, storage = setup
+    sub = storage / "docs" / "test"
+    sub.mkdir(parents=True, exist_ok=True)
+    f = sub / "small.md"
     f.write_text("# T\n\n" + ("body sentence. " * 500))
 
     async def fake_embed(texts, concurrency=8):
@@ -29,7 +31,7 @@ async def test_small_md_under_5s(setup):
 
     with patch("backend.ingestion.sync.pipeline.batch_embed", side_effect=fake_embed):
         t0 = time.time()
-        await index_pipeline("small.md")
+        await index_pipeline("docs/test/small.md")
         elapsed = time.time() - t0
 
     assert elapsed < 5.0, f"小文件超时: {elapsed:.2f}s"
@@ -38,8 +40,10 @@ async def test_small_md_under_5s(setup):
 @pytest.mark.asyncio
 async def test_medium_md_under_30s(setup):
     """100KB markdown < 30s。"""
-    _, raw = setup
-    f = raw / "medium.md"
+    _, storage = setup
+    sub = storage / "docs" / "test"
+    sub.mkdir(parents=True, exist_ok=True)
+    f = sub / "medium.md"
     f.write_text("# T\n\n" + ("paragraph content " * 5000))
 
     async def fake_embed(texts, concurrency=8):
@@ -47,7 +51,7 @@ async def test_medium_md_under_30s(setup):
 
     with patch("backend.ingestion.sync.pipeline.batch_embed", side_effect=fake_embed):
         t0 = time.time()
-        await index_pipeline("medium.md")
+        await index_pipeline("docs/test/medium.md")
         elapsed = time.time() - t0
 
     assert elapsed < 30.0, f"中文件超时: {elapsed:.2f}s"

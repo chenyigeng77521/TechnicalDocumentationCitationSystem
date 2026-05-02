@@ -13,19 +13,21 @@ from backend.ingestion.db.connection import init_db
 @pytest.fixture
 async def e2e_client(tmp_path, monkeypatch, fixtures_dir):
     db_path = tmp_path / "knowledge.db"
-    raw_dir = tmp_path / "raw"
-    raw_dir.mkdir()
+    storage_dir = tmp_path / "storage"
+    storage_dir.mkdir()
+    test_domain_dir = storage_dir / "docs" / "test"
+    test_domain_dir.mkdir(parents=True)
 
     init_db(db_path)
     monkeypatch.setattr("backend.ingestion.sync.pipeline.DB_PATH", db_path)
-    monkeypatch.setattr("backend.ingestion.sync.pipeline.RAW_DIR", raw_dir)
+    monkeypatch.setattr("backend.ingestion.sync.pipeline.STORAGE_DIR", storage_dir)
     monkeypatch.setattr("backend.ingestion.api.routes_search.DB_PATH", db_path)
 
     sample = fixtures_dir / "sample.md"
     if sample.exists():
-        shutil.copy(sample, raw_dir / "sample.md")
+        shutil.copy(sample, test_domain_dir / "sample.md")
     else:
-        (raw_dir / "sample.md").write_text(
+        (test_domain_dir / "sample.md").write_text(
             "# Title\n\nOAuth2 token refresh requires Authorization header.\n\n"
             "Installation guide for the system."
         )
@@ -44,8 +46,8 @@ async def e2e_client(tmp_path, monkeypatch, fixtures_dir):
 
 
 @pytest.mark.asyncio
-async def test_full_flow_index_then_search(e2e_client):
-    resp = await e2e_client.post("/index", json={"file_path": "sample.md"})
+async def test_full_flow_add_then_search(e2e_client):
+    resp = await e2e_client.post("/index?add=docs/test/sample.md")
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["status"] == "indexed"
@@ -66,17 +68,15 @@ async def test_full_flow_index_then_search(e2e_client):
 
 @pytest.mark.asyncio
 async def test_unchanged_skips(e2e_client):
-    await e2e_client.post("/index", json={"file_path": "sample.md"})
-    resp = await e2e_client.post("/index", json={"file_path": "sample.md"})
+    await e2e_client.post("/index?add=docs/test/sample.md")
+    resp = await e2e_client.post("/index?modify=docs/test/sample.md")
     assert resp.json()["status"] == "unchanged"
 
 
 @pytest.mark.asyncio
 async def test_delete_removes_chunks(e2e_client):
-    await e2e_client.post("/index", json={"file_path": "sample.md"})
-    resp = await e2e_client.request(
-        "DELETE", "/files", json={"file_path": "sample.md"}
-    )
+    await e2e_client.post("/index?add=docs/test/sample.md")
+    resp = await e2e_client.post("/index?delete=docs/test/sample.md")
     assert resp.status_code == 200
     stats = (await e2e_client.get("/stats")).json()
     assert stats["chunks"] == 0

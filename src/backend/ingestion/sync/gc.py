@@ -9,18 +9,25 @@ from backend.ingestion.common.logger import get_logger
 from backend.ingestion.db.connection import get_connection
 from backend.ingestion.db.documents_repo import list_all_paths
 
-DB_PATH = Path("backend/storage/index/knowledge.db")
-RAW_DIR = Path("backend/storage/raw")
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+STORAGE_DIR = PROJECT_ROOT / "data"
+DB_PATH = PROJECT_ROOT / "src" / "backend" / "database" / "knowledge.db"
 
 logger = get_logger("ingestion.gc")
 
 
 def _walk_raw() -> set[str]:
-    if not RAW_DIR.exists():
+    """扫 STORAGE_DIR/docs/ 下的全部文件，返回相对 STORAGE_DIR 的路径（带 docs/ 前缀）。
+
+    只扫 docs/ 子目录避免把 storage/index/（SQLite DB 等系统目录）当成业务文件。
+    返回路径形如 ``docs/<domain>/<basename>``，与 documents 表 file_path 字段同语义。
+    """
+    docs_root = STORAGE_DIR / "docs"
+    if not docs_root.exists():
         return set()
     return {
-        str(p.relative_to(RAW_DIR))
-        for p in RAW_DIR.rglob("*")
+        str(p.relative_to(STORAGE_DIR))
+        for p in docs_root.rglob("*")
         if p.is_file()
     }
 

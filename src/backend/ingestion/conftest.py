@@ -11,10 +11,14 @@ def tmp_db_path(tmp_path):
 
 @pytest.fixture
 def tmp_raw_dir(tmp_path):
-    """临时 raw/ 目录，模拟 backend/storage/raw/。"""
-    raw = tmp_path / "raw"
-    raw.mkdir()
-    return raw
+    """临时 storage/ 根目录，模拟 backend/storage/。
+
+    历史命名沿用：值已改成 storage 根（不再是 raw/ 子目录），但 fixture 名保留
+    以兼容现有测试。新 file_path 约定形如 ``docs/<domain>/<basename>``，相对此目录。
+    """
+    storage = tmp_path / "storage"
+    storage.mkdir()
+    return storage
 
 
 @pytest.fixture

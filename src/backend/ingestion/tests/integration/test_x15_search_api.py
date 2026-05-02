@@ -11,7 +11,7 @@ import sqlite3
 from pathlib import Path
 
 INGESTION_URL = "http://localhost:3003"
-DB_PATH = Path(__file__).resolve().parents[4] / "backend/storage/index/knowledge.db"
+DB_PATH = Path(__file__).resolve().parents[5] / "src" / "backend" / "database" / "knowledge.db"
 
 
 @pytest.fixture(scope="module")

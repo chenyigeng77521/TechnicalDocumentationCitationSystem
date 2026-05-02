@@ -25,7 +25,7 @@ from backend.ingestion.db.connection import init_db, get_connection
 from backend.ingestion.db.chunks_repo import vector_search
 
 DB_PATH = Path("backend/storage/index/knowledge.db")
-RAW_DIR = Path("backend/storage/raw")
+STORAGE_DIR = Path("backend/storage")
 WINDOW = 2  # chunk_index ±2
 
 QUERIES = [
@@ -61,10 +61,10 @@ def fetch_section_chunks(conn, file_path, title_path, target_idx, window=WINDOW)
 def read_raw_slice(file_path, start, end, _cache={}):
     """读源 .md 文件按 offset 切片，CRLF 归一化（跟 chunker 入口一致）。LRU 简易实现。"""
     if file_path not in _cache:
-        # file_path 是绝对路径或相对 RAW_DIR
+        # file_path 是绝对路径或相对 STORAGE_DIR（自带 docs/<domain>/ 前缀）
         path = Path(file_path)
         if not path.is_absolute():
-            path = RAW_DIR / file_path
+            path = STORAGE_DIR / file_path
         raw = path.read_text(encoding="utf-8")
         normalized = raw.replace("\r\n", "\n").replace("\r", "\n")
         _cache[file_path] = normalized

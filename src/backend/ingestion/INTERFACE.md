@@ -36,7 +36,7 @@ curl http://localhost:3003/health
 | Embedding 模型 | `BAAI/bge-m3` |
 | Embedding 维度 | **1024** |
 | Normalize | **必须 `normalize_embeddings=True`**（写入与查询双方对齐）|
-| `file_path` 格式 | **相对 `backend/storage/raw/` 的路径，不带 `raw/` 前缀**。例：`backend/storage/raw/api/auth.md` → `file_path = "api/auth.md"` |
+| `file_path` 格式 | **相对项目根 `data/` 的路径，带 `docs/<domain>/` 前缀**（与赛题评委 jsonl `gold_sources[].doc_path` 完全一致）。例：`data/docs/react/incremental-adoption.md` → `file_path = "docs/react/incremental-adoption.md"`。kubernetes 域有中文子目录如 `docs/kubernetes/调度与驱逐/api-eviction.md`，路径深度不固定 |
 | `chunk_id` | `sha256(file_path|chunk_index|content[:100])` 的 hex 字符串 |
 | `anchor_id` | `{file_path}#{char_offset_start}` |
 | Score 范围 | vector cosine ∈ [0, 1]（normalize 后），BM25 归一化 ∈ (0, 1] |
@@ -51,8 +51,7 @@ curl http://localhost:3003/health
 | [`/chunks/vector-search`](#post-chunksvector-search) | POST | 向量近邻检索（Dense kNN）| 海军 |
 | [`/chunks/text-search`](#post-chunkstext-search) | POST | 全文检索（FTS5 BM25）| 海军 |
 | [`/chunks/{chunk_id}`](#get-chunkschunk_id) | GET | 按主键取单个 chunk（含完整 embedding）| 海军 / 调试 |
-| [`/index`](#post-index) | POST | 触发索引一个文件 | entrance（陈一赓）|
-| [`/files`](#delete-files) | DELETE | 删除一个文件的所有 chunks | entrance / 维护 |
+| [`/index?add/modify/delete=<file_path>`](#post-index) | POST | 增量索引：新增 / 修改 / 删除（query param 三选一） | entrance / 前端 |
 | [`/stats`](#get-stats) | GET | 库存统计 | 监控 |
 | [`/health`](#get-health) | GET | 健康检查 | 监控 |
 
@@ -90,8 +89,8 @@ curl http://localhost:3003/health
       "content": "OAuth2 token refresh requires the `Authorization: Bearer {refresh_token}` header.\nToken has a 7-day default expiry.",
       "score": 0.85,
       "metadata": {
-        "file_path": "api/auth.md",
-        "anchor_id": "api/auth.md#38",
+        "file_path": "docs/react/incremental-adoption.md",
+        "anchor_id": "docs/react/incremental-adoption.md#38",
         "title_path": "Sample Document > Authentication",
         "char_offset_start": 38,
         "char_offset_end": 153,
@@ -113,7 +112,7 @@ curl http://localhost:3003/health
 | `chunk_id` | string | sha256 hex，主键 |
 | `content` | string | chunk 原文（可直接送 reranker）|
 | `score` | float | cosine similarity ∈ [0, 1]，越大越像 |
-| `metadata.file_path` | string | 文件路径（相对 raw/）|
+| `metadata.file_path` | string | 文件路径（相对项目根 `data/`，带 `docs/<domain>/` 前缀，如 `docs/react/foo.md`）|
 | `metadata.anchor_id` | string | `{file_path}#{char_offset_start}`，前端跳转锚点 |
 | `metadata.title_path` | string \| null | `Section > Subsection` 面包屑路径，无 heading 时 null |
 | `metadata.char_offset_start/end` | int | content 在原文中的字符区间（含端点）|
@@ -209,36 +208,61 @@ GET /chunks/81e76ae62a95e0759b6c28fe3c97b23c5692d1470d37dcdc308a0c2857d5fe95
 
 ### POST `/index`
 
-触发索引一个文件。文件必须先存在于 `backend/storage/raw/` 下。
+增量索引接口。三个 query param 互斥（必须且只能提供一个）：
 
-**Request**:
+| Query param | 含义 | 内部行为 |
+|---|---|---|
+| `?add=<file_path>` | 新增文件索引 | 走 `index_pipeline` |
+| `?modify=<file_path>` | 文件内容变了，重新索引 | 走 `index_pipeline`（按 file_hash 自动判定） |
+| `?delete=<file_path>` | 删除文件的所有 chunks | 走 `handle_file_delete` |
 
-```json
-{ "file_path": "api/auth.md" }
+`file_path` = 相对项目根 `data/` 的路径，**必含 `docs/<domain>/` 前缀**，例 `docs/react/foo.md`。
+
+**三个操作都必须传完整路径**（不能只传 basename）。原因：DB 用完整路径作主键，不同子目录可能撞同名（如 `docs/react/foo.md` 和 `docs/spring/foo.md` 是两个不同文件，basename 都是 `foo.md`）。
+
+唯一区别：**add / modify 时物理文件必须存在于 `data/<file_path>`**（要解析）；**delete 不需要文件存在**（只按 file_path 查 DB 删 chunks，文件早就被前端从磁盘移除了也能正常 delete）。
+
+**Request 例**：
+
+```bash
+POST /index?add=docs/react/incremental-adoption.md
+POST /index?modify=docs/react/incremental-adoption.md
+POST /index?delete=docs/react/incremental-adoption.md
 ```
 
-**Response 200**:
+**Response 200**：
 
 ```json
-// 新文件或内容变化
-{
-  "status": "indexed",
-  "chunk_count": 7,
-  "file_hash": "938e3a40..."
-}
+// add / modify：新文件或内容变化
+{ "status": "indexed", "chunk_count": 7, "file_hash": "938e3a40..." }
 
-// 同一文件重复调用，hash 没变
+// add / modify：内容没变（hash 一致）
 { "status": "unchanged" }
+
+// modify：之前已索引，内容变化（旧 chunks 已删，新 chunks 已写）
+{ "status": "replaced", "chunk_count": 9, "file_hash": "..." }
+
+// delete
+{ "status": "deleted", "deleted_chunks": 7 }
+
+// delete：文件不在库里
+{ "status": "not_found" }
 ```
+
+**说明**：
+- `add` 和 `modify` 走相同后端逻辑（`index_pipeline` 按 `file_hash` 自动区分 indexed / replaced / unchanged）。前端区分 add / modify 只是语义意图，后端不强制校验。
+- 单文件 SLA：典型 < 1 秒（含已加载模型）。首次进程启动加载 SentenceTransformer 约 15 秒。
+- 200 题增量需求约束 5 分钟内生效，单文件远低于此阈值。
 
 **错误**：
 
 | HTTP | error_type | 含义 |
 |---|---|---|
-| 404 | `file_not_found` | `file_path` 在 `backend/storage/raw/` 下不存在 |
+| 400 | `invalid_params` | 没提供或同时提供多个 add/modify/delete |
+| 404 | `file_not_found` | add/modify 时 `file_path` 在 `data/` 下不存在 |
 | 400 | `unsupported_format` | 扩展名不支持（如 `.exe`）|
 | 400 | `parse_failed` | 解析器抛异常（PDF 加密 / 文件损坏）|
-| 500 | `embedding_timeout` | bge-m3 重试 5 次仍失败 |
+| 500 | `embedding_timeout` | embedding 重试 N 次仍失败 |
 | 500 | `db_error` | SQLite 异常 |
 
 错误响应体（统一结构）：
@@ -251,34 +275,6 @@ GET /chunks/81e76ae62a95e0759b6c28fe3c97b23c5692d1470d37dcdc308a0c2857d5fe95
     "detail": "PDF 加密文件不支持"
   }
 }
-```
-
-**注意**：
-- 处理失败时 raw/ 文件不删（让 entrance 决定重试）
-- 大文件可能耗时 1-5 分钟，建议 fetch 超时设 ≥ 5 分钟
-
----
-
-### DELETE `/files`
-
-删除一个文件的所有 chunks（CASCADE 删 chunks_fts）。
-
-**Request**:
-
-```json
-{ "file_path": "api/auth.md" }
-```
-
-**Response 200**:
-
-```json
-{ "status": "deleted", "deleted_chunks": 7 }
-```
-
-如果文件不在库里：
-
-```json
-{ "status": "not_found" }
 ```
 
 ---
@@ -403,7 +399,8 @@ python -m backend.ingestion.api.server
 ### 2. 准备样本数据（终端 B）
 
 ```bash
-cp backend/ingestion/tests/fixtures/sample.md backend/storage/raw/
+mkdir -p data/docs/react
+cp src/backend/ingestion/tests/fixtures/sample.md data/docs/react/
 ```
 
 `sample.md` 是个 13 行的 markdown，含 OAuth2 / Installation / API Reference 三段。
@@ -411,9 +408,7 @@ cp backend/ingestion/tests/fixtures/sample.md backend/storage/raw/
 ### 3. 索引（首次调用会加载 bge-m3，约 15s）
 
 ```bash
-curl -X POST http://localhost:3003/index \
-  -H "Content-Type: application/json" \
-  -d '{"file_path":"sample.md"}'
+curl -X POST 'http://localhost:3003/index?add=docs/react/sample.md'
 # {"status":"indexed","chunk_count":3,...}
 ```
 

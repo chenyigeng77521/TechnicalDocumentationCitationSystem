@@ -86,6 +86,29 @@ async def _post_embeddings(
     raise RuntimeError(f"AIGW embedding 重试 {MAX_RETRIES + 1} 次仍失败: {last_err}") from last_err
 
 
+_local_model = None
+
+
+def _get_local_model():
+    """懒加载本地 SentenceTransformer（仅 EMBEDDING_USE_LOCAL=1 时调用）。"""
+    global _local_model
+    if _local_model is None:
+        from sentence_transformers import SentenceTransformer  # type: ignore
+        _local_model = SentenceTransformer("BAAI/bge-m3")
+    return _local_model
+
+
+async def _local_batch_embed(texts: list[str]) -> list[list[float]]:
+    """本地 SentenceTransformer 跑 embedding，绕开 AIGW（offline / VPN 不通时用）。"""
+    model = _get_local_model()
+    loop = asyncio.get_running_loop()
+    embeddings = await loop.run_in_executor(
+        None,
+        lambda: model.encode(texts, normalize_embeddings=True).tolist(),
+    )
+    return embeddings
+
+
 async def batch_embed(texts: list[str], concurrency: int = 8) -> list[list[float]]:
     """批量 embedding。保持 SentenceTransformer 时代的接口签名。
 
@@ -95,9 +118,15 @@ async def batch_embed(texts: list[str], concurrency: int = 8) -> list[list[float
 
     Returns:
         embedding 列表，跟输入顺序对应，每个是 1024-d float list（normalized）
+
+    环境变量：
+    - EMBEDDING_USE_LOCAL=1：用本地 SentenceTransformer，绕开 AIGW（首次加载 ~2GB 内存）
     """
     if not texts:
         return []
+
+    if os.getenv("EMBEDDING_USE_LOCAL") == "1":
+        return await _local_batch_embed(texts)
 
     api_key, base_url, model = _get_config()
     sem = asyncio.Semaphore(concurrency)

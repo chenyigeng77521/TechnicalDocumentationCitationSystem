@@ -14,7 +14,7 @@ def setup(tmp_db_path, tmp_raw_dir, monkeypatch):
         "backend.ingestion.sync.pipeline.DB_PATH", tmp_db_path
     )
     monkeypatch.setattr(
-        "backend.ingestion.sync.pipeline.RAW_DIR", tmp_raw_dir
+        "backend.ingestion.sync.pipeline.STORAGE_DIR", tmp_raw_dir
     )
     return tmp_db_path, tmp_raw_dir
 
@@ -22,21 +22,23 @@ def setup(tmp_db_path, tmp_raw_dir, monkeypatch):
 @pytest.mark.asyncio
 async def test_index_md_file_writes_chunks(setup):
     db_path, raw = setup
-    f = raw / "test.md"
+    sub = raw / "docs" / "test"
+    sub.mkdir(parents=True, exist_ok=True)
+    f = sub / "test.md"
     f.write_text("# Title\n\n" + ("body text. " * 20), encoding="utf-8")
 
     async def fake_embed(texts, concurrency=8):
         return [[0.1] * 1024 for _ in texts]
 
     with patch("backend.ingestion.sync.pipeline.batch_embed", side_effect=fake_embed):
-        result = await index_pipeline("test.md")
+        result = await index_pipeline("docs/test/test.md")
 
     assert result["status"] == "indexed"
     assert result["chunk_count"] >= 1
 
     conn = get_connection(db_path)
     assert count_chunks(conn) == result["chunk_count"]
-    doc = get_document(conn, "test.md")
+    doc = get_document(conn, "docs/test/test.md")
     assert doc["index_status"] == "indexed"
     conn.close()
 
@@ -44,15 +46,17 @@ async def test_index_md_file_writes_chunks(setup):
 @pytest.mark.asyncio
 async def test_unchanged_file_returns_unchanged(setup):
     db_path, raw = setup
-    f = raw / "test.md"
+    sub = raw / "docs" / "test"
+    sub.mkdir(parents=True, exist_ok=True)
+    f = sub / "test.md"
     f.write_text("# T\n\n" + ("hello world. " * 10), encoding="utf-8")
 
     async def fake_embed(texts, concurrency=8):
         return [[0.1] * 1024 for _ in texts]
 
     with patch("backend.ingestion.sync.pipeline.batch_embed", side_effect=fake_embed):
-        await index_pipeline("test.md")
-        result = await index_pipeline("test.md")
+        await index_pipeline("docs/test/test.md")
+        result = await index_pipeline("docs/test/test.md")
 
     assert result["status"] == "unchanged"
 
@@ -60,17 +64,19 @@ async def test_unchanged_file_returns_unchanged(setup):
 @pytest.mark.asyncio
 async def test_modified_file_replaces_chunks(setup):
     db_path, raw = setup
-    f = raw / "test.md"
+    sub = raw / "docs" / "test"
+    sub.mkdir(parents=True, exist_ok=True)
+    f = sub / "test.md"
     f.write_text("v1 content " * 30, encoding="utf-8")
 
     async def fake_embed(texts, concurrency=8):
         return [[0.1] * 1024 for _ in texts]
 
     with patch("backend.ingestion.sync.pipeline.batch_embed", side_effect=fake_embed):
-        await index_pipeline("test.md")
+        await index_pipeline("docs/test/test.md")
 
         f.write_text("v2 different content " * 30, encoding="utf-8")
-        await index_pipeline("test.md")
+        await index_pipeline("docs/test/test.md")
 
     conn = get_connection(db_path)
     rows = conn.execute("SELECT DISTINCT file_hash FROM chunks").fetchall()
@@ -87,20 +93,22 @@ async def test_file_not_found_raises(setup):
 @pytest.mark.asyncio
 async def test_handle_file_delete(setup):
     db_path, raw = setup
-    f = raw / "del.md"
+    sub = raw / "docs" / "test"
+    sub.mkdir(parents=True, exist_ok=True)
+    f = sub / "del.md"
     f.write_text("# T\n\n" + ("body. " * 30))
 
     async def fake_embed(texts, concurrency=8):
         return [[0.1] * 1024 for _ in texts]
 
     with patch("backend.ingestion.sync.pipeline.batch_embed", side_effect=fake_embed):
-        await index_pipeline("del.md")
+        await index_pipeline("docs/test/del.md")
 
-    result = await handle_file_delete("del.md")
+    result = await handle_file_delete("docs/test/del.md")
     assert result["status"] == "deleted"
     assert result["deleted_chunks"] >= 1
 
     conn = get_connection(db_path)
     assert count_chunks(conn) == 0
-    assert get_document(conn, "del.md") is None
+    assert get_document(conn, "docs/test/del.md") is None
     conn.close()

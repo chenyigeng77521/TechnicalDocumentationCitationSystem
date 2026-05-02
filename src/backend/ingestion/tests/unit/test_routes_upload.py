@@ -47,7 +47,7 @@ def test_sanitize_illegal_chars_replaced():
 @pytest.fixture
 def app(tmp_path, monkeypatch):
     """每个测试用独立的 storage/raw/"""
-    monkeypatch.setenv("INGESTION_RAW_DIR", str(tmp_path))
+    monkeypatch.setenv("INGESTION_DOCS_UPLOAD_DIR", str(tmp_path))
     from backend.ingestion.api import routes_upload
     from importlib import reload
     reload(routes_upload)
@@ -170,7 +170,7 @@ def test_endpoint_disabled(monkeypatch):
 
 def test_endpoint_enabled(monkeypatch, tmp_path):
     monkeypatch.setenv("INGESTION_UPLOAD_ENABLED", "true")
-    monkeypatch.setenv("INGESTION_RAW_DIR", str(tmp_path))
+    monkeypatch.setenv("INGESTION_DOCS_UPLOAD_DIR", str(tmp_path))
 
     from backend.ingestion.api import server, routes_upload
     from importlib import reload
@@ -204,7 +204,8 @@ def test_upload_with_index(client, tmp_path, monkeypatch):
     assert "indexed" in data
     assert len(data["indexed"]) == 1
     assert data["indexed"][0]["chunks"] == 7
-    assert "test.docx" in fake_calls
+    # 上传文件落 storage/docs/<basename>，pipeline 入参带 docs/ 前缀
+    assert "docs/test.docx" in fake_calls
 
 
 def test_index_fail_upload_succeeds(client, tmp_path, monkeypatch):

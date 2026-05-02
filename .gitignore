@@ -50,3 +50,51 @@ src/backend/storage/index/*.db*
 src/backend/ingestion/logs/*
 !src/backend/ingestion/logs/.gitkeep
 
+# 个人联调脚本（cloudflared tunnel + 本地服务重启），不提交
+scripts/openTunnels.sh
+scripts/restartServices.sh
+# tunnel 运行时产物
+src/logs/tunnel_*.log
+src/logs/tunnel_*.pid
+src/logs/tunnel_urls.txt
+
+# ==================== 重构后新规范 ====================
+# 索引数据库（305MB，每个开发者本地 reindex 生成，超 GitHub 单文件 100MB 限制）
+src/backend/database/
+# SQLite 运行时辅助文件
+*.db
+*.db-shm
+*.db-wal
+
+# 含 AIGW key 的本地配置（绝不提交；之前误 tracked，已 git rm --cached）
+src/backend/reasoning/.env
+src/backend/entrance/.env
+
+# 上传暂存 / 批量结果（运行时生成）
+src/backend/storage/batchtest/
+src/backend/storage/result/
+
+# Reasoning 运行时产物
+src/backend/reasoning/.reasoning.pid
+src/backend/reasoning/logs/
+src/backend/reasoning/storage/
+
+# reindex bug 残留（项目根/backend/storage 错误位置）
+src/backend/ingestion/backend/
+
+# 前端 / 依赖 / 构建产物
+**/node_modules/
+**/dist/
+**/.next/
+
+# Python 字节码
+**/*.pyc
+
+# 各种日志
+*.log
+src/logs/*.log
+logs/
+
+# 评测目录（动态生成，体积大）
+eval/
+

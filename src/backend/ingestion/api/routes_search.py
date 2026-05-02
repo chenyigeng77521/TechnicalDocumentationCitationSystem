@@ -21,7 +21,8 @@ from backend.ingestion.api.x15 import (
 X15_ENABLED = os.getenv("INGESTION_X15_ENABLED", "true").lower() == "true"
 
 router = APIRouter()
-DB_PATH = Path("backend/storage/index/knowledge.db")
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+DB_PATH = PROJECT_ROOT / "src" / "backend" / "database" / "knowledge.db"
 
 
 class VectorSearchRequest(BaseModel):

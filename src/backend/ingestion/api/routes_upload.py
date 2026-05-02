@@ -16,10 +16,12 @@ ALLOWED_EXTS = {".docx", ".pdf", ".xlsx", ".pptx", ".md", ".txt"}
 MAX_FILES = 50
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
-# 测试用环境变量覆盖
-RAW_DIR = Path(os.getenv(
-    "INGESTION_RAW_DIR",
-    str(Path(__file__).resolve().parents[3] / "backend" / "storage" / "raw"),
+# 上传专用目录（默认项目根 data/docs/）。比赛阶段不会上传新文件，
+# 但路由保留供后续使用。文件直接落到该目录根下（不分 domain 子目录），
+# 由用户事后整理到具体 domain。测试用环境变量覆盖。
+DOCS_UPLOAD_DIR = Path(os.getenv(
+    "INGESTION_DOCS_UPLOAD_DIR",
+    str(Path(__file__).resolve().parents[4] / "data" / "docs"),
 ))
 
 
@@ -72,7 +74,7 @@ async def post_upload(
             pass  # 单文件级先放过，下面 for 循环再处理
 
     # ===== 阶段 1：上传落地 =====
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    DOCS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     uploaded = []
 
     for f in files:
@@ -108,7 +110,7 @@ async def post_upload(
             })
             continue
 
-        target = RAW_DIR / safe_name
+        target = DOCS_UPLOAD_DIR / safe_name
         target.write_bytes(content)
         uploaded.append({
             "filename": safe_name,
@@ -125,8 +127,11 @@ async def post_upload(
             if u["status"] != "saved":
                 continue  # 单文件级失败的不索引
             t0 = time.time()
+            # pipeline 入参是相对 STORAGE_DIR 的路径，上传文件落在 docs/ 根，
+            # 故 file_path = "docs/<basename>"
+            rel_path = f"docs/{u['filename']}"
             try:
-                result = await index_pipeline(u["filename"])
+                result = await index_pipeline(rel_path)
                 indexed.append({
                     "filename": u["filename"],
                     "chunks": result.get("chunk_count", 0),

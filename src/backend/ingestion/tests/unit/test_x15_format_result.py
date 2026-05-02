@@ -13,14 +13,14 @@ from backend.ingestion.api import x15
 from backend.ingestion.db.connection import get_connection
 from backend.ingestion.api.routes_search import _row_to_metadata
 
-DB_PATH = Path(__file__).parents[4] / "backend/storage/index/knowledge.db"
-_RAW_DIR_ABS = Path(__file__).parents[4] / "backend" / "storage" / "raw"
+DB_PATH = Path(__file__).resolve().parents[5] / "src" / "backend" / "database" / "knowledge.db"
+_STORAGE_DIR_ABS = Path(__file__).resolve().parents[5] / "data"
 
 
 @pytest.fixture(autouse=True)
-def patch_raw_dir(monkeypatch):
-    """将 x15.RAW_DIR 替换为绝对路径，避免 CWD 依赖。"""
-    monkeypatch.setattr(x15, "RAW_DIR", _RAW_DIR_ABS)
+def patch_storage_dir(monkeypatch):
+    """将 x15.STORAGE_DIR 替换为绝对路径，避免 CWD 依赖。"""
+    monkeypatch.setattr(x15, "STORAGE_DIR", _STORAGE_DIR_ABS)
 
 
 @pytest.fixture(autouse=True)

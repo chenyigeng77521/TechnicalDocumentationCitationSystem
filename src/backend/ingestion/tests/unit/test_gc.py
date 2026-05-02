@@ -15,9 +15,12 @@ def _utcnow():
 async def test_initial_scan_indexes_new_files(tmp_db_path, tmp_raw_dir, monkeypatch):
     init_db(tmp_db_path)
     monkeypatch.setattr("backend.ingestion.sync.gc.DB_PATH", tmp_db_path)
-    monkeypatch.setattr("backend.ingestion.sync.gc.RAW_DIR", tmp_raw_dir)
+    monkeypatch.setattr("backend.ingestion.sync.gc.STORAGE_DIR", tmp_raw_dir)
 
-    (tmp_raw_dir / "new.md").write_text("# T\n\nbody")
+    # _walk_raw 只扫 STORAGE_DIR/docs/，文件必须放进 docs/ 子目录才能被发现
+    target = tmp_raw_dir / "docs" / "test" / "new.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("# T\n\nbody")
 
     indexed = []
 
@@ -28,17 +31,21 @@ async def test_initial_scan_indexes_new_files(tmp_db_path, tmp_raw_dir, monkeypa
         pass
 
     await initial_scan(on_index=fake_index, on_delete=fake_delete)
-    assert indexed == ["new.md"]
+    # 相对 STORAGE_DIR 的路径自带 docs/<domain>/ 前缀
+    assert indexed == ["docs/test/new.md"]
 
 
 @pytest.mark.asyncio
 async def test_initial_scan_deletes_missing_files(tmp_db_path, tmp_raw_dir, monkeypatch):
     init_db(tmp_db_path)
     monkeypatch.setattr("backend.ingestion.sync.gc.DB_PATH", tmp_db_path)
-    monkeypatch.setattr("backend.ingestion.sync.gc.RAW_DIR", tmp_raw_dir)
+    monkeypatch.setattr("backend.ingestion.sync.gc.STORAGE_DIR", tmp_raw_dir)
+
+    # 确保 docs/ 子目录存在（否则 _walk_raw 返回 set()）
+    (tmp_raw_dir / "docs").mkdir(parents=True, exist_ok=True)
 
     conn = get_connection(tmp_db_path)
-    upsert_document(conn, file_path="ghost.md", file_name="ghost.md",
+    upsert_document(conn, file_path="docs/test/ghost.md", file_name="ghost.md",
                     file_hash="h", file_size=10, format="md",
                     index_version="v1", last_modified=_utcnow())
     conn.close()
@@ -52,7 +59,7 @@ async def test_initial_scan_deletes_missing_files(tmp_db_path, tmp_raw_dir, monk
         deleted.append(p)
 
     await initial_scan(on_index=fake_index, on_delete=fake_delete)
-    assert deleted == ["ghost.md"]
+    assert deleted == ["docs/test/ghost.md"]
 
 
 def test_gc_orphan_chunks_removes_chunks_without_doc(tmp_db_path):

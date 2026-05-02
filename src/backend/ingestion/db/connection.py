@@ -9,7 +9,8 @@ jieba.setLogLevel(60)
 jieba.initialize()
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
-DEFAULT_DB_PATH = Path("backend/storage/index/knowledge.db")
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+DEFAULT_DB_PATH = PROJECT_ROOT / "src" / "backend" / "database" / "knowledge.db"
 
 # 当前 schema 期望的 FTS 分词器（同 schema.sql 里的 tokenize 设置）
 EXPECTED_FTS_TOKENIZER = "unicode61 remove_diacritics 2"

@@ -9,7 +9,7 @@ from backend.ingestion.parser.types import ParseResult, TitleNode
 
 
 def _meta():
-    return {"file_path": "a.md", "file_hash": "h1", "index_version": "v1"}
+    return {"file_path": "docs/test/a.md", "file_hash": "h1", "index_version": "v1"}
 
 
 def test_short_text_is_one_chunk():
@@ -64,7 +64,7 @@ def test_anchor_id_format():
     text = "hello world this is a paragraph long enough to pass MIN_CHARS"
     pr = ParseResult(raw_text=text, title_tree=[])
     c = split_document(pr, **_meta())[0]
-    assert c.anchor_id == "a.md#0"
+    assert c.anchor_id == "docs/test/a.md#0"
 
 
 def test_heading_only_paragraph_is_skipped():

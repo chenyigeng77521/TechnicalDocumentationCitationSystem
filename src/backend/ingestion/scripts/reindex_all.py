@@ -23,23 +23,45 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+# 加 src/ 到 sys.path，让 `backend.ingestion.*` 可解析（不论 cwd 在哪都能跑脚本）
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "src"))
+
+# 自动加载 .env.aigw（AIGW key 在那里），这样跑脚本不用先手动 source
+try:
+    from dotenv import load_dotenv
+    _env_aigw = Path(__file__).resolve().parents[3] / ".env.aigw"
+    if _env_aigw.exists():
+        load_dotenv(_env_aigw, override=False)
+except ImportError:
+    pass
 
 from backend.ingestion.db.connection import init_db, get_connection
-from backend.ingestion.sync.pipeline import index_pipeline, DB_PATH, RAW_DIR
+from backend.ingestion.sync.pipeline import index_pipeline, DB_PATH, STORAGE_DIR
 
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default=None, help="只 reindex 一个文件名（basename 匹配）")
     parser.add_argument("--no-truncate", action="store_true", help="不清空 documents/chunks 表（不推荐：chunker 改后旧 hash 会让 unchanged 跳过）")
+    parser.add_argument("--from-fs", action="store_true", help="从 STORAGE_DIR/docs/ 文件系统全量扫描（不读 DB），用于约定升级/首次重建")
     args = parser.parse_args()
 
     init_db(DB_PATH)
     conn = get_connection(DB_PATH)
-    rows = conn.execute(
-        "SELECT file_path FROM documents ORDER BY file_path"
-    ).fetchall()
+
+    if args.from_fs:
+        # 从文件系统扫描 docs/<domain>/<basename> 所有 .md / .adoc
+        docs_dir = STORAGE_DIR / "docs"
+        if not docs_dir.exists():
+            print(f"docs/ 目录不存在: {docs_dir}", file=sys.stderr)
+            sys.exit(1)
+        all_files = sorted(list(docs_dir.rglob("*.md")) + list(docs_dir.rglob("*.adoc")))
+        rows = [(str(p.relative_to(STORAGE_DIR)),) for p in all_files]
+        print(f"扫描到 {len(rows)} 个文件 from {docs_dir}")
+    else:
+        rows = conn.execute(
+            "SELECT file_path FROM documents ORDER BY file_path"
+        ).fetchall()
 
     if not args.only and not args.no_truncate:
         # 清空 chunks + documents（CASCADE 由 schema 中的 FK 处理 chunks）
@@ -54,9 +76,9 @@ async def main():
     conn.close()
 
     file_paths = [r[0] for r in rows]
-    base = RAW_DIR.resolve()
+    base = STORAGE_DIR.resolve()
 
-    # documents.file_path 历史上是绝对路径，新版应该是相对——两种都要兼容
+    # documents.file_path 历史上是绝对路径，新版应该是相对（含 docs/ 前缀）——两种都要兼容
     relatives = []
     for fp in file_paths:
         p = Path(fp)
@@ -64,7 +86,7 @@ async def main():
             try:
                 rel = str(p.relative_to(base))
             except ValueError:
-                print(f"  SKIP (路径在 RAW_DIR 外): {fp}", file=sys.stderr)
+                print(f"  SKIP (路径在 STORAGE_DIR 外): {fp}", file=sys.stderr)
                 continue
         else:
             rel = fp
