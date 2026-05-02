@@ -3,14 +3,24 @@
 # 知识问答系统启动脚本
 # 包含 Nginx + 前端 + 后端 + FirstLayer 问题分类服务
 
-./stopAll.sh
+current_path=`dirname $(pwd)`
+scripts_path=$current_path/scripts
+$scripts_path/stopAll.sh
 echo "========================================"
 echo "  知识问答系统启动脚本"
 echo "========================================"
 echo ""
 
-current_path=$(pwd)
+current_path=$current_path/src
 echo $current_path
+
+
+PYTHON=`which python`
+PIP=`which pip`
+
+#本机环境测试
+#PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
+
 
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）
 echo "🔍 获取本机 IP 地址..."
@@ -48,7 +58,7 @@ else
     echo "   🔄 启动 Question Filter 服务..."
     cd "$current_path/backend/firstlayer/question_filter"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
-    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/question_filter.log" 2>&1 &
+    nohup $PYTHON app.py > "$current_path/logs/question_filter.log" 2>&1 &
     FILTER_PID=$!
     echo "   进程 PID: $FILTER_PID"
     # 等待服务完全启动
@@ -82,7 +92,7 @@ else
     echo "   🔄 启动 category_classifier 服务..."
     cd "$current_path/backend/firstlayer/category_classifier"
     # 使用 Python 直接启动 app.py（解决相对导入问题）
-    nohup /usr/local/Homebrew/Cellar/python@3.12/3.12.13_1/bin/python3.12 app.py > "$current_path/logs/category_classifier.log" 2>&1 &
+    nohup $PYTHON app.py > "$current_path/logs/category_classifier.log" 2>&1 &
     FIRSTLAYER_PID=$!
     echo "   进程 PID: $FIRSTLAYER_PID"
     # 使用循环检测服务是否启动成功
@@ -117,7 +127,7 @@ else
     echo "   🔄 启动 Context Memory 服务..."
     cd "$current_path/backend/firstlayer/context_memory/src"
     # 使用 uvicorn 启动（解决相对导入问题）
-    nohup /usr/local/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 3006 > "$current_path/logs/context_memory.log" 2>&1 &
+    nohup $PYTHON -m uvicorn app:app --host 0.0.0.0 --port 3006 > "$current_path/logs/context_memory.log" 2>&1 &
     CONTEXT_PID=$!
     echo "   进程 PID: $CONTEXT_PID"
     # 使用循环检测服务是否启动成功
@@ -175,7 +185,7 @@ echo ""
 echo "📊 服务状态:"
 echo "  Nginx: $LOCAL_IP  端口 80 (代理)"
 echo "  Question Filter: 问题过滤服务  端口 3005 (独立服务)"
-echo "  FirstLayer: 问题分类服务  端口 3004 (独立服务)"
+echo "  category_classifier: 问题分类服务  端口 3004 (独立服务)"
 echo "  后端：3002 (通过 Nginx 代理)"
 echo "  前端：3000 (通过 Nginx 代理)"
 echo ""
@@ -198,12 +208,17 @@ echo "  📊 Category_classifier 服务 (独立 3004 端口):"
 echo "     本地：http://localhost:3004"
 echo "     局域网：http://$LOCAL_IP:3004"
 echo "     文档：http://localhost:3004/docs"
+
+echo "  📊 ontext Memory 服务 (独立 3006 端口):"
+echo "     本地：http://localhost:3006"
+echo "     局域网：http://$LOCAL_IP:3006"
+echo "     文档：http://localhost:3006/docs"
 echo "  ───────────────────────────────────────"
 echo ""
 echo "📝 日志文件:"
 echo "  Nginx:    /usr/local/nginx/logs/"
 echo "  Question Filter: ./logs/question_filter.log"
-echo "  FirstLayer: ./logs/category_classifier.log"
+echo "  category_classifier: ./logs/category_classifier.log"
 echo "  后端：    ./logs/backend.log"
 echo "  前端：    ./logs/frontend.log"
 echo ""
