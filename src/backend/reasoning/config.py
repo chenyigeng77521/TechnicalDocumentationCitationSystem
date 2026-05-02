@@ -34,10 +34,10 @@ LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "60"))
 # ==================== 批量处理配置 ====================
 
 BATCH_MAX_WORKERS: int = 8
-# 默认指向项目内 storage/batch/，基于本文件位置动态计算
+# 默认指向项目内 eval，基于本文件位置动态计算
 _BATCH_DEFAULT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "storage", "batch"
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+    "eval"
 )
 BATCH_OUTPUT_DIR: str = os.getenv("BATCH_OUTPUT_DIR", _BATCH_DEFAULT_DIR)
 
