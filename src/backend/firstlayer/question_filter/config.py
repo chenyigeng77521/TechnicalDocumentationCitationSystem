@@ -20,7 +20,9 @@ QUESTION_FILTER_CATEGORIES = {
 # StructBERT 模型配置
 # 注意：uer/structbert-base-chinese 在 HuggingFace 上不可用
 # 使用替代模型：hfl/chinese-roberta-wwm-ext (哈工大 FudanNLP 团队)
+_MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'firstlayer_modules')
 StructBERT_MODEL_NAME = "hfl/chinese-roberta-wwm-ext"  # 中文 RoBERTa 模型
+ROBERTA_MODEL_PATH = os.getenv("ROBERTA_MODEL_PATH", os.path.join(_MODELS_DIR, "chinese-roberta-wwm-ext"))
 StructBERT_MAX_LENGTH = 128
 
 # 服务配置
@@ -149,6 +151,7 @@ SELF_INTRO_KEYWORDS = [
 class Config:
     """配置类（兼容接口）"""
     MODEL_NAME = StructBERT_MODEL_NAME
+    ROBERTA_MODEL_PATH = ROBERTA_MODEL_PATH
     MAX_LENGTH = StructBERT_MAX_LENGTH
     HOST = HOST
     PORT = PORT

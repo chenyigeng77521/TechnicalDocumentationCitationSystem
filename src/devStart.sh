@@ -19,7 +19,7 @@ PYTHON=`which python`
 PIP=`which pip`
 
 #本机环境测试
-#PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
+PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 
 
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）

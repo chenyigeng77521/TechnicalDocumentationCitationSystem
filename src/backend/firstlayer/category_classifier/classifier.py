@@ -104,9 +104,16 @@ class QuestionClassifier:
             
         try:
             print("🔄 正在加载 GLiClass 模型 (FLAN-T5 Base)...")
-            model_name = Config.MODEL_NAME  # 使用 Config.MODEL_NAME
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            model_name = Config.FLAN_T5_MODEL_PATH  # 本地模型路径
+            print(f"📂 模型路径：{model_name}")
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_name,
+                local_files_only=True
+            )
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                model_name,
+                local_files_only=True
+            )
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.model.to(self.device)
             self.model.eval()

@@ -82,14 +82,19 @@ class QuestionFilter:
             
         try:
             print("🔄 正在加载中文 RoBERTa 模型...")
-            model_name = Config.MODEL_NAME
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model_name = Config.ROBERTA_MODEL_PATH
+            print(f"📂 模型路径：{model_name}")
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_name,
+                local_files_only=True
+            )
             
             # 加载分类模型
             self.model = AutoModelForSequenceClassification.from_pretrained(
                 model_name,
                 num_labels=len(self.labels),
-                trust_remote_code=False
+                trust_remote_code=False,
+                local_files_only=True
             )
             
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

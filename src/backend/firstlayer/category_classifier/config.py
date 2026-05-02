@@ -19,6 +19,12 @@ QUESTION_CATEGORIES = {
 GLIClass_MODEL_NAME = "google/flan-t5-base"  # 使用 FLAN-T5 作为 base 模型
 GLIClass_MAX_LENGTH = 128
 
+# 模型目录配置
+_MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'firstlayer_modules')
+FLAN_T5_MODEL_PATH = os.getenv("FLAN_T5_MODEL_PATH", os.path.join(_MODELS_DIR, "flan-t5-base"))
+QWEN25_MODEL_PATH = os.getenv("QWEN25_MODEL_PATH", os.path.join(_MODELS_DIR, "qwen2.5-0.5b"))
+ROBERTA_MODEL_PATH = os.getenv("ROBERTA_MODEL_PATH", os.path.join(_MODELS_DIR, "chinese-roberta-wwm-ext"))
+
 # 服务配置
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT_STR = os.getenv("PORT", "")
@@ -49,6 +55,9 @@ class Config:
     """配置类（兼容接口）"""
     MODEL_NAME = GLIClass_MODEL_NAME
     MAX_LENGTH = GLIClass_MAX_LENGTH
+    FLAN_T5_MODEL_PATH = FLAN_T5_MODEL_PATH
+    QWEN25_MODEL_PATH = QWEN25_MODEL_PATH
+    ROBERTA_MODEL_PATH = ROBERTA_MODEL_PATH
     HOST = HOST
     PORT = PORT
     LOG_LEVEL = LOG_LEVEL

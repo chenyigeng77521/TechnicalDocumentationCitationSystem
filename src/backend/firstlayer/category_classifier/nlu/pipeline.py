@@ -24,11 +24,10 @@ class NLUPipeline:
         self.retrieval_url = Config.RETRIEVAL_URL
         self.timeout = Config.HTTP_TIMEOUT
         
-        # NLU 模型配置（本地部署）
-        base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'models')
-        self.rexnunlu_model_path = os.path.join(base_path, 'qwen2.5-0.5b')  # 使用 Qwen2.5-0.5B 做指代消解 + 查询改写
+        # NLU 模型配置（本地部署 - 从 firstlayer_modules 加载）
+        self.rexnunlu_model_path = Config.QWEN25_MODEL_PATH  # Qwen2.5-0.5B 做指代消解 + 查询改写
         self.slimplm_model_path = ""  # 不单独使用，与 RexUniNLU 合并
-        self.turnsense_model_path = os.path.join(base_path, 'chinese-roberta-wwm-ext')  # 完整性检查
+        self.turnsense_model_path = Config.ROBERTA_MODEL_PATH  # chinese-roberta-wwm-ext 完整性检查
         
         # 检查是否启用模型（本地模式）
         self.use_local_rexnunlu = bool(self.rexnunlu_model_path and os.path.exists(self.rexnunlu_model_path))
