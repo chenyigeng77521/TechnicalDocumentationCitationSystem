@@ -17,6 +17,9 @@ PIP=`which pip`
 PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 
 echo '项目目录:' $current_path
+
+bash "$current_path/scripts/stopAll.sh"
+
 current_path=$current_path/src
 echo '源代码:' $current_path
 
