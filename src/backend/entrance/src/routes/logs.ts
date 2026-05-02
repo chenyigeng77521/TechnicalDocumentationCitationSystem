@@ -45,10 +45,11 @@ router.get('/stream', (req: Request, res: Response) => {
   // SSE 头部
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'no-cache, no-transform',
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no',  // 禁用 nginx 缓冲
     'Access-Control-Allow-Origin': '*',
+    'X-No-Buffering': '1',      // 禁用中间代理缓冲
   });
 
   console.log(`📋 [日志] 开始推送：${safeFile}`);
@@ -117,6 +118,55 @@ router.get('/stream', (req: Request, res: Response) => {
     clearInterval(heartbeat);
     console.log(`📋 [日志] 客户端断开：${safeFile}`);
   });
+});
+
+/**
+ * GET /api/logs/read
+ * 读取日志文件内容，返回普通 JSON（无 SSE，兼容 Cloudflare Tunnel）
+ * Query: file=backend.log (默认)
+ */
+router.get('/read', (req: Request, res: Response) => {
+  const fileParam = (req.query.file as string) || 'backend.log';
+  const safeFile = path.basename(fileParam);
+  const logFile = path.join(LOGS_DIR, safeFile);
+
+  if (!fs.existsSync(logFile)) {
+    res.json({ success: true, lines: [], total: 0, file: safeFile });
+    return;
+  }
+
+  try {
+    const stats = fs.statSync(logFile);
+    const content = fs.readFileSync(logFile, 'utf-8');
+    let lines = content.split('\n').filter(l => l.trim());
+    const tailLines = lines.slice(-200);
+    res.json({ success: true, lines: tailLines, total: lines.length, file: safeFile });
+  } catch (err: any) {
+    res.json({ success: false, lines: [], message: err.message });
+  }
+});
+
+/**
+ * POST /api/logs/write
+ * 前端主动写入日志到 backend.log
+ * Body: { message: string, level?: string }
+ */
+router.post('/write', (req: Request, res: Response) => {
+  try {
+    const { message, level } = req.body;
+    if (!message) {
+      res.status(400).json({ success: false, message: 'message 不能为空' });
+      return;
+    }
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const logLine = `[${timestamp}] [${level || 'INFO'}] [frontend] ${message}\n`;
+    const logFile = path.join(LOGS_DIR, 'backend.log');
+    fs.appendFileSync(logFile, logLine, 'utf-8');
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('❌ 写入日志失败:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 export default router;

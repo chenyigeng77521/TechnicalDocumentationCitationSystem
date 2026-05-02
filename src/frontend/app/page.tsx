@@ -44,6 +44,7 @@ export default function Home() {
   const [logLines, setLogLines] = useState<string[]>([]);
   const [logStream, setLogStream] = useState<EventSource | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const logTimerRef = useRef<NodeJS.Timeout | null>(null);
   // 批量测试相关状态
   const [isBatchUploading, setIsBatchUploading] = useState(false);
   const [batchUploadProgress, setBatchUploadProgress] = useState(0);
@@ -80,6 +81,15 @@ export default function Home() {
     }
     // 如果是完整 URL，确保以 / 结尾后拼接
     return baseUrl.endsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/${path}`;
+  };
+
+  // 写入后端日志
+  const logToBackend = (message: string, level: string = 'INFO') => {
+    fetch(buildApiUrl('/api/logs/write'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, level }),
+    }).catch(() => {}); // 静默失败，不影响主流程
   };
 
   // 初始化时获取文档数量并创建 session
@@ -157,8 +167,7 @@ export default function Home() {
       setShowResults(false);
       setShowHistoryPanel(false);
       setShowLogPanel(false);
-      if (logStream) { logStream.close(); setLogStream(null); }
-      setLogLines([]);
+      closeLogPanel();
       loadRawFiles(1);
     }
   };
@@ -337,8 +346,10 @@ export default function Home() {
       setShowKnowledgeBase(false);
       setShowHistoryPanel(false);
       setShowLogPanel(false);
-      if (logStream) { logStream.close(); setLogStream(null); }
-      setLogLines([]);
+      closeLogPanel();
+      const apiUrl = buildApiUrl('/api/batch-test/results?page=1&limit=5');
+      console.log('📋 [结果列表] 调用:', window.location.origin + apiUrl);
+      logToBackend('[结果列表] 调用: ' + window.location.origin + apiUrl);
       loadResultFiles(1);
     }
   };
@@ -351,12 +362,14 @@ export default function Home() {
       setShowKnowledgeBase(false);
       setShowResults(false);
       setShowLogPanel(false);
-      if (logStream) { logStream.close(); setLogStream(null); }
-      setLogLines([]);
+      closeLogPanel();
       setIsLoadingHistory(true);
+      const apiUrl = buildApiUrl(`/api/context/get-all-messages/${sessionId}`);
+      console.log('📋 [历史会话] 调用:', window.location.origin + apiUrl);
       console.log('📋 [历史会话] sessionId:', sessionId);
+      logToBackend('[历史会话] 调用: ' + window.location.origin + apiUrl);
       try {
-        const res = await fetch(buildApiUrl(`/api/context/get-all-messages/${sessionId}`));
+        const res = await fetch(apiUrl);
         const data = await res.json();
         console.log('📋 [历史会话] 返回数据:', JSON.stringify(data, null, 2));
         setHistoryConversations(data.messages || []);
@@ -368,7 +381,7 @@ export default function Home() {
     }
   };
 
-  // 后台日志切换
+  // 后台日志切换（轮询模式，兼容 Cloudflare Tunnel）
   const handleLogToggle = () => {
     const willOpen = !showLogPanel;
     setShowLogPanel(willOpen);
@@ -377,41 +390,44 @@ export default function Home() {
       setShowKnowledgeBase(false);
       setShowResults(false);
       setShowHistoryPanel(false);
-      if (logStream) logStream.close();
-      const url = buildApiUrl('/api/logs/stream?file=backend.log');
-      console.log('📋 [调试] 连接日志服务:', url);
-      setLogLines([`正在连接日志服务: ${url}`]);
-      const es = new EventSource(url);
-      setLogStream(es);
+      if (logStream) { (logStream as any).close?.(); setLogStream(null); }
+      const url = buildApiUrl('/api/logs/read?file=backend.log');
+      console.log('📋 [后台日志] 轮询地址:', window.location.origin + url);
+      logToBackend('[后台日志] 开始轮询: ' + window.location.origin + url);
+      setLogLines([`⏳ 正在读取日志...`]);
 
-      es.onopen = () => {
-        console.log('📋 [调试] EventSource 连接已建立');
-        setLogLines(prev => [...prev, '✅ 连接已建立']);
-      };
-
-      es.onmessage = (event) => {
-        console.log('📋 [调试] 收到消息:', event.data.substring(0, 80));
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'init' && Array.isArray(data.lines)) {
-            setLogLines(data.lines);
-            console.log(`📋 [调试] 初始日志 ${data.lines.length} 行`);
-          } else if (data.type === 'append' && Array.isArray(data.lines)) {
-            setLogLines(prev => [...prev, ...data.lines]);
-          }
-        } catch (e) {
-          console.log('📋 [调试] 解析失败:', e);
-          setLogLines(prev => [...prev, `⚠️ 解析失败: ${event.data.substring(0, 50)}`]);
+      // 首次加载
+      fetch(url).then(r => r.json()).then(data => {
+        if (data.success && Array.isArray(data.lines)) {
+          setLogLines(data.lines);
+          console.log(`📋 [后台日志] 加载完成，${data.lines.length} 行`);
         }
-      };
-      es.onerror = (e) => {
-        console.log('📋 [调试] EventSource 错误:', es.readyState, EventSource.CONNECTING, EventSource.OPEN, EventSource.CLOSED);
-        setLogLines(prev => [...prev, `⚠️ 连接断开 (readyState=${es.readyState}), 重连中...`]);
-      };
+      }).catch(e => {
+        console.log('📋 [后台日志] 读取失败:', e);
+        setLogLines(prev => [...prev, `⚠️ 读取失败: ${e.message}`]);
+      });
+
+      // 每 2 秒轮询
+      logTimerRef.current = setInterval(() => {
+        fetch(url).then(r => r.json()).then(data => {
+          if (data.success && Array.isArray(data.lines)) {
+            setLogLines(data.lines);
+          }
+        }).catch(() => {});
+      }, 2000);
     } else {
-      if (logStream) { logStream.close(); setLogStream(null); }
-      setLogLines([]);
+      closeLogPanel();
     }
+  };
+
+  // 关闭日志面板（清理轮询）
+  const closeLogPanel = () => {
+    if (logTimerRef.current) {
+      clearInterval(logTimerRef.current);
+      logTimerRef.current = null;
+    }
+    if (logStream) { (logStream as any).close?.(); setLogStream(null); }
+    setLogLines([]);
   };
 
   // 自动滚动日志
