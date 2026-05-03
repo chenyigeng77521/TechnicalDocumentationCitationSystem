@@ -1,6 +1,6 @@
 
-> knowledge-qa-system@1.0.0 start
-> node dist/server.js
+> knowledge-qa-system@1.0.0 dev
+> tsx src/server.ts
 
 📝 已加载环境变量：/Users/chenyigeng/WorkBuddy/data/TechnicalDocumentationCitationSystem/src/backend/entrance/.env
 🔧 ENABLE_QUESTION_CLASSIFICATION: true
@@ -21,3 +21,7 @@
    GET    /api/qa/stats         - 统计信息
    DELETE /api/qa/files/:name  - 删除文件
 
+[2026-05-03 03:16:58] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log
+[2026-05-03 03:18:49] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log
+[2026-05-03 03:23:19] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log
+[2026-05-03 03:23:21] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log

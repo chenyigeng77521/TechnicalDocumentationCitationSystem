@@ -1,7 +1,13 @@
-INFO:     Started server process [73221]
+INFO:     Started server process [77893]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:3006 (Press CTRL+C to quit)
 ✅ Context Memory 服务启动（纯内存模式，最多保存30组问答）
-✅ 创建新 session: session_2c88320eb7b5
-INFO:     127.0.0.1:49429 - "POST /api/context/create-session HTTP/1.1" 200 OK
+✅ 创建新 session: session_4b1201ddb847
+INFO:     127.0.0.1:58303 - "POST /api/context/create-session HTTP/1.1" 200 OK
+✅ 创建新 session: session_5f3dedd7922c
+INFO:     127.0.0.1:58422 - "POST /api/context/create-session HTTP/1.1" 200 OK
+✅ 创建新 session: session_cfb2884ec227
+INFO:     127.0.0.1:58474 - "POST /api/context/create-session HTTP/1.1" 200 OK
+✅ 创建新 session: session_f3e946885bd0
+INFO:     127.0.0.1:58598 - "POST /api/context/create-session HTTP/1.1" 200 OK
