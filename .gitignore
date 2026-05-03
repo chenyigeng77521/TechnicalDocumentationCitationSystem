@@ -95,8 +95,10 @@ src/backend/ingestion/backend/
 src/logs/*.log
 logs/
 
-# 评测目录（动态生成，体积大）
-eval/
+# 评测工具的运行产物（缓存 + 报告，不入 git）
+# 注：eval/ 目录代码本身入 git，cache/ 和 reports/ 在 eval/.gitignore 里排除
+eval/cache/
+eval/reports/
 
 
 # venv（Mac/Linux 受 PEP 668 限制时本地用）
