@@ -765,11 +765,8 @@ class NLUPipeline:
                 "processing_steps": processing_steps
             }
         
-        # 7. 记录到上下文记忆
-        if session_id:
-            answer_text = retrieval_result.get("answer", "")
-            await self.record_to_context(session_id, rewritten_question, answer_text)
-            processing_steps["context_recorded"] = True
+        # 上下文记录由 entrance 端统一处理，此处不重复记录
+        processing_steps["context_recorded"] = False
         
         return {
             "success": True,

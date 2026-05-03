@@ -261,49 +261,121 @@ export default function Home() {
   };
 
   // ========== 批量测试相关函数 ==========
-  
+
+  /** 解析文件内容，提取 { id, question, domain, answer_type, difficulty } */
+  const parseFileContent = (text: string, fileName: string): any[] => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const items: any[] = [];
+
+    if (ext === 'json') {
+      // JSON 数组
+      const data = JSON.parse(text);
+      if (Array.isArray(data)) {
+        data.forEach((item: any) => {
+          if (item.id && item.question) {
+            items.push({
+              id: String(item.id),
+              question: String(item.question),
+              domain: String(item.domain || ''),
+              answer_type: String(item.answer_type || ''),
+              difficulty: String(item.difficulty || ''),
+            });
+          }
+        });
+      }
+    } else if (ext === 'jsonl' || ext === 'txt') {
+      // 每行一个 JSON
+      text.split('\n').filter(l => l.trim()).forEach(line => {
+        try {
+          const item = JSON.parse(line.trim());
+          if (item.id && item.question) {
+            items.push({
+              id: String(item.id),
+              question: String(item.question),
+              domain: String(item.domain || ''),
+              answer_type: String(item.answer_type || ''),
+              difficulty: String(item.difficulty || ''),
+            });
+          }
+        } catch { /* 跳过无效行 */ }
+      });
+    } else if (ext === 'csv') {
+      // CSV 格式：id,question,domain,answer_type,difficulty
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length > 1) {
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          const item: any = { id: '', question: '', domain: '', answer_type: '', difficulty: '' };
+          headers.forEach((h, idx) => {
+            if (h === 'id') item.id = cols[idx]?.trim() || '';
+            if (h === 'question') item.question = cols[idx]?.trim() || '';
+            if (h === 'domain') item.domain = cols[idx]?.trim() || '';
+            if (h === 'answer_type') item.answer_type = cols[idx]?.trim() || '';
+            if (h === 'difficulty') item.difficulty = cols[idx]?.trim() || '';
+          });
+          if (item.id && item.question) items.push(item);
+        }
+      }
+    }
+    return items;
+  };
+
   const handleBatchFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsBatchUploading(true);
     setBatchUploadProgress(30);
-    setBatchUploadMessage(`⬆️ 正在上传：${file.name}...`);
-
-    // 2 秒后模拟"上传完成，正在调用远程服务"
-    const remoteTimer = setTimeout(() => {
-      setBatchUploadMessage(`🌐 上传成功，正在调用远程服务...`);
-      setBatchUploadProgress(60);
-    }, 2000);
-
-    const formData = new FormData();
-    formData.append('file', file);
+    setBatchUploadMessage(`📖 正在读取：${file.name}...`);
 
     try {
-      // 模拟上传进度
-      setTimeout(() => setBatchUploadProgress(80), 400);
-
-      const response = await fetch(buildApiUrl('/api/batch-test/upload'), {
-        method: 'POST',
-        body: formData
+      // 前端读取文件内容
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('文件读取失败'));
+        reader.readAsText(file);
       });
 
-      clearTimeout(remoteTimer);
-      setBatchUploadProgress(90);
-      const data = await response.json();
-      setBatchUploadProgress(100);
+      setBatchUploadProgress(50);
+      setBatchUploadMessage(`🔍 正在解析文件...`);
 
-      if (data.success) {
-        setBatchUploadMessage(`✅ 处理完成！共 ${data.questionCount} 个问题`);
-        // 自动刷新结果列表
-        loadResultFiles();
+      // 解析文件内容
+      const items = parseFileContent(text, file.name);
+      if (items.length === 0) {
+        setBatchUploadMessage(`❌ 未找到有效的测试数据`);
+        setTimeout(() => setBatchUploadMessage(''), 5000);
+        return;
+      }
+
+      setBatchUploadProgress(70);
+      setBatchUploadMessage(`🌐 正在提交 ${items.length} 条测试...`);
+
+      // 调用 entrance 批量测试提交接口
+      const response = await fetch(buildApiUrl('/api/batch-test/submit'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+
+      setBatchUploadProgress(100);
+      const data = await response.json();
+
+      if (data.status === 'success' && data.succeeded > 0) {
+        const msg = `✅ 测试完成！共 ${data.total} 条，成功 ${data.succeeded} 条，失败 ${data.failed} 条`;
+        setBatchUploadMessage(msg);
+        console.log(`📋 [批量测试] ${msg}`);
+        logToBackend(`[批量测试] 成功: total=${data.total}, succeeded=${data.succeeded}, failed=${data.failed}`);
       } else {
-        setBatchUploadMessage(`❌ ${data.message || '处理失败'}`);
+        const msg = `❌ 测试失败：成功 ${data.succeeded || 0} 条，失败 ${data.failed || 0} 条`;
+        setBatchUploadMessage(msg);
+        console.error('📋 [批量测试] 失败:', msg);
+        logToBackend(`[批量测试] 失败: ${msg}`);
       }
     } catch (error: any) {
-      clearTimeout(remoteTimer);
-      console.error('❌ [批量测试] 上传失败:', error);
-      setBatchUploadMessage(`❌ 上传失败：${error.message}`);
+      console.error('❌ [批量测试] 处理失败:', error);
+      setBatchUploadMessage(`❌ 处理失败：${error.message}`);
     } finally {
       setIsBatchUploading(false);
       setBatchUploadProgress(0);
@@ -393,7 +465,6 @@ export default function Home() {
       if (logStream) { (logStream as any).close?.(); setLogStream(null); }
       const url = buildApiUrl('/api/logs/read?file=backend.log');
       console.log('📋 [后台日志] 轮询地址:', window.location.origin + url);
-      logToBackend('[后台日志] 开始轮询: ' + window.location.origin + url);
       setLogLines([`⏳ 正在读取日志...`]);
 
       // 首次加载
@@ -755,18 +826,8 @@ export default function Home() {
       console.log('📊 最终分类:', classification);
       console.log('📚 最终来源:', sources);
 
-      // 添加 AI 回复（包含分类信息）
-      const categoryEmoji: Record<string, string> = {
-        'FACT': '📊',
-        'PROC': '🔄',
-        'EXPL': '💡',
-        'COMP': '⚖️',
-        'META': '🤔',
-        'UNKNOWN': '❓'
-      };
-
-      const categoryInfo = classification ? 
-        `${categoryEmoji[classification.category] || '❓'} **${classification.category}** (${Math.round(classification.confidence * 100)}% 置信度)\n\n` : '';
+      // 不显示分类信息
+      const categoryInfo = '';
       
       const finalAnswer = categoryInfo + answer;
       
@@ -778,27 +839,6 @@ export default function Home() {
         text: finalAnswer,
         sources: uniqueSources.length > 0 ? uniqueSources : undefined
       }]);
-
-      // 记录用户问题和助手回答到 context memory（仅限有效回答）
-      if (sessionId && answer && answer !== '' && !answer.includes('检索服务暂时不可用') && !answer.includes('无法连接到知识库服务') && !answer.includes('问题不够清晰')) {
-        try {
-          // 记录用户问题
-          await fetch(buildApiUrl('/api/context/add-user-message'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId, content: userQuestion })
-          });
-          // 记录助手回答
-          await fetch(buildApiUrl('/api/context/add-assistant-message'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId, content: finalAnswer })
-          });
-          console.log('✅ 问题和回答已记录到 context memory');
-        } catch (err) {
-          console.error('❌ 记录到 context memory 失败:', err);
-        }
-      }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('⏹ 用户已停止请求');
@@ -925,9 +965,17 @@ export default function Home() {
                   )}
                   {msg.sources && msg.sources.length > 0 && (
                     <div style={styles.sources}>
-                      {msg.sources.map((source, idx) => (
-                        <span key={idx} style={styles.sourceTag}>📄 {source}</span>
-                      ))}
+                      {msg.sources.map((source, idx) => {
+                        const parts = source.split('#');
+                        const docPath = parts[0];
+                        const anchor = parts.slice(1).join('#');
+                        return (
+                          <span key={idx} style={styles.sourceTag}>
+                            📄 {docPath}
+                            {anchor && <a href={anchor} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline', marginLeft: 4 }}>🔗 定位</a>}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1056,7 +1104,7 @@ export default function Home() {
               rawFiles.slice(0, 5).map((file, idx) => (
                 <div key={idx} className="mobile-panel-item">
                   <span className="mobile-panel-icon">📄</span>
-                  <span className="mobile-panel-text" title={file.name}>
+                  <span className="mobile-panel-text" title={file.displayPath || file.name}>
                     {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
                   </span>
                   <span className="mobile-panel-meta">{(file.size / 1024).toFixed(1)}KB</span>
@@ -1074,14 +1122,20 @@ export default function Home() {
           return (
             <div className="mobile-info-panel">
               <div className="mobile-panel-title">📚 引用来源 ({lastMsg.sources.length} 个)</div>
-              {lastMsg.sources.slice(0, 5).map((source, idx) => (
-                <div key={idx} className="mobile-panel-item">
-                  <span className="mobile-panel-icon">📄</span>
-                  <span className="mobile-panel-text" title={source}>
-                    {source.length > 20 ? source.substring(0, 20) + '...' : source}
-                  </span>
-                </div>
-              ))}
+              {lastMsg.sources.slice(0, 5).map((source, idx) => {
+                const parts = source.split('#');
+                const docPath = parts[0];
+                const anchor = parts.slice(1).join('#');
+                return (
+                  <div key={idx} className="mobile-panel-item">
+                    <span className="mobile-panel-icon">📄</span>
+                    <span className="mobile-panel-text" title={source}>
+                      {docPath.length > 15 ? docPath.substring(0, 15) + '...' : docPath}
+                    </span>
+                    {anchor && <a href={anchor} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: 9, marginLeft: 2, flexShrink: 0 }}>🔗</a>}
+                  </div>
+                );
+              })}
               {lastMsg.sources.length > 5 && (
                 <div style={{ padding: '10px 0', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
                   还有 {lastMsg.sources.length - 5} 个来源...
@@ -1139,7 +1193,7 @@ export default function Home() {
                           href={buildApiUrl(file.downloadUrl)}
                           download={file.name}
                           style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none'}}
-                          title="下载"
+                          title={file.displayPath || file.name}
                         >
                           {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
                         </a>
@@ -1427,12 +1481,18 @@ export default function Home() {
           <div style={styles.sourcePanelTitle}>📖 引用来源</div>
           <div style={styles.sourcePanelList}>
             {messages.length > 0 && messages[messages.length - 1].sources ? (
-              messages[messages.length - 1].sources?.map((source, idx) => (
-                <div key={idx} style={styles.sourcePanelItem}>
-                  <span style={styles.sourcePanelIcon}>📄</span>
-                  <span style={styles.sourcePanelText}>{source}</span>
-                </div>
-              ))
+              messages[messages.length - 1].sources?.map((source, idx) => {
+                const parts = source.split('#');
+                const docPath = parts[0];
+                const anchor = parts.slice(1).join('#');
+                return (
+                  <div key={idx} style={styles.sourcePanelItem}>
+                    <span style={styles.sourcePanelIcon}>📄</span>
+                    <span style={styles.sourcePanelText}>{docPath}</span>
+                    {anchor && <a href={anchor} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline', fontSize: 11, marginLeft: 4, flexShrink: 0 }}>🔗 {anchor}</a>}
+                  </div>
+                );
+              })
             ) : (
               <div style={styles.sourcePanelEmpty}>暂无引用来源</div>
             )}

@@ -14,7 +14,7 @@ export const config = {
   // 上传配置（运行时读取）
   get upload() {
     return {
-      uploadDir: '../storage/raw',
+      uploadDir: process.env.UPLOAD_DIR || '../../../data/documents',
       batchTestDir: '../storage/batchtest',
       maxFileSize: 300,
       allowedFormats: [
@@ -23,6 +23,13 @@ export const config = {
         '.doc', '.docx', '.pdf', '.xlsx', '.adoc', '.jsonl'
       ],
       maxFiles: 100,
+    };
+  },
+  // 数据根目录（用于知识库文件列表递归扫描）
+  get dataRoot() {
+    return {
+      // 从 entrance 到 data/ 目录的路径
+      path: process.env.DATA_ROOT || '../../../data',
     };
   },
   // category_classifier 配置（运行时读取）
@@ -45,18 +52,18 @@ export const config = {
   get contextMemory() {
     return {
       url: process.env.CONTEXT_MEMORY_URL || 'http://localhost:3006',
-      enabled: process.env.ENABLE_CONTEXT_MEMORY === 'true',  // 默认不启用
+      enabled: process.env.ENABLE_CONTEXT_MEMORY !== 'false',  // 默认启用
       timeout: parseInt(process.env.CONTEXT_MEMORY_TIMEOUT || '3000'),
     };
   },
   // 检索层配置（运行时读取）
   get retrieval() {
     return {
-      url: process.env.RETRIEVAL_URL || 'http://172.25.178.29:18020/query',
+      url: process.env.RETRIEVAL_URL || 'http://localhost:8001/api/qa',
       enabled: !!process.env.RETRIEVAL_URL,  // 配置了 URL 就启用
       timeout: parseInt(process.env.HTTP_TIMEOUT || '60000'),
       // 批量查询接口地址
-      batchQueryUrl: process.env.BATCH_QUERY_URL || 'http://172.25.178.29:18020/batch-query',
+      batchQueryUrl: process.env.BATCH_QUERY_URL || 'http://localhost:8001/api/qa/batch',
     };
   },
   // NLU 配置（运行时读取）
@@ -69,8 +76,8 @@ export const config = {
   // 存储配置
   get storage() {
     return {
-      // 结果文件目录
-      resultDir: '../storage/result',
+      // 结果文件目录（可通过环境变量 RESULT_DIR 覆盖）
+      resultDir: process.env.RESULT_DIR || '../reasoning/eval',
     };
   },
 };

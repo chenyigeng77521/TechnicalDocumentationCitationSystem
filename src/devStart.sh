@@ -19,7 +19,7 @@ PYTHON=`which python`
 PIP=`which pip`
 
 #本机环境测试
-#PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
+PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 
 
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）
@@ -151,6 +151,30 @@ else
     fi
 fi
 
+# 检查并启动 Reasoning 推理服务
+echo ""
+echo "5️⃣ 检查 Reasoning 推理服务状态..."
+REASON_CHECK=$(lsof -i:8001 2>/dev/null | grep LISTEN)
+if [ -n "$REASON_CHECK" ]; then
+    echo "   ✅ Reasoning 已运行 (8001)"
+else
+    echo "   🔄 启动 Reasoning 服务..."
+    bash "$current_path/backend/reasoning/start.sh" --bg
+fi
+
+# 检查并启动 Ingestion 数据层服务（Layer 1）
+echo ""
+echo "6️⃣ 检查 Ingestion 数据层服务状态..."
+INGEST_CHECK=$(lsof -i:3003 2>/dev/null | grep LISTEN)
+if [ -n "$INGEST_CHECK" ]; then
+    echo "   ✅ Ingestion 已运行 (3003)"
+else
+    echo "   🔄 启动 Ingestion 服务..."
+    # ingestion/start.sh 内部用 conda run -n sqllineage 自激活，不依赖外部 conda activate
+    # 也会自动 source src/.env + src/.env.aigw（含 AIGW_API_KEY）
+    bash "$current_path/backend/ingestion/start.sh" --bg
+fi
+
 # 检查并启动后端
 echo ""
 echo "4️⃣ 检查后端服务状态..."
@@ -160,8 +184,24 @@ else
     echo "   🔄 启动后端服务..."
     cd "$current_path/backend/entrance"
     npm run dev > "$current_path/logs/backend.log" 2>&1 &
-    sleep 3
-    echo "   ✅ 后端已启动 (3002)"
+    echo "   ⏳ 等待服务启动..."
+    MAX_RETRIES=20
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        sleep 3
+        BACKEND_CHECK=$(lsof -i:3002 2>/dev/null | grep LISTEN)
+        if [ -n "$BACKEND_CHECK" ]; then
+            echo "   ✅ 后端已启动 (3002)"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        echo "   ⏳ 等待中... ($RETRY_COUNT/$MAX_RETRIES)"
+    done
+
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "   ❌ 后端启动超时，请检查日志"
+        echo "   💡 日志路径：$current_path/logs/backend.log"
+    fi
 fi
 
 # 检查并启动前端

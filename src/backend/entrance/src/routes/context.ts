@@ -39,7 +39,7 @@ router.get('/create-session', async (req: Request, res: Response) => {
     const data: any = await createResp.json();
     res.json(data);
   } catch (error: any) {
-    console.error('❌ 创建 session 失败:', error.message);
+    console.error('✅ 创建 session 失败:', error.message);
     res.status(500).json({
       success: false,
       error: `创建 session 失败：${error.message}`
@@ -74,7 +74,7 @@ router.get('/get-all-messages/:session_id', async (req: Request, res: Response) 
     const data: any = await resp.json();
     res.json(data);
   } catch (error: any) {
-    console.error('❌ 获取完整历史失败:', error.message);
+    console.error('✅ 获取完整历史失败:', error.message);
     res.status(500).json({
       success: false,
       error: `获取完整历史失败：${error.message}`
@@ -110,7 +110,7 @@ router.get('/get-latest-conversations/:session_id', async (req: Request, res: Re
     const data: any = await resp.json();
     res.json(data);
   } catch (error: any) {
-    console.error('❌ 获取历史对话失败:', error.message);
+    console.error('✅ 获取历史对话失败:', error.message);
     res.status(500).json({
       success: false,
       error: `获取历史对话失败：${error.message}`
@@ -156,7 +156,7 @@ router.post('/add-user-message', async (req: Request, res: Response) => {
     const data: any = await resp.json();
     res.json(data);
   } catch (error: any) {
-    console.error('❌ 添加用户消息失败:', error.message);
+    console.error('✅ 添加用户消息失败:', error.message);
     res.status(500).json({
       success: false,
       error: `添加用户消息失败：${error.message}`
@@ -202,7 +202,7 @@ router.post('/add-assistant-message', async (req: Request, res: Response) => {
     const data: any = await resp.json();
     res.json(data);
   } catch (error: any) {
-    console.error('❌ 添加助手消息失败:', error.message);
+    console.error('✅ 添加助手消息失败:', error.message);
     res.status(500).json({
       success: false,
       error: `添加助手消息失败：${error.message}`

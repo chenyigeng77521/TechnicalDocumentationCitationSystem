@@ -26,7 +26,7 @@ router.post('/create', async (req: Request, res: Response) => {
 
     // 调用 context memory 的 create-session 接口
     const contextMemoryUrl = `${config.contextMemory.url}/api/context/create-session`;
-    console.log(`🔄 调用 Context Memory 创建 session: ${contextMemoryUrl}`);
+    console.log(`✅ 调用 Context Memory 创建 session: ${contextMemoryUrl}`);
 
     const response = await fetch(contextMemoryUrl, {
       method: 'POST',
@@ -39,7 +39,7 @@ router.post('/create', async (req: Request, res: Response) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Context Memory 返回错误:`, response.status, errorText);
+      console.error(`✅ Context Memory 返回错误:`, response.status, errorText);
       return res.status(response.status).json({
         success: false,
         message: '创建 session 失败',
@@ -58,7 +58,7 @@ router.post('/create', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('❌ 创建 session 失败:', error.message);
+    console.error('✅ 创建 session 失败:', error.message);
     res.status(500).json({
       success: false,
       message: '创建 session 失败',
@@ -84,7 +84,7 @@ router.get('/validate/:session_id', async (req: Request, res: Response) => {
 
     // 调用 context memory 获取 session 信息
     const contextMemoryUrl = `${config.contextMemory.url}/api/context/get-history/${session_id}`;
-    console.log(`🔍 验证 session: ${session_id}`);
+    console.log(`✅ 验证 session: ${session_id}`);
 
     const response = await fetch(contextMemoryUrl, {
       method: 'GET',
@@ -109,7 +109,7 @@ router.get('/validate/:session_id', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('❌ 验证 session 失败:', error.message);
+    console.error('✅ 验证 session 失败:', error.message);
     res.status(500).json({
       success: false,
       message: '验证 session 失败',
@@ -135,7 +135,7 @@ router.get('/info/:session_id', async (req: Request, res: Response) => {
 
     // 调用 context memory 获取 session 信息
     const contextMemoryUrl = `${config.contextMemory.url}/api/context/get-latest-conversations/${session_id}`;
-    console.log(`📊 获取 session 信息: ${session_id}`);
+    console.log(`✅ 获取 session 信息: ${session_id}`);
 
     const response = await fetch(contextMemoryUrl, {
       method: 'GET',
@@ -159,7 +159,7 @@ router.get('/info/:session_id', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('❌ 获取 session 信息失败:', error.message);
+    console.error('✅ 获取 session 信息失败:', error.message);
     res.status(500).json({
       success: false,
       message: '获取 session 信息失败',

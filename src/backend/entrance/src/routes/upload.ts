@@ -18,6 +18,9 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// 数据根目录（用于知识库列表递归扫描）
+const dataRoot = path.resolve(config.dataRoot.path);
+
 /**
  * 修复 Latin-1 编码导致的中文乱码
  */
@@ -119,9 +122,9 @@ const storage = multer.diskStorage({
     if (!fs.existsSync(uploadDir)) {
       try {
         fs.mkdirSync(uploadDir, { recursive: true });
-        console.log(`📁 创建上传目录：${uploadDir}`);
+        console.log(`✅ 创建上传目录：${uploadDir}`);
       } catch (error: any) {
-        console.error(`❌ 创建上传目录失败：${uploadDir}`, error.message);
+        console.error(`✅ 创建上传目录失败：${uploadDir}`, error.message);
         cb(error, undefined as any);
         return;
       }
@@ -188,7 +191,7 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
         const fixedOriginalName = fixEncoding(file.originalname);
         const ext = path.extname(fixedOriginalName).replace('.', '');
         
-        console.log(`📤 上传文件：${fixedOriginalName}`);
+        console.log(`✅ 上传文件：${fixedOriginalName}`);
         
         uploadedFiles.push({
           id: uuidv4(),
@@ -203,7 +206,7 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
         console.log(`✅ 上传完成：${fixedOriginalName}`);
         
       } catch (error: any) {
-        console.error(`❌ 上传失败：`, error.message);
+        console.error(`✅ 上传失败：`, error.message);
         
         uploadedFiles.push({
           id: uuidv4(),
@@ -222,7 +225,7 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
     });
 
   } catch (error: any) {
-    console.error('❌ 上传失败:', error);
+    console.error('✅ 上传失败:', error);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.status(500).json({
       success: false,
@@ -232,19 +235,46 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
 });
 
 /**
- * 获取 raw 目录下的文档列表
+ * 递归遍历目录下所有文件
+ */
+function walkDir(dir: string, baseDir: string): any[] {
+  const results: any[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...walkDir(fullPath, baseDir));
+    } else if (entry.isFile()) {
+      const stats = fs.statSync(fullPath);
+      // 相对 data/ 的相对路径，如 documents/subdir/file.pdf
+      const relPath = path.relative(baseDir, fullPath);
+      results.push({
+        name: entry.name,
+        path: fullPath,
+        displayPath: relPath,                // 相对路径，用于前端悬浮显示
+        size: stats.size,
+        createdAt: stats.birthtime,
+        modifiedAt: stats.mtime,
+        downloadUrl: `/api/upload/download/${encodeURIComponent(relPath)}`,
+      });
+    }
+  }
+  return results;
+}
+
+/**
+ * 获取 data/ 目录下所有子目录的文件列表
  * GET /api/upload/raw-files?page=1&limit=10
  */
 router.get('/raw-files', (req, res) => {
   try {
-    const rawDir = path.resolve(config.upload.uploadDir);
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    // 如果目录不存在，返回空列表而不是报错
-    if (!fs.existsSync(rawDir)) {
-      console.log(`📂 上传目录不存在：${rawDir}，返回空列表`);
+    // 如果目录不存在，返回空列表
+    if (!fs.existsSync(dataRoot)) {
+      console.log(`✅ 数据根目录不存在：${dataRoot}，返回空列表`);
       return res.json({
         success: true,
         files: [],
@@ -255,24 +285,11 @@ router.get('/raw-files', (req, res) => {
       });
     }
 
-    const files = fs.readdirSync(rawDir)
-      .filter(file => fs.statSync(path.join(rawDir, file)).isFile())
-      .map(file => {
-        const filePath = path.join(rawDir, file);
-        const stats = fs.statSync(filePath);
-        return {
-          name: file,
-          path: filePath,
-          size: stats.size,
-          createdAt: stats.birthtime,
-          modifiedAt: stats.mtime,
-          downloadUrl: `/api/upload/download/${encodeURIComponent(file)}`
-        };
-      })
+    const allFiles = walkDir(dataRoot, dataRoot)
       .sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
 
-    const total = files.length;
-    const paginatedFiles = files.slice(skip, skip + limit);
+    const total = allFiles.length;
+    const paginatedFiles = allFiles.slice(skip, skip + limit);
 
     res.json({
       success: true,
@@ -284,7 +301,7 @@ router.get('/raw-files', (req, res) => {
     });
 
   } catch (error: any) {
-    console.error('❌ 获取文档列表失败:', error);
+    console.error('✅ 获取文档列表失败:', error);
     res.status(500).json({
       success: false,
       message: error.message || '获取文档列表失败'
@@ -294,25 +311,29 @@ router.get('/raw-files', (req, res) => {
 
 /**
  * GET /api/upload/download/:filename
- * 下载 raw 目录下的文件
+ * 下载 data/ 目录下的文件（支持子目录路径）
  */
 router.get('/download/:filename', (req: Request, res: Response) => {
   try {
     const filename = decodeURIComponent(req.params.filename);
-    const rawDir = path.resolve(config.upload.uploadDir);
-    const filePath = path.join(rawDir, filename);
+    const filePath = path.resolve(dataRoot, filename);
+
+    // 安全检查：确保文件在 dataRoot 内，防止路径穿越
+    if (!filePath.startsWith(dataRoot)) {
+      return res.status(403).json({ success: false, message: '非法路径' });
+    }
 
     if (!fs.existsSync(filePath)) {
-      console.log(`❌ [上传] 文件不存在：${filename}`);
+      console.log(`✅ [上传] 文件不存在：${filename}`);
       return res.status(404).json({ success: false, message: '文件不存在' });
     }
 
-    console.log(`📥 [上传] 下载文件：${filename}`);
-    res.download(filePath, filename, (err) => {
-      if (err) console.error(`❌ [上传] 下载失败：`, err);
+    console.log(`✅ [上传] 下载文件：${filename}`);
+    res.download(filePath, path.basename(filename), (err) => {
+      if (err) console.error(`✅ [上传] 下载失败：`, err);
     });
   } catch (error: any) {
-    console.error('❌ [上传] 下载失败：', error);
+    console.error('✅ [上传] 下载失败：', error);
     res.status(500).json({ success: false, message: `下载失败：${error.message}` });
   }
 });

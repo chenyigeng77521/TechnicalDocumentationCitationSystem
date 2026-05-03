@@ -6,7 +6,7 @@ uvicorn[standard]>=0.24.0
 
 # Transformers & ML
 transformers>=4.35.0
-torch>=2.1.0
+torch>=2.4.0
 sentencepiece>=0.1.99
 httpx>=0.24.0
 # Utilities

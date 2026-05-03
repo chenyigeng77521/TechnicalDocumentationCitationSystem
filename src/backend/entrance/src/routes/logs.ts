@@ -30,14 +30,14 @@ router.get('/stream', (req: Request, res: Response) => {
   const safeFile = path.basename(fileParam);
   const logFile = path.join(LOGS_DIR, safeFile);
 
-  console.log(`📋 [调试] 日志请求: file=${fileParam}`);
-  console.log(`📋 [调试] LOGS_DIR=${LOGS_DIR}`);
-  console.log(`📋 [调试] logFile=${logFile}`);
-  console.log(`📋 [调试] 文件存在: ${fs.existsSync(logFile)}`);
+  console.log(`✅ [调试] 日志请求: file=${fileParam}`);
+  console.log(`✅ [调试] LOGS_DIR=${LOGS_DIR}`);
+  console.log(`✅ [调试] logFile=${logFile}`);
+  console.log(`✅ [调试] 文件存在: ${fs.existsSync(logFile)}`);
 
   // 检查文件是否存在
   if (!fs.existsSync(logFile)) {
-    console.log(`📋 [调试] 文件不存在，返回404`);
+    console.log(`✅ [调试] 文件不存在，返回404`);
     res.status(404).json({ success: false, message: `日志文件不存在：${safeFile}` });
     return;
   }
@@ -52,7 +52,7 @@ router.get('/stream', (req: Request, res: Response) => {
     'X-No-Buffering': '1',      // 禁用中间代理缓冲
   });
 
-  console.log(`📋 [日志] 开始推送：${safeFile}`);
+  console.log(`✅ [日志] 开始推送：${safeFile}`);
 
   let fileSize = 0;
 
@@ -65,18 +65,18 @@ router.get('/stream', (req: Request, res: Response) => {
       const content = fs.readFileSync(logFile, 'utf-8');
       let lines = content.split('\n');
 
-      console.log(`📋 [调试] 读取日志完成: ${lines.length} 行 (原始 ${stats.size} 字节)`);
+      console.log(`✅ [调试] 读取日志完成: ${lines.length} 行 (原始 ${stats.size} 字节)`);
 
       if (tailOnly) {
         const tailLines = lines.slice(-100);
         res.write(`data: ${JSON.stringify({ type: 'init', lines: tailLines, total: lines.length })}\n\n`);
-        console.log(`📋 [调试] 发送尾部 ${tailLines.length} 行`);
+        console.log(`✅ [调试] 发送尾部 ${tailLines.length} 行`);
       } else {
         res.write(`data: ${JSON.stringify({ type: 'init', lines, total: lines.length })}\n\n`);
-        console.log(`📋 [调试] 发送全部 ${lines.length} 行`);
+        console.log(`✅ [调试] 发送全部 ${lines.length} 行`);
       }
     } catch (err: any) {
-      console.log(`📋 [调试] 读取失败: ${err.message}`);
+      console.log(`✅ [调试] 读取失败: ${err.message}`);
       res.write(`data: ${JSON.stringify({ type: 'error', message: `读取日志失败: ${err.message}` })}\n\n`);
     }
   };
@@ -116,7 +116,7 @@ router.get('/stream', (req: Request, res: Response) => {
   req.on('close', () => {
     clearInterval(pollInterval);
     clearInterval(heartbeat);
-    console.log(`📋 [日志] 客户端断开：${safeFile}`);
+    console.log(`✅ [日志] 客户端断开：${safeFile}`);
   });
 });
 
@@ -164,7 +164,7 @@ router.post('/write', (req: Request, res: Response) => {
     fs.appendFileSync(logFile, logLine, 'utf-8');
     res.json({ success: true });
   } catch (err: any) {
-    console.error('❌ 写入日志失败:', err.message);
+    console.error('✅ 写入日志失败:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });

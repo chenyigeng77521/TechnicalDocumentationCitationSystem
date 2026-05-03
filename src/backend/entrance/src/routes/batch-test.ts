@@ -32,11 +32,11 @@ const RESULT_DIR =
 function ensureDirs() {
   if (!fs.existsSync(BATCH_TEST_UPLOAD_DIR)) {
     fs.mkdirSync(BATCH_TEST_UPLOAD_DIR, { recursive: true });
-    console.log('📁 [批量测试] 创建上传目录:', BATCH_TEST_UPLOAD_DIR);
+    console.log('✅ [批量测试] 创建上传目录:', BATCH_TEST_UPLOAD_DIR);
   }
   if (!fs.existsSync(RESULT_DIR)) {
     fs.mkdirSync(RESULT_DIR, { recursive: true });
-    console.log('📁 [批量测试] 创建结果目录:', RESULT_DIR);
+    console.log('✅ [批量测试] 创建结果目录:', RESULT_DIR);
   }
 }
 ensureDirs();
@@ -158,22 +158,22 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
   let uploadedFilePath: string | null = null;
 
   try {
-    console.log('📤 [批量测试] 收到上传请求');
+    console.log('✅ [批量测试] 收到上传请求');
 
     if (!req.file) {
-      console.log('❌ [批量测试] 未找到上传文件');
+      console.log('✅ [批量测试] 未找到上传文件');
       return res.status(400).json({ success: false, message: '未找到上传文件' });
     }
 
     uploadedFilePath = req.file.path;
     const originalName = req.file.originalname;
-    console.log(`📥 [批量测试] 文件接收成功：${originalName} (${req.file.size} bytes)`);
+    console.log(`✅ [批量测试] 文件接收成功：${originalName} (${req.file.size} bytes)`);
 
     // 解析文件
     const questions = await parseFile(uploadedFilePath, originalName);
     if (questions.length === 0) {
       fs.unlinkSync(uploadedFilePath);
-      console.log('❌ [批量测试] 文件中未找到有效的 id 和 question');
+      console.log('✅ [批量测试] 文件中未找到有效的 id 和 question');
       return res.status(400).json({ success: false, message: '文件中未找到有效的 id 和 question 字段' });
     }
     console.log(`✅ [批量测试] 解析成功，问题数量：${questions.length}`);
@@ -182,7 +182,7 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
     const remoteUrl = process.env.BATCH_QUERY_URL || 'http://172.25.178.26:8001';
     const jsonlBody = buildJSONLBody(questions);
 
-    console.log(`🌐 [批量测试] 调用远程接口：${remoteUrl}`);
+    console.log(`✅ [批量测试] 调用远程接口：${remoteUrl}`);
     console.log(`📦 [批量测试] 发送数据（只展示前 200 个字符）：${jsonlBody.substring(0, 200)}...`);
 
     // 同步调用远程批量接口（超时 10 分钟）
@@ -208,14 +208,14 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
       });
     } else {
       const errorText = await response.text();
-      console.error(`❌ [批量测试] 远程处理失败：${response.status} - ${errorText}`);
+      console.error(`✅ [批量测试] 远程处理失败：${response.status} - ${errorText}`);
       return res.status(500).json({
         success: false,
         message: `远程处理失败：${response.status} ${response.statusText}`,
       });
     }
   } catch (error: any) {
-    console.error('❌ [批量测试] 处理失败：', error);
+    console.error('✅ [批量测试] 处理失败：', error);
 
     // 清理临时文件
     if (uploadedFilePath) {
@@ -235,7 +235,7 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
  */
 router.get('/results', (req: Request, res: Response) => {
   try {
-    console.log('📂 [批量测试] 获取结果文件列表');
+    console.log('✅ [批量测试] 获取结果文件列表');
 
     if (!fs.existsSync(RESULT_DIR)) {
       return res.json({ success: true, files: [], total: 0, page: 1, totalPages: 0 });
@@ -267,7 +267,7 @@ router.get('/results', (req: Request, res: Response) => {
     const totalPages = Math.ceil(total / limit);
     const paginated = allFiles.slice(skip, skip + limit);
 
-    console.log(`📂 [批量测试] 第 ${page}/${totalPages} 页，共 ${total} 个文件`);
+    console.log(`✅ [批量测试] 第 ${page}/${totalPages} 页，共 ${total} 个文件`);
 
     res.json({
       success: true,
@@ -278,7 +278,7 @@ router.get('/results', (req: Request, res: Response) => {
       totalPages,
     });
   } catch (error: any) {
-    console.error('❌ [批量测试] 获取结果列表失败：', error);
+    console.error('✅ [批量测试] 获取结果列表失败：', error);
     res.status(500).json({ success: false, message: `获取失败：${error.message}` });
   }
 });
@@ -293,17 +293,71 @@ router.get('/download/:filename', (req: Request, res: Response) => {
     const filePath = path.join(RESULT_DIR, filename);
 
     if (!fs.existsSync(filePath)) {
-      console.log(`❌ [批量测试] 文件不存在：${filename}`);
+      console.log(`✅ [批量测试] 文件不存在：${filename}`);
       return res.status(404).json({ success: false, message: '文件不存在' });
     }
 
-    console.log(`📥 [批量测试] 下载文件：${filename}`);
+    console.log(`✅ [批量测试] 下载文件：${filename}`);
     res.download(filePath, filename, (err) => {
-      if (err) console.error(`❌ [批量测试] 下载失败：`, err);
+      if (err) console.error(`✅ [批量测试] 下载失败：`, err);
     });
   } catch (error: any) {
-    console.error('❌ [批量测试] 下载失败：', error);
+    console.error('✅ [批量测试] 下载失败：', error);
     res.status(500).json({ success: false, message: `下载失败：${error.message}` });
+  }
+});
+
+/**
+ * POST /api/batch-test/submit
+ * 接收前端解析好的批量测试数据，转发到推理层批量查询服务
+ * Body: { items: [{ id, question, domain, answer_type, difficulty }] }
+ * Response: { status, succeeded, failed, total, file_path }
+ */
+router.post('/submit', async (req: Request, res: Response) => {
+  try {
+    const { items } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.json({ status: 'error', succeeded: 0, failed: 0, total: 0, message: 'items 不能为空' });
+    }
+
+    console.log(`✅ [批量测试] 收到 ${items.length} 条测试数据，第一项：${items[0]?.question?.substring(0, 30)}`);
+
+    // 构造请求体
+    const body = { items };
+
+    // 调用推理层批量查询服务
+    const remoteUrl = config.retrieval.batchQueryUrl;
+    console.log(`✅ [批量测试] 请求地址: ${remoteUrl}`);
+    console.log(`✅ [批量测试] 请求参数: ${JSON.stringify({ items_count: items.length, first_item: items[0] })}`);
+
+    const response = await fetch(remoteUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10 * 60 * 1000),
+    });
+
+    if (response.ok) {
+      const result: any = await response.json();
+      const succeeded = result.succeeded || 0;
+      const failed = result.failed || 0;
+      const total = result.total || items.length;
+      console.log(`✅ [批量测试] 推理层返回，status=${result.status}, succeeded=${succeeded}, failed=${failed}, total=${total}`);
+      return res.json({
+        status: result.status || 'success',
+        succeeded,
+        failed,
+        total,
+        file_path: result.file_path || '',
+      });
+    } else {
+      const errorText = await response.text();
+      console.error(`✅ [批量测试] 推理层错误：${response.status} - ${errorText}`);
+      return res.json({ status: 'error', succeeded: 0, failed: items.length, total: items.length, message: `推理层返回 ${response.status}` });
+    }
+  } catch (error: any) {
+    console.error('✅ [批量测试] 提交失败：', error);
+    return res.json({ status: 'error', succeeded: 0, failed: 0, total: 0, message: `提交失败：${error.message}` });
   }
 });
 
