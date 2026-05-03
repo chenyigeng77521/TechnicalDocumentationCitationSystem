@@ -23,10 +23,11 @@ PID_FILE="$LOG_DIR/server.pid"
 SERVER_LOG="$LOG_DIR/server.log"
 
 # ---- Python 解释器 ----
-# 默认用 PATH 里的 python，可通过 PYTHON_BIN 覆盖
-# - 本地 conda 用户：conda activate <env> 后 PATH 里的 python 自动指向 env
-# - 生产部署：PATH 里就是系统 / venv 的 python
-PYTHON_BIN="${PYTHON_BIN:-$(command -v python || command -v python3)}"
+# 默认按 python3.12 → python3 → python 顺序找（避免 macOS 老系统 `python` 是 Python 2.7 的坑）
+# - 本地 conda 用户：conda activate <env> 后 PATH 里的 python3 自动指向 env
+# - 生产部署：PATH 里就是系统 / venv 的 python3
+# - 显式覆盖：PYTHON_BIN=/path/to/python ./start.sh
+PYTHON_BIN="${PYTHON_BIN:-$(command -v python3.12 || command -v python3)}"
 
 # ---- 联调用：传文件接口（默认关闭，联调时设 true 启用）
 INGESTION_UPLOAD_ENABLED=${INGESTION_UPLOAD_ENABLED:-false}
@@ -61,9 +62,18 @@ fi
 
 # ---- Python 检查 ----
 if [ -z "$PYTHON_BIN" ] || ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-    echo "❌ 找不到 Python 解释器: $PYTHON_BIN"
+    echo "❌ 找不到 Python 解释器（需要 python3.12 或 python3 在 PATH 里）"
     echo "   方案 1：本地 conda 用户：conda activate <env> 后再跑"
-    echo "   方案 2：装 python3 到 PATH 或 PYTHON_BIN=/path/to/python ./start.sh"
+    echo "   方案 2：装 python3 到 PATH 或 PYTHON_BIN=/path/to/python3 ./start.sh"
+    exit 1
+fi
+# 校验是 Python 3（避免不小心用了 macOS 系统自带的 Python 2.7）
+PY_MAJOR=$("$PYTHON_BIN" -c 'import sys; print(sys.version_info[0])' 2>/dev/null || echo "?")
+if [ "$PY_MAJOR" != "3" ]; then
+    echo "❌ Python 版本不对：$($PYTHON_BIN --version 2>&1)（需要 Python 3.x）"
+    echo "   解释器路径: $PYTHON_BIN"
+    echo "   方案 1：PYTHON_BIN=python3.12 ./start.sh（或绝对路径）"
+    echo "   方案 2：检查 PATH，让 python3 比 python 优先"
     exit 1
 fi
 
