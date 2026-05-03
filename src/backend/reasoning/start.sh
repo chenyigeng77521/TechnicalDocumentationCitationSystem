@@ -21,6 +21,9 @@ SERVER_LOG="$LOG_DIR/reasoning.log"
 # ---- 配置 ----
 PORT=8001
 PYTHON_CMD="python"
+
+#本机环境测试
+#PYTHON_CMD='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 EXTRA_ARGS=()
 
 # ---- 解析参数 ----
