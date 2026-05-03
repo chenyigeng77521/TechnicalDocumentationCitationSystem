@@ -17,13 +17,14 @@ BACKEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 PID_FILE="$SCRIPT_DIR/.reasoning.pid"
 SERVER_LOG="$LOG_DIR/reasoning.log"
+BACKEND_LOG="$SCRIPT_DIR/../../../src/logs/backend.log"  # 共享日志
 
 # ---- 配置 ----
 PORT=8001
 PYTHON_CMD="python"
 
 #本机环境测试
-#PYTHON_CMD='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
+PYTHON_CMD='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 EXTRA_ARGS=()
 
 # ---- 解析参数 ----
@@ -51,6 +52,7 @@ while [ $# -gt 0 ]; do
 done
 
 mkdir -p "$LOG_DIR"
+mkdir -p "$SCRIPT_DIR/../../../src/logs"  # 确保共享日志目录存在
 cd "$BACKEND_DIR"
 
 # ---- 端口占用检查 ----
@@ -80,8 +82,9 @@ if [ "$MODE" = "foreground" ]; then
 else
     # 后台模式
     echo "后台启动，日志写入: $SERVER_LOG"
+    echo "同时追加到共享日志: $BACKEND_LOG"
     nohup "$PYTHON_CMD" -m reasoning.main --port "$PORT" "${EXTRA_ARGS[@]}" \
-        >"$SERVER_LOG" 2>&1 &
+        >>"$BACKEND_LOG" 2>&1 &
     SERVER_PID=$!
     echo "$SERVER_PID" > "$PID_FILE"
     echo "PID: $SERVER_PID（已写入 $PID_FILE）"

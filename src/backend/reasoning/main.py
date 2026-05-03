@@ -39,7 +39,7 @@ from interfaces import ReasoningResult  # 新增，用于 process_single 返回�
 # ==================== 日志 ====================
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="✅ [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("layer3.main")
 
@@ -82,21 +82,29 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
     调用 Layer 2 检索管道，将 Document 列表转换为 RetrievedChunk 列表。
     此函数是 Layer 2 与 Layer 3 的唯一耦合点，后续替换检索层只需修改这里。
     """
+    logger.info("[retrieve] 开始检索: query=%s", query[:60])
     try:
         from retrieval import pipeline  # type: ignore
-    except ImportError:
-        logger.warning("retrieval.py 未找到，返回空 chunks（请确认 PYTHONPATH）")
+    except ImportError as e:
+        logger.warning("[retrieve] retrieval 模块加载失败: %s", e)
         return []
 
     try:
         docs = pipeline(query)
     except Exception as e:
-        logger.error("检索层调用失败: %s", e)
+        logger.error("[retrieve] 检索层调用失败: %s", e, exc_info=True)
         return []
 
+    logger.info("[retrieve] 检索完成: raw_docs=%d", len(docs))
+
     chunks: list[RetrievedChunk] = []
-    for doc in docs:
+    for idx, doc in enumerate(docs):
         meta = doc.metadata if hasattr(doc, "metadata") else {}
+
+        # 打印第一个结果详情
+        if idx == 0:
+            logger.info("[retrieve] 首个结果: doc_path=%s, score=%s, content_len=%d",
+                        meta.get("doc_path", ""), meta.get("score", ""), len(doc.page_content or ""))
 
         # 优先使用 reranker_score，降级到 vector score
         score: float = float(
@@ -147,6 +155,8 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
 
     # 按 score 降序排列，保证 context 构建时高质量 chunk 优先
     chunks.sort(key=lambda c: c.score, reverse=True)
+    logger.info("[retrieve] 转换完成: chunks=%d, top_score=%.4f, first_anchor=%s",
+                len(chunks), chunks[0].score if chunks else 0, chunks[0].anchor if chunks else "N/A")
     return chunks
 
 
@@ -162,21 +172,28 @@ def process_single(item_id: str, query: str) -> tuple[QAResponse, ReasoningResul
 
     此函数在批量处理中被多线程并发调用，必须线程安全（无共享可变状态）。
     """
-    logger.info("[%s] 开始处理: %s", item_id, query[:60])
+    logger.info("[%s] 开始处理: query=%s", item_id, query[:60])
 
     # Step 1：检索
+    logger.info("[%s] Step1-检索开始...", item_id)
     chunks = retrieve_chunks(query)
+    logger.info("[%s] Step1-检索结束: chunks=%d", item_id, len(chunks))
 
     # Step 2：推理
+    logger.info("[%s] Step2-推理开始...", item_id)
     result = run_reasoning(query, chunks)
+    logger.info("[%s] Step2-推理结束: is_refusal=%s, answer_len=%d",
+                item_id, result.is_refusal, len(result.answer or ""))
 
     # Step 3：构建 citations
     used_chunks: list = []
     if result.is_refusal:
         citations = []
+        logger.info("[%s] Step3-构建citations: is_refusal，跳过", item_id)
     else:
         _, used_chunks = build_context_blocks(chunks)
         citations = build_citations(result.citation_ids, used_chunks)
+        logger.info("[%s] Step3-citations=%d", item_id, len(citations))
 
     logger.info(
         "[%s] 完成: is_refusal=%s, citations=%d, score=%.3f",
@@ -231,11 +248,15 @@ def qa_single(request: QARequest) -> QAResponse:
     入参：{ "id": "...", "question": "..." }
     出参：{ "id", "answer", "citations", "is_refusal", "confidence" }
     """
+    logger.info("[api/qa] 收到请求: id=%s, query=%s", request.id, request.query[:60])
     try:
         qa_resp, _, _ = process_single(request.id, request.query)
+        logger.info("[api/qa] 返回响应: id=%s, is_refusal=%s, citations=%d, answer_len=%d, confidence=%.4f",
+                    qa_resp.id, qa_resp.is_refusal, len(qa_resp.citations),
+                    len(qa_resp.answer or ""), qa_resp.confidence)
         return qa_resp
     except Exception as e:
-        logger.error("处理请求异常 [%s]: %s", request.id, e, exc_info=True)
+        logger.error("[api/qa] 处理异常 [%s]: %s", request.id, e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

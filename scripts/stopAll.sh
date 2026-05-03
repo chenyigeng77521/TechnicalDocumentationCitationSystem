@@ -74,7 +74,19 @@ fi
 
 # 停止 Ingestion 数据层服务（用脚本自带 stop.sh，处理 wrapper + python child 双进程）
 echo ""
-echo "6️⃣ 停止 Ingestion 数据层服务 (3003)..."
+echo "6️⃣ 停止 Reasoning 推理服务 (8001)..."
+REASON_PID=$(lsof -ti:8001 2>/dev/null)
+if [ -n "$REASON_PID" ]; then
+    bash "$SRC_ROOT/backend/reasoning/stop.sh" 2>/dev/null || kill -9 $REASON_PID 2>/dev/null
+    sleep 1
+    echo "   ✅ Reasoning 已停止"
+else
+    echo "   ⚠️  Reasoning 未运行"
+fi
+
+# 停止 Ingestion 数据层服务（用脚本自带 stop.sh，处理 wrapper + python child 双进程）
+echo ""
+echo "7️⃣ 停止 Ingestion 数据层服务 (3003)..."
 INGEST_PID=$(lsof -ti:3003 2>/dev/null)
 if [ -n "$INGEST_PID" ]; then
     bash "$SRC_ROOT/backend/ingestion/stop.sh" 2>/dev/null || kill -9 $INGEST_PID 2>/dev/null
@@ -86,7 +98,7 @@ fi
 
 # 停止 Nginx
 echo ""
-echo "7️⃣ 停止 Nginx..."
+echo "8️⃣ 停止 Nginx..."
 NGINX_PID=$(pgrep -x "nginx" 2>/dev/null)
 if [ -n "$NGINX_PID" ]; then
     /usr/local/nginx/sbin/nginx -s stop 2>/dev/null
@@ -105,6 +117,7 @@ echo "📊 最终状态:"
 echo "  Question Filter: $(lsof -i:3005 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  Category_classifier: $(lsof -i:3004 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  Context Memory: $(lsof -i:3006 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
+echo "  Reasoning: $(lsof -i:8001 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  Ingestion: $(lsof -i:3003 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  后端：$(lsof -i:3002 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
 echo "  前端：$(lsof -i:3000 2>/dev/null | grep -q LISTEN && echo '❌ 运行中' || echo '✅ 已停止')"
