@@ -12,33 +12,25 @@
 
 ### 启动服务
 
-ingestion 提供两套启动脚本，按环境选：
+**统一入口：`scripts/startAll.sh`**（含 nginx + firstlayer 三服务 + ingestion + entrance + 前端）
 
-| 环境 | 脚本 | Python 来源 | 适用场景 |
-|---|---|---|---|
-| **本地开发** | `src/backend/ingestion/start.sh` | conda env `sqllineage` | 团队成员日常开发 |
-| **生产部署** | `src/backend/ingestion/start-prod.sh` | PATH 里的 `python3`（可 `PYTHON_BIN=...` 覆盖） | 部署到比赛服 / 共享 Python 环境 |
+ingestion 单独启停脚本：
+- `src/backend/ingestion/start.sh [--bg]` — 启动
+- `src/backend/ingestion/stop.sh` — 停止
 
-**本地（conda）：**
+脚本用 PATH 里的 `python`（跟 `scripts/startAll.sh` 一致），**不依赖 conda**。
+- **本地 conda 用户**：先 `conda activate <env>`（让 PATH 里 python 指向 env），再跑脚本
+- **生产部署 / 共享环境**：用 venv 装依赖后 activate venv，或者 `PYTHON_BIN=/path/to/python` 显式指定
+
 ```bash
-conda activate sqllineage   # 或不激活，让 start.sh 自己 conda run
-cd /path/to/TechnicalDocumentationCitationSystem
-bash src/backend/ingestion/start.sh --bg
-```
-
-**生产（本地 Python）：**
-```bash
-# 一次性配好依赖
-python3 -m pip install -r src/backend/ingestion/requirements.txt
+# 一次性配好依赖（如果用系统 python 受 PEP 668 限制就用 venv）
+python -m pip install -r src/backend/ingestion/requirements.txt
+# 配 src/.env.aigw 含 AIGW_API_KEY（参考 src/.env.aigw.example）
 # 启动
-bash src/backend/ingestion/start-prod.sh --bg
-# 或指定特定 python：
-PYTHON_BIN=/usr/bin/python3.12 bash src/backend/ingestion/start-prod.sh --bg
+bash src/backend/ingestion/start.sh --bg
+# 或显式指定解释器
+PYTHON_BIN=/path/to/python bash src/backend/ingestion/start.sh --bg
 ```
-
-**全栈生产启动**（包含其他服务）：`bash scripts/startAll-prod.sh`（跟本地 `startAll.sh` 区别：ingestion 走 `start-prod.sh`、firstlayer 三服务走 PATH 里的 `python3`）
-
-**停止**：`bash src/backend/ingestion/stop.sh`（两套启动模式共用）
 
 监听 `http://localhost:3003`。bge-m3 模型懒加载（首次 `/index` 调用时加载，约 15 秒）。
 
