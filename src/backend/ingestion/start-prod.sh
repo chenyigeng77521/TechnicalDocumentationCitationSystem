@@ -30,14 +30,15 @@ SERVER_LOG="$LOG_DIR/server.log"
 # ---- 配置 ----
 # Python 解释器：默认 PATH 里的 python3，可通过 PYTHON_BIN 环境变量覆盖
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-PORT="${INGESTION_PORT:-3003}"
 
 # ---- 联调用：传文件接口（默认关闭）----
 INGESTION_UPLOAD_ENABLED=${INGESTION_UPLOAD_ENABLED:-false}
 export INGESTION_UPLOAD_ENABLED
 
 mkdir -p "$LOG_DIR"
-cd "$PROJECT_ROOT"
+# cd 到 src/，让 `python -m backend.ingestion.api.server` 模块路径能解析
+# （backend/ 包在 PROJECT_ROOT/src/backend/，不在 PROJECT_ROOT/backend/）
+cd "$PROJECT_ROOT/src"
 
 # ---- 加载环境变量（让 AIGW_API_KEY 等进 server 进程）----
 # 生产环境通常通过容器 env / k8s secret 注入，但仍兼容本地 .env 文件
@@ -49,6 +50,9 @@ for env_file in "$PROJECT_ROOT/src/.env" "$PROJECT_ROOT/src/.env.aigw"; do
         set +a
     fi
 done
+
+# ---- 端口（必须放在 source .env 之后，否则 src/.env 里 PORT=3002 是 entrance 的，会污染 ingestion）----
+PORT="${INGESTION_PORT:-3003}"
 
 # 校验 AIGW_API_KEY 已设置（warning，不阻塞启动；首次 embedding 调用才会失败）
 if [ -z "${AIGW_API_KEY:-}" ]; then
