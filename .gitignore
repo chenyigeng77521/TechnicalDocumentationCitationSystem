@@ -98,3 +98,7 @@ logs/
 # 评测目录（动态生成，体积大）
 eval/
 
+
+# venv（Mac/Linux 受 PEP 668 限制时本地用）
+.venv*/
+venv/

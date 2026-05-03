@@ -7,7 +7,11 @@
 #
 # 前置条件（生产环境一次性配好）：
 #   1. 已装 Python 3.12+：python3.12 --version
-#   2. 已装依赖：python3.12 -m pip install -r src/backend/ingestion/requirements.txt
+#   2. 装依赖（推荐 venv 隔离，新版 macOS/Linux Homebrew 系统 Python 受 PEP 668 限制不让直接 pip）：
+#      python3 -m venv .venv-ingestion
+#      .venv-ingestion/bin/pip install -r src/backend/ingestion/requirements.txt
+#      启动时 PYTHON_BIN=$(pwd)/.venv-ingestion/bin/python ./start-prod.sh
+#      或 source .venv-ingestion/bin/activate 后直接 ./start-prod.sh
 #   3. 配 src/.env.aigw 含 AIGW_API_KEY（参考 src/.env.aigw.example）
 #
 # 用法：
