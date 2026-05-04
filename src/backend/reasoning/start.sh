@@ -24,7 +24,7 @@ PORT=8001
 PYTHON_CMD="python"
 
 #本机环境测试
-PYTHON_CMD='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
+#PYTHON_CMD='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 EXTRA_ARGS=()
 
 # ---- 解析参数 ----
@@ -54,15 +54,6 @@ done
 mkdir -p "$LOG_DIR"
 mkdir -p "$SCRIPT_DIR/../../../src/logs"  # 确保共享日志目录存在
 cd "$BACKEND_DIR"
-
-# 加载 reasoning/.env（cwd 在 backend/，load_dotenv 找不到 reasoning/.env，这里显式 source）
-if [ -f "$SCRIPT_DIR/.env" ]; then
-    set -a
-    # shellcheck disable=SC1090
-    source "$SCRIPT_DIR/.env"
-    set +a
-    ENV_LOADED=1
-fi
 
 # ---- 端口占用检查 ----
 if lsof -i :$PORT -sTCP:LISTEN >/dev/null 2>&1; then

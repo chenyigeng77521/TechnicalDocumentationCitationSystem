@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import FileEditModal from './FileEditModal';
 
 // 🔥 调试日志 - 页面加载时立即输出
 console.log('🔥🔥🔥 页面已加载 - TechnicalDocumentationCitationSystem Frontend 🔥🔥🔥');
@@ -53,6 +54,7 @@ export default function Home() {
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const [resultPage, setResultPage] = useState(1);
   const [resultTotalPages, setResultTotalPages] = useState(1);
+  const [editFile, setEditFile] = useState<{ path: string; name: string } | null>(null);
   const batchFileInputRef = useRef<HTMLInputElement>(null);
   const resultFileInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -60,6 +62,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thinkingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const editorOverlayRef = useRef<HTMLDivElement>(null);
   const logPanelRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -514,7 +517,8 @@ export default function Home() {
       const target = e.target as Node;
       const inSidebar = sidebarRef.current && sidebarRef.current.contains(target);
       const inLogPanel = logPanelRef.current && logPanelRef.current.contains(target);
-      if (!inSidebar && !inLogPanel) {
+      const inEditor = editorOverlayRef.current && editorOverlayRef.current.contains(target);
+      if (!inSidebar && !inLogPanel && !inEditor) {
         setShowKnowledgeBase(false);
         setShowResults(false);
       }
@@ -549,73 +553,26 @@ export default function Home() {
 
       if (data.success) {
         console.log('📤 [上传] 本地上传成功，文件数量:', data.files?.length || 0);
-        
-        // 刷新文档数量
-        const statsRes = await fetch(buildApiUrl('/api/qa/stats'));
-        const statsData = await statsRes.json();
-        setDocCount(statsData.totalFiles || 0);
-        console.log('📊 [上传] 本地文档数量已更新:', statsData.totalFiles || 0);
-        
-        // 开关控制：是否同时上传到远程索引服务器
-        const ENABLE_REMOTE_UPLOAD = false;
-        console.log('🔧 [上传] 远程上传开关:', ENABLE_REMOTE_UPLOAD);
-        
-        if (ENABLE_REMOTE_UPLOAD) {
-          setUploadMessage(`✅ 本地上传成功，正在上传远程...`);
-          setIsProcessing(true);
-          setProcessingTime(null);
-          const startTime = Date.now();
-          
-          const remoteUrl = 'http://172.25.178.21:3003/upload?index=true';
-          console.log('🌐 [上传] 远程上传地址:', remoteUrl);
-          console.log('📁 [上传] 待上传文件:', data.files?.map((f: any) => f.originalName).join(', '));
-          
-          // 同步逐个上传，等待每个文件处理完成
-          let successCount = 0;
-          let failCount = 0;
-          
-          for (let i = 0; i < (data.files || []).length; i++) {
-            const file = data.files[i];
-            console.log(`📤 [上传] 正在上传第 ${i + 1}/${data.files.length} 个文件：${file.originalName}`);
-            
-            try {
-              // 创建新的 FormData，按照新格式
-              const remoteFormData = new FormData();
-              // 从本地文件读取内容
-              const fileBlob = await fetch(URL.createObjectURL(files[i])).then(res => res.blob());
-              remoteFormData.append('files', fileBlob, file.originalName);
-              remoteFormData.append('index', 'true');
-              
-              const resp = await fetch(remoteUrl, {
-                method: 'POST',
-                body: remoteFormData
-              });
-              
-              const result = await resp.json();
-              console.log(`📥 [上传] 第 ${i + 1} 个文件响应:`, result);
-              
-              if (result.success || resp.ok) {
-                successCount++;
-                console.log(`✅ [上传] 第 ${i + 1} 个文件上传成功`);
-              } else {
-                failCount++;
-                console.error(`❌ [上传] 第 ${i + 1} 个文件上传失败:`, result.message);
-              }
-            } catch (err) {
-              failCount++;
-              console.error(`❌ [上传] 第 ${i + 1} 个文件异常:`, (err as Error).message);
-            }
+
+        // 显示索引状态
+        let indexMsg = '';
+        if (data.indexResult) {
+          if (data.indexResult.success) {
+            console.log('✅ [上传] 索引服务调用成功:', data.indexResult.result);
+            indexMsg = ' | 索引：✅ 已创建';
+          } else {
+            console.error('❌ [上传] 索引服务调用失败:', data.indexResult.error);
+            indexMsg = ` | 索引：❌ ${data.indexResult.error}`;
           }
-          
-          const endTime = Date.now();
-          const duration = ((endTime - startTime) / 1000).toFixed(2);
-          setProcessingTime(Number(duration));
-          
-          console.log('📊 [上传] 远程上传完成 - 成功:', successCount, '失败:', failCount, '总用时:', duration, '秒');
-          setUploadMessage(`✅ 本地 + 远程上传完成 (${successCount}/${data.files.length}), 用时 ${duration} 秒`);
-        } else {
-          console.log('⏭️ [上传] 跳过远程上传');
-          setUploadMessage(`✅ 上传成功！`);
+        }
+
+        setUploadMessage(`✅ 上传成功${indexMsg}`);
+
+        // 刷新文档数量
+        if (data.files?.length > 0) {
+          const statsRes = await fetch(buildApiUrl('/api/qa/stats'));
+          const statsData = await statsRes.json();
+          setDocCount(statsData.totalFiles || 0);
         }
       } else {
         setUploadMessage(`❌ ${data.message}`);
@@ -864,6 +821,7 @@ export default function Home() {
   ];
 
   return (
+    <>
     <div style={styles.container} className="container-mobile">
 
       <div style={styles.mainContent} className="main-mobile">
@@ -1110,7 +1068,7 @@ export default function Home() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0, marginTop: '1px' }}>
                     <span className="mobile-panel-meta">{(file.size / 1024).toFixed(1)}KB</span>
                     <button
-                      onClick={() => window.open(buildApiUrl(file.downloadUrl), '_blank')}
+                      onClick={() => setEditFile({ path: file.displayPath, name: file.name })}
                       style={{ fontSize: '9px', color: '#4f6ef7', background: 'none', border: '1px solid #d0d5ff', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}>编辑</button>
                     <button
                       onClick={async () => {
@@ -1222,7 +1180,7 @@ export default function Home() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '15px', marginTop: '2px' }}>
                           <span style={styles.kbPanelMeta}>{(file.size / 1024).toFixed(1)}KB</span>
                           <button
-                            onClick={() => window.open(buildApiUrl(file.downloadUrl), '_blank')}
+                            onClick={() => setEditFile({ path: file.displayPath, name: file.name })}
                             style={{ fontSize: '9px', color: '#4f6ef7', background: 'none', border: '1px solid #d0d5ff', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}
                             title="编辑">编辑</button>
                           <button
@@ -1592,6 +1550,18 @@ export default function Home() {
       </div>
       </div>
     </div>
+      <div ref={editorOverlayRef}>
+      <FileEditModal
+        key={editFile?.path || 'none'}
+        open={!!editFile}
+        filePath={editFile?.path || ''}
+        fileName={editFile?.name || ''}
+        buildApiUrl={buildApiUrl}
+        onClose={() => setEditFile(null)}
+        onSaveSuccess={() => { loadRawFiles(rawPage); }}
+      />
+      </div>
+    </>
   );
 }
 

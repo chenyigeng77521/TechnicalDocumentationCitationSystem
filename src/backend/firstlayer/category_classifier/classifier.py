@@ -156,19 +156,7 @@ class QuestionClassifier:
         """
         if not self.is_loaded:
             self.load_model()
-            
-        # 第一步：语言检测
-        if not self.is_chinese(question):
-            return {
-                "success": False,
-                "question": question,
-                "category": None,
-                "confidence": 0.0,
-                "description": None,
-                "error": "请用中文提问，系统暂不支持其他语言",
-                "language_detected": "non-chinese"
-            }
-            
+
         # 优先使用 ML 模型分类（如果已加载）
         if self.use_ml and self.tokenizer is not None:
             ml_result = self._ml_classify(question)

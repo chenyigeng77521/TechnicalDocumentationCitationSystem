@@ -283,7 +283,7 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
     })}\n\n`);
 
     // ========== ③ 调用推理层服务 ==========
-    const reasoningUrl = 'http://localhost:8001/api/qa';
+    const reasoningUrl = 'http://172.25.178.31:8001/api/qa';
     console.log(`✅ [问答] 请求地址: ${reasoningUrl}`);
     console.log(`✅ [问答] 请求参数: ${JSON.stringify({ id: qid, question: question.substring(0, 50), category: classification.category })}`);
 
@@ -304,7 +304,7 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
     }
 
     const result: any = await response.json();
-    console.log(`✅ 推理层返回: is_refusal=${result.is_refusal}, confidence=${result.confidence}`);
+    console.log(`✅ [问答] 请求远程地址 http://172.25.178.31:8001/api/qa 返回结果: ${JSON.stringify(result)}`);
 
     // 解析引用来源
     let answer = result.answer || '';

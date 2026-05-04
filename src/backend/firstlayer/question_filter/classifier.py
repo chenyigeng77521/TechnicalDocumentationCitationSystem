@@ -142,18 +142,6 @@ class QuestionFilter:
                     "need_context_check": False
                 }
         
-        # 无中文字符检查（至少需要 2 个中文字符）
-        chinese_count = len(self.chinese_pattern.findall(question))
-        if chinese_count < 2:
-            return {
-                "success": True,
-                "question": question,
-                "category": "INVALID",
-                "confidence": 0.8,
-                "description": self.label_descriptions["INVALID"],
-                "reason": "问题过短或无有效中文字符",
-                "need_context_check": False
-            }
         
         return None  # 规则未匹配，继续 ML 分类
         
