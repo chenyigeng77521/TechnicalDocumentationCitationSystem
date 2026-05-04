@@ -158,8 +158,7 @@ router.post('/write', (req: Request, res: Response) => {
       res.status(400).json({ success: false, message: 'message 不能为空' });
       return;
     }
-    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const logLine = `[${timestamp}] [${level || 'INFO'}] [frontend] ${message}\n`;
+    const logLine = `✅ [${level || 'INFO'}] [frontend] ${message}\n`;
     const logFile = path.join(LOGS_DIR, 'backend.log');
     fs.appendFileSync(logFile, logLine, 'utf-8');
     res.json({ success: true });
