@@ -21,23 +21,48 @@ async def test_health_endpoint(client):
 
 
 @pytest.mark.asyncio
-async def test_post_index_add_success(client, monkeypatch):
+async def test_post_index_add_basename_auto_prefix(client, monkeypatch):
+    """add 传 basename 时自动加 documents/ 前缀传给 pipeline。"""
+    captured = {}
+
     async def fake_pipeline(file_path):
+        captured["fp"] = file_path
         return {"status": "indexed", "chunk_count": 5, "file_hash": "h"}
 
     monkeypatch.setattr(
         "backend.ingestion.api.routes_index.index_pipeline", fake_pipeline
     )
-    resp = await client.post("/index?add=docs/test/a.md")
+    resp = await client.post("/index?add=foo.md")
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "indexed"
-    assert body["chunk_count"] == 5
+    assert resp.json()["status"] == "indexed"
+    assert captured["fp"] == "documents/foo.md"
+
+
+@pytest.mark.asyncio
+async def test_post_index_add_full_path_unchanged(client, monkeypatch):
+    """add 传完整路径（含 /）时不重复加前缀。"""
+    captured = {}
+
+    async def fake_pipeline(file_path):
+        captured["fp"] = file_path
+        return {"status": "indexed", "chunk_count": 3}
+
+    monkeypatch.setattr(
+        "backend.ingestion.api.routes_index.index_pipeline", fake_pipeline
+    )
+    # 传 documents/ 路径
+    resp = await client.post("/index?add=documents/sub/x.md")
+    assert resp.status_code == 200
+    assert captured["fp"] == "documents/sub/x.md"
+    # 传 docs/ 路径（评委文件 reindex 用）
+    resp = await client.post("/index?add=docs/react/y.md")
+    assert resp.status_code == 200
+    assert captured["fp"] == "docs/react/y.md"
 
 
 @pytest.mark.asyncio
 async def test_post_index_modify_routes_to_pipeline(client, monkeypatch):
-    """modify 跟 add 走同一条 index_pipeline（hash 自动判断）。"""
+    """modify 跟 add 同一条 index_pipeline + 同一条 documents/ 前缀规则。"""
     captured = {}
 
     async def fake_pipeline(file_path):
@@ -47,10 +72,13 @@ async def test_post_index_modify_routes_to_pipeline(client, monkeypatch):
     monkeypatch.setattr(
         "backend.ingestion.api.routes_index.index_pipeline", fake_pipeline
     )
-    resp = await client.post("/index?modify=docs/test/a.md")
+    # basename → 加前缀
+    resp = await client.post("/index?modify=a.md")
     assert resp.status_code == 200
-    assert resp.json()["status"] == "replaced"
-    assert captured["fp"] == "docs/test/a.md"
+    assert captured["fp"] == "documents/a.md"
+    # 完整路径 → 不动
+    resp = await client.post("/index?modify=docs/react/b.md")
+    assert captured["fp"] == "docs/react/b.md"
 
 
 @pytest.mark.asyncio

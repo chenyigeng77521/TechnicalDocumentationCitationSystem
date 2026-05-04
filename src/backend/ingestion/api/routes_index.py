@@ -1,11 +1,20 @@
 """写入侧路由：POST /index, GET /stats, /health。
 
 增量索引协议（统一在 /index 路径，query param 区分操作）：
-- POST /index?add=docs/<domain>/<file>      新增文件（已存在且 hash 未变会返 unchanged）
-- POST /index?modify=docs/<domain>/<file>   更新文件（按 file_hash 自动判断 indexed/replaced/unchanged）
-- POST /index?delete=docs/<domain>/<file>   删除文件的所有 chunks（含 documents 行）
+- POST /index?add=<basename>                新增文件（前端只传 basename，自动加 documents/ 前缀）
+- POST /index?modify=<basename>             更新文件（同 add，basename 自动加 documents/ 前缀）
+- POST /index?delete=<file_path>            删除文件的所有 chunks（必须传完整路径，避免歧义）
 
-file_path 形式：相对 STORAGE_DIR 的路径，必含 docs/<domain>/ 前缀，例：docs/react/foo.md
+物理目录约定：
+- 评委已有 164 文件 → data/docs/<domain>/...（DB 里 file_path = docs/<domain>/...）
+- 前端上传新文件 → data/documents/...（DB 里 file_path = documents/...）
+
+add/modify 路径规范化：
+- 传 basename "foo.md"          → 自动加前缀 "documents/foo.md" → 物理找 data/documents/foo.md
+- 传 "documents/foo.md"          → 不重复加前缀，物理找 data/documents/foo.md
+- 传 "docs/react/foo.md"         → 完整路径不动，物理找 data/docs/react/foo.md（评委文件 reindex 用）
+
+delete 必须传完整路径（不会自动加前缀，避免误删 docs/<domain>/foo.md）
 
 Spec: docs/superpowers/specs/2026-04-25-data-layer-design.md §4.1
 """
@@ -27,11 +36,23 @@ from backend.ingestion.sync.pipeline import (
 router = APIRouter()
 
 
+def _normalize_add_modify_path(file_path: str) -> str:
+    """add/modify 路径规范化：basename 自动加 documents/ 前缀。
+
+    规则：
+    - 不含 / 视为 basename，加 'documents/' 前缀（约定上传文件物理位置在 data/documents/）
+    - 已含 / 不动，让前端自己决定（兼容 reindex 评委 docs/<domain>/foo.md 文件）
+    """
+    if "/" not in file_path:
+        return f"documents/{file_path}"
+    return file_path
+
+
 @router.post("/index")
 async def post_index(
-    add: Optional[str] = Query(None, description="新增文件 file_path（如 docs/react/foo.md）"),
-    modify: Optional[str] = Query(None, description="更新文件 file_path"),
-    delete: Optional[str] = Query(None, description="删除文件 file_path"),
+    add: Optional[str] = Query(None, description="新增文件 basename（如 foo.md，自动加 documents/ 前缀）"),
+    modify: Optional[str] = Query(None, description="更新文件 basename（同 add 规则）"),
+    delete: Optional[str] = Query(None, description="删除文件完整 file_path（如 documents/foo.md 或 docs/react/x.md）"),
 ):
     """三选一：add / modify / delete。互斥。"""
     provided = [(k, v) for k, v in [("add", add), ("modify", modify), ("delete", delete)] if v]
@@ -44,18 +65,22 @@ async def post_index(
                 "detail": "必须且只能提供 add / modify / delete 三个 query param 中的一个",
             },
         )
-    op, file_path = provided[0]
+    op, raw_path = provided[0]
 
     try:
         if op == "delete":
-            return await handle_file_delete(file_path)
-        # add / modify 走同一条 index_pipeline，内部按 file_hash 自动判断 indexed/replaced/unchanged
+            # delete 必须传完整路径（避免 documents/foo.md 和 docs/react/foo.md 撞同名误删）
+            return await handle_file_delete(raw_path)
+        # add / modify：basename 自动加 documents/ 前缀；完整路径不动
+        file_path = _normalize_add_modify_path(raw_path)
         return await index_pipeline(file_path)
     except FileNotFoundError:
+        # 报告原始入参 + 实际找的路径，方便前端排错（basename 被加了 documents/ 前缀）
+        actual = raw_path if op == "delete" else _normalize_add_modify_path(raw_path)
         raise HTTPException(
             status_code=404,
             detail={"status": "error", "error_type": "file_not_found",
-                    "detail": file_path},
+                    "detail": f"raw={raw_path}, resolved={actual}"},
         )
     except UnsupportedFormatError as e:
         raise HTTPException(status_code=400, detail=e.to_dict())

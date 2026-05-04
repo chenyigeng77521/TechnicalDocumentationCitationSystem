@@ -224,24 +224,36 @@ GET /chunks/81e76ae62a95e0759b6c28fe3c97b23c5692d1470d37dcdc308a0c2857d5fe95
 
 增量索引接口。三个 query param 互斥（必须且只能提供一个）：
 
-| Query param | 含义 | 内部行为 |
+| Query param | 入参格式 | 内部行为 |
 |---|---|---|
-| `?add=<file_path>` | 新增文件索引 | 走 `index_pipeline` |
-| `?modify=<file_path>` | 文件内容变了，重新索引 | 走 `index_pipeline`（按 file_hash 自动判定） |
-| `?delete=<file_path>` | 删除文件的所有 chunks | 走 `handle_file_delete` |
+| `?add=<basename 或路径>` | 推荐 basename | basename 自动加 `documents/` 前缀，调 `index_pipeline` |
+| `?modify=<basename 或路径>` | 同 add 规则 | 同上 |
+| `?delete=<完整 file_path>` | 必须完整路径 | 调 `handle_file_delete`，不会自动加前缀（避免误删 docs/ 下文件） |
 
-`file_path` = 相对项目根 `data/` 的路径，**必含 `docs/<domain>/` 前缀**，例 `docs/react/foo.md`。
+**两个物理目录约定：**
 
-**三个操作都必须传完整路径**（不能只传 basename）。原因：DB 用完整路径作主键，不同子目录可能撞同名（如 `docs/react/foo.md` 和 `docs/spring/foo.md` 是两个不同文件，basename 都是 `foo.md`）。
+| 文件来源 | 物理位置 | DB file_path 字段值 |
+|---|---|---|
+| 评委已有 164 文件 | `data/docs/<domain>/foo.md` | `docs/<domain>/foo.md` |
+| **前端上传新文件** | **`data/documents/foo.md`** | **`documents/foo.md`** |
 
-唯一区别：**add / modify 时物理文件必须存在于 `data/<file_path>`**（要解析）；**delete 不需要文件存在**（只按 file_path 查 DB 删 chunks，文件早就被前端从磁盘移除了也能正常 delete）。
+**add / modify 路径规范化规则：**
 
-**Request 例**：
+| 前端传 | ingestion 实际找的物理文件 | DB file_path 字段值 |
+|---|---|---|
+| `?add=foo.md` | `data/documents/foo.md` | `documents/foo.md` |
+| `?add=documents/sub/x.md` | `data/documents/sub/x.md` | `documents/sub/x.md` |
+| `?add=docs/react/y.md` | `data/docs/react/y.md` | `docs/react/y.md`（用于 reindex 评委文件）|
+
+简单规则：**含 `/` 的认为是完整路径不动；不含 `/` 的视为 basename，自动加 `documents/` 前缀**。
+
+**delete 必须传完整路径**（避免 `documents/foo.md` 和 `docs/react/foo.md` 同 basename 误删）：
 
 ```bash
-POST /index?add=docs/react/incremental-adoption.md
-POST /index?modify=docs/react/incremental-adoption.md
-POST /index?delete=docs/react/incremental-adoption.md
+POST /index?add=foo.md                              # 新上传文件，简洁形式
+POST /index?modify=foo.md                           # 同上文件改了，重 index
+POST /index?delete=documents/foo.md                 # 删上传的文件，传完整路径
+POST /index?delete=docs/react/incremental-adoption.md  # 删评委的文件，同样完整路径
 ```
 
 **Response 200**：

@@ -16,12 +16,12 @@ ALLOWED_EXTS = {".docx", ".pdf", ".xlsx", ".pptx", ".md", ".txt"}
 MAX_FILES = 50
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
-# 上传专用目录（默认项目根 data/docs/）。比赛阶段不会上传新文件，
-# 但路由保留供后续使用。文件直接落到该目录根下（不分 domain 子目录），
-# 由用户事后整理到具体 domain。测试用环境变量覆盖。
+# 上传专用目录（默认项目根 data/documents/）。
+# 跟评委已有的 data/docs/<domain>/ 区分：docs/ 是评委 164 个标准文档，
+# documents/ 是前端运行时上传的文件。/index?add=foo.md 也对应到这里。
 DOCS_UPLOAD_DIR = Path(os.getenv(
     "INGESTION_DOCS_UPLOAD_DIR",
-    str(Path(__file__).resolve().parents[4] / "data" / "docs"),
+    str(Path(__file__).resolve().parents[4] / "data" / "documents"),
 ))
 
 
@@ -129,7 +129,7 @@ async def post_upload(
             t0 = time.time()
             # pipeline 入参是相对 STORAGE_DIR 的路径，上传文件落在 docs/ 根，
             # 故 file_path = "docs/<basename>"
-            rel_path = f"docs/{u['filename']}"
+            rel_path = f"documents/{u['filename']}"
             try:
                 result = await index_pipeline(rel_path)
                 indexed.append({
