@@ -45,7 +45,8 @@ def aggregate_totals(per_q: list[dict]) -> dict:
     answerable_total = answer_correct + answer_wrong + refuse_false
 
     def _div(n, d):
-        return n / d if d else 0.0
+        """Returns ratio or None when denominator is 0 (= N/A, not 0%)."""
+        return n / d if d else None
 
     return {
         "totals": {
@@ -64,7 +65,7 @@ def aggregate_totals(per_q: list[dict]) -> dict:
             "hallucination_rate": _div(refuse_missed, unanswerable_total),
             "false_refuse_rate": _div(refuse_false, answerable_total),
             "avg_confidence": (
-                sum(confidences) / len(confidences) if confidences else 0.0
+                sum(confidences) / len(confidences) if confidences else None
             ),
             "hit_rate_strict_at_5": _div(retrieval_hits_strict, retrieval_eligible),
             "hit_rate_loose_at_5": _div(retrieval_hits_loose, retrieval_eligible),

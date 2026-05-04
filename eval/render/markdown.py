@@ -2,8 +2,15 @@
 from __future__ import annotations
 
 
-def _pct(x: float) -> str:
+def _pct(x: float | None) -> str:
+    """Format a 0..1 metric as percent. None means N/A (denominator was 0)."""
+    if x is None:
+        return "—"
     return f"{x:.2%}"
+
+
+def _conf_str(x):
+    return "—" if x is None else f"{x:.3f}"
 
 
 def _render_top6(s: dict) -> str:
@@ -15,7 +22,7 @@ def _render_top6(s: dict) -> str:
 | **拒答正确率** | {_pct(s['refuse_precision'])} |
 | **幻觉率 ⚠️** | {_pct(s['hallucination_rate'])} |
 | **误拒率** | {_pct(s['false_refuse_rate'])} |
-| **平均置信度** | {s['avg_confidence']:.3f} |
+| **平均置信度** | {_conf_str(s['avg_confidence'])} |
 | Hit@5 严格 | {_pct(s['hit_rate_strict_at_5'])} |
 | Hit@5 宽松 | {_pct(s['hit_rate_loose_at_5'])} |
 | 引用精度（严格）| {_pct(s['citation_precision_strict'])} |

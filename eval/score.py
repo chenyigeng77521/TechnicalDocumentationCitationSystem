@@ -228,9 +228,11 @@ async def run_eval(args) -> dict:
     out_prefix.with_suffix(".md").write_text(md, encoding="utf-8")
     out_prefix.with_suffix(".json").write_text(js, encoding="utf-8")
     print(f"[render] wrote {out_prefix}.md + {out_prefix}.json")
+    score = overall['summary']['score']
+    score_str = "N/A" if score is None else f"{score:.2%}"
     print(
         f"[done] total={overall['totals']['total']} "
-        f"score={overall['summary']['score']:.2%} duration={duration}s"
+        f"score={score_str} duration={duration}s"
     )
     return report_data
 

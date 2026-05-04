@@ -58,9 +58,59 @@ def test_aggregate_basic():
 
 
 def test_aggregate_empty():
+    """空输入时，所有比率都是 None（"N/A"），区分于真实的 0%。"""
     out = aggregate_totals([])
     assert out["totals"]["total"] == 0
-    assert out["summary"]["score"] == 0.0  # 不能 NaN
+    assert out["summary"]["score"] is None
+    assert out["summary"]["answer_acc"] is None
+    assert out["summary"]["refuse_precision"] is None
+    assert out["summary"]["avg_confidence"] is None
+
+
+def test_aggregate_no_unanswerable_returns_none():
+    """gold 全是可答题时，refuse_precision/hallucination_rate = None（不是 0）。
+
+    Regression: 之前 React domain 没有 trap 题，refuse_precision 显示 "0.00%"，
+    误以为"拒答全错"，其实是"无可拒题"。
+    """
+    per_q = [_q(f"q{i}", "answer_correct") for i in range(5)]
+    out = aggregate_totals(per_q)
+    assert out["summary"]["refuse_precision"] is None
+    assert out["summary"]["hallucination_rate"] is None
+
+
+def test_render_none_displays_as_dash():
+    """渲染 None 时显示 "—"，跟 "0.00%" 区分开。"""
+    from render.markdown import render_full
+    data = {
+        "meta": {
+            "run_id": "x", "timestamp": "t",
+            "input": {"gold_path": "g", "results_path": "r",
+                      "matched": 5, "gold_only": 0, "results_only": 0},
+            "params": {},
+        },
+        "totals": {
+            "total": 5, "answer_correct": 5, "answer_wrong": 0,
+            "refuse_correct": 0, "refuse_missed": 0, "refuse_false": 0,
+            "judge_failed": 0,
+        },
+        "summary": {
+            "score": 1.0, "answer_acc": 1.0,
+            "refuse_precision": None,  # 没有 trap 题
+            "hallucination_rate": None,
+            "false_refuse_rate": 0.0,
+            "avg_confidence": 0.9,
+            "hit_rate_strict_at_5": 0.5, "hit_rate_loose_at_5": 1.0,
+            "citation_precision_strict": 0.6,
+        },
+        "by_domain": {}, "by_difficulty": {},
+        "per_question": [], "bad_cases": {},
+    }
+    md = render_full(data)
+    assert "**拒答正确率** | —" in md
+    assert "**幻觉率 ⚠️** | —" in md
+    # 真实的 0% 不应被替换
+    assert "**误拒率** | 0.00%" in md
 
 
 def test_aggregate_all_correct():
