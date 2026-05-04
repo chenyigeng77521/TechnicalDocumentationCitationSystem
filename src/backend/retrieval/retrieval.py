@@ -2,6 +2,7 @@ import os
 from typing import List
 import numpy as np
 import requests
+from cffi.backend_ctypes import long
 from dotenv import load_dotenv
 
 from langchain_core.documents import Document
@@ -55,7 +56,7 @@ if os.getenv("RETRIEVAL_SCORE_THRESHOLD"):
     VECTOR_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.0"))
 
 # Embedding 维度配置（可根据模型调整）
-EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
+EMBEDDING_DIMENSION_RETRIEVAL = int(os.getenv("EMBEDDING_DIMENSION_RETRIEVAL", "1024"))
 
 # 查询扩展配置
 QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
@@ -64,19 +65,19 @@ QUERY_EXPANSION_NUM = min(int(os.getenv("QUERY_EXPANSION_NUM", "3")), 5)
 
 # retrieval API 配置（查询扩展用）
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://aigw.asiainfo.com/v1")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "")
 
 # 重排序配置
 RERANK_TOP_N = int(os.getenv("RERANK_TOP_N", "5"))
 RERANK_CONTEXT_WINDOW = int(os.getenv("RERANK_CONTEXT_WINDOW", "1"))
 
 # 外部重排序 API 配置（可选，配置后替代本地 CrossEncoder）
-RERANK_API_URL = os.getenv("RERANK_API_URL", "https://aigw.asiainfo.com/v1/rerank")
+RERANK_API_URL = os.getenv("RERANK_API_URL", "")
 RERANK_API_KEY = os.getenv("RERANK_API_KEY", "sk-")
 RERANK_API_MODEL = os.getenv("RERANK_API_MODEL", "10086/bge-reranker-v2-m3")
 
 # 外部 Embedding API 配置（可选，配置后替代本地 HuggingFaceEmbeddings）
-EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL", "https://aigw.asiainfo.com/v1/embeddings")
+EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL", "")
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", "sk-")
 EMBEDDING_API_MODEL = os.getenv("EMBEDDING_API_MODEL", "10086/bge-m3")
 
@@ -140,8 +141,8 @@ class APIEmbeddingModel:
 
         # 校验维度
         for idx, emb in enumerate(embeddings):
-            if len(emb) != EMBEDDING_DIMENSION:
-                print(f"警告: Embedding 维度异常: {len(emb)}, 期望 {EMBEDDING_DIMENSION} (index={idx})")
+            if len(emb) != EMBEDDING_DIMENSION_RETRIEVAL:
+                print(f"警告: Embedding 维度异常: {len(emb)}, 期望 {EMBEDDING_DIMENSION_RETRIEVAL} (index={idx})")
 
         return embeddings
 
@@ -227,8 +228,8 @@ class VectorAPIClient:
             return []
 
         # 校验维度（默认 1024，可通过 EMBEDDING_DIMENSION 环境变量调整）
-        if len(embedding) != EMBEDDING_DIMENSION:
-            print(f"Embedding 维度异常: {len(embedding)}, 期望 {EMBEDDING_DIMENSION}")
+        if len(embedding) != EMBEDDING_DIMENSION_RETRIEVAL:
+            print(f"Embedding 维度异常: {len(embedding)}, 期望 {EMBEDDING_DIMENSION_RETRIEVAL}")
             return []
 
         # 2. 调用向量库 API
