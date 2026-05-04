@@ -1,6 +1,6 @@
 """
 Layer 3 核心推理逻辑
-Pipeline: 可回答性判定 → Context构建 → LLM推理 → 引用校验 → 语义验证 → 后处理
+Pipeline: 可回答性判定 → Context构建 → LLM推理 → 引用校验 → 后处理
 """
 from __future__ import annotations
 
@@ -210,61 +210,6 @@ def validate_citations(
 
     return valid_ids
 
-
-# ==================== Step 5：语义一致性验证（防"假引用"）====================
-
-def _simple_token_overlap(text_a: str, text_b: str) -> float:
-    """
-    基于字符级 N-gram 重叠的简单相似度（替代重量级 embedding，避免额外依赖）。
-    用于验证 answer 内容是否有 chunk 支撑，不需要极高精度。
-    """
-    if not text_a or not text_b:
-        return 0.0
-
-    # 中英文混合场景：使用字符级 bigram
-    def bigrams(s: str) -> set[str]:
-        s = s.lower()
-        return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) >= 2 else set(s)
-
-    bg_a = bigrams(text_a)
-    bg_b = bigrams(text_b)
-    if not bg_a or not bg_b:
-        return 0.0
-
-    intersection = len(bg_a & bg_b)
-    union = len(bg_a | bg_b)
-    return intersection / union if union > 0 else 0.0
-
-
-def verify_semantic_support(
-    answer: str,
-    cited_chunks: list[RetrievedChunk],
-) -> bool:
-    """
-    验证 answer 是否有至少一个引用 chunk 提供语义支撑。
-    任意一个 chunk 与 answer 的相似度超过 SIMILARITY_THRESHOLD → 通过。
-
-    Returns:
-        True = 通过验证；False = 语义不匹配（疑似幻觉）
-    """
-    if not cited_chunks:
-        return False
-
-    for chunk in cited_chunks:
-        sim = _simple_token_overlap(answer, chunk.content)
-        if sim >= SIMILARITY_THRESHOLD:
-            return True
-
-    # 降低阈值再试一次（短问答场景 answer 很短，bigram 重叠自然低）
-    low_threshold = 0.15
-    for chunk in cited_chunks:
-        sim = _simple_token_overlap(answer, chunk.content)
-        if sim >= low_threshold:
-            return True
-
-    return False
-
-
 # ==================== 主推理 Pipeline ====================
 
 def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
@@ -274,8 +219,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
       2. Context 构建
       3. LLM 推理
       4. 引用校验
-      5. 语义一致性验证
-      6. 后处理输出
+      5. 后处理输出
 
     所有错误均走 Fail Fast → 拒答，不向上抛异常。
     """
@@ -376,20 +320,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
             confidence=0.0,
         )
 
-    # ---------- Step 5：语义一致性验证 ----------
-    #cited_chunks = [used_chunks[cid - 1] for cid in valid_citation_ids]
-
-    #if valid_citation_ids and not verify_semantic_support(answer_text, cited_chunks):
-    #    logger.warning("语义验证失败（疑似幻觉）→ 拒答")
-    #    return ReasoningResult(
-    #        answer=REFUSAL_TEXT,
-    #        is_refusal=True,
-    #        refuse_reason="semantic_mismatch",
-    #        max_score=max_score,
-    #        confidence=0.0,
-    #    )
-
-    # ---------- Step 6：成功响应 ----------
+    # ---------- Step 5：成功响应 ----------
     confidence = round(max_score, 4)
 
     return ReasoningResult(

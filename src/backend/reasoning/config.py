@@ -23,7 +23,7 @@ MAX_CONTEXT_CHARS: int = int(MAX_CONTEXT_TOKENS * 1.5)  # 9000 字符
 
 LLM_API_KEY: str = os.getenv("LLM_API_KEY", "sk-")
 LLM_API_BASE: str = os.getenv("LLM_API_BASE", "https://aigw.asiainfo.com/v1")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "aliyun/qwen3.6-plus")
+LLM_MODEL: str = os.getenv("LLM_MODEL", "aliyun/deepseek-v3.2")
 
 # 推理温度：0.0 严格模式，最大程度抑制幻觉
 LLM_TEMPERATURE: float = 0.0

@@ -21,18 +21,19 @@
 ## 项目结构
 
 ```
-backend/reasoning/
+src/backend/reasoning/
 ├── main.py              # FastAPI 服务入口（单条 + 批量接口）
 ├── interfaces.py        # 请求 / 响应数据结构定义（Pydantic）
-├── reasoning.py         # 核心推理逻辑（5 步 Pipeline）
+├── reasoning.py         # 核心推理逻辑（4 步 Pipeline）
 ├── config.py            # 阈值、LLM 参数、Prompt 模板
-├── retrieval.py         # 检索层（Layer 2，已存在，只调用）
 ├── .env                 # LLM API 密钥（本地配置，不入库）
 ├── requirements.txt     # Python 依赖
-└── eval/                # 批量处理结果落盘目录（自动创建）
+├── start.sh / stop.sh   # 服务启停脚本
+└── README.md            # 本文档
 ```
 
-> `retrieval.py` 由 Layer 2 提供，Layer 3 仅调用其 `pipeline(query)` 函数，不修改该文件。
+> `retrieval.py` 位于 `src/backend/retrieval/`，由 `main.py` 通过 `sys.path` 动态导入，Layer 3 仅调用其 `pipeline(query)` 函数。  
+> 批量处理结果默认落盘到**项目根目录**下的 `eval/` 文件夹。
 
 ---
 
@@ -41,7 +42,7 @@ backend/reasoning/
 ### 1. 安装依赖
 
 ```bash
-cd backend/reasoning
+cd src/backend/reasoning
 pip install -r requirements.txt
 ```
 
@@ -54,8 +55,8 @@ pip install -r requirements.txt
 LLM_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 
 # 可选：覆盖默认值
-LLM_API_BASE=https://api.deepseek.com   # 默认 DeepSeek，可换为任何 OpenAI 兼容接口
-LLM_MODEL=deepseek-chat
+LLM_API_BASE=https://aigw.asiainfo.com/v1   # 默认平台网关，可换为任何 OpenAI 兼容接口
+LLM_MODEL=aliyun/deepseek-v3.2
 LLM_TIMEOUT=60
 BATCH_OUTPUT_DIR=./eval
 ```
@@ -98,7 +99,7 @@ curl http://localhost:8001/health
 │                  │                                   │
 │          ┌───────▼────────┐                          │
 │          │  run_reasoning()                          │
-│          │   5 步 Pipeline                           │
+│          │   4 步 Pipeline                           │
 │          └───────┬────────┘                          │
 │                  │                                   │
 │          ┌───────▼────────┐                          │
@@ -111,7 +112,7 @@ curl http://localhost:8001/health
 
 ## 核心 Pipeline
 
-`reasoning.py` 中的 `run_reasoning()` 函数实现完整的 5 步推理链：
+`reasoning.py` 中的 `run_reasoning()` 函数实现完整的 4 步推理链：
 
 ### Step 1 — 可回答性判定
 
@@ -139,18 +140,12 @@ curl http://localhost:8001/health
   - 输出合法 JSON → 提取 `answer` 和 `citation_ids`
   - 解析失败 → `refuse_reason = "json_parse_error"`
 
-### Step 4 — 引用校验（硬一致性验证）
+### Step 4 — 引用校验与后处理
 
 - 校验 `citation_ids` 全部在合法范围（1 ~ used_chunks 数量）内
 - 非法 ID 直接剔除
 - 若**所有引用均为非法**（LLM 编造） → 拒答，`refuse_reason = "invalid_citation"`
-
-### Step 5 — 语义一致性验证（防幻觉）
-
-- 计算 answer 与每个被引用 chunk 的字符级 bigram 相似度
-- 任意一个 chunk 相似度超过阈值 → 通过
-- 内置**降阈值二次验证**（应对短答案场景）
-- 全部不匹配 → 拒答，`refuse_reason = "semantic_mismatch"`
+- 通过后构建最终响应，`confidence = max_score`
 
 ---
 
@@ -221,25 +216,28 @@ curl http://localhost:8001/health
 {
   "items": [
     {"id": "q001", "question": "问题一"},
-    {"id": "q002", "question": "问题二"},
-    {"id": "q003", "question": "问题三"}
+    {"id": "q002", "question": "问题二", "domain": "react", "answer_type": "concept", "difficulty": "easy"}
   ]
 }
 ```
+
+> `question` 字段别名为 `query`，两者均可。  
+> `domain`、`answer_type`、`difficulty` 为可选透传字段，会原样写入落盘文件。
 
 **响应体**
 
 ```json
 {
   "status": "success",
-  "file_path": "./eval/result_q001.jsonl",
-  "total": 3,
-  "succeeded": 3,
+  "file_path": "C:/.../eval/result_q001.jsonl",
+  "total": 2,
+  "succeeded": 2,
   "failed": 0
 }
 ```
 
-结果文件为 **JSONL** 格式（每行一条完整 JSON），路径示例：`./eval/result_q001.jsonl`
+> `status` 取值：`success`（全部成功）或 `partial_failure`（部分失败）。  
+> 结果文件为 **JSONL** 格式（每行一条完整 JSON），默认落盘路径：`<项目根目录>/eval/result_{first_id}.jsonl`
 
 ---
 
@@ -250,15 +248,15 @@ curl http://localhost:8001/health
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | `SCORE_THRESHOLD` | `0.4` | Reranker 最高分低于此值直接拒答 |
-| `SIMILARITY_THRESHOLD` | `0.75` | 语义验证相似度阈值 |
+| `SIMILARITY_THRESHOLD` | `0.75` | 语义验证相似度阈值（当前未启用）|
 | `MAX_CONTEXT_TOKENS` | `6000` | 上下文最大 token 数（约 9000 字符）|
 | `LLM_API_KEY` | `.env` 读取 | LLM API 密钥（必填）|
-| `LLM_API_BASE` | `https://api.deepseek.com` | 支持任何 OpenAI 兼容接口 |
-| `LLM_MODEL` | `deepseek-chat` | 模型名称 |
+| `LLM_API_BASE` | `https://aigw.asiainfo.com/v1` | 支持任何 OpenAI 兼容接口 |
+| `LLM_MODEL` | `aliyun/deepseek-v3.2` | 模型名称 |
 | `LLM_TEMPERATURE` | `0.0` | 严格模式，最大程度抑制幻觉 |
 | `LLM_TIMEOUT` | `60` | LLM 请求超时（秒）|
-| `BATCH_MAX_WORKERS` | `8` | 批量处理线程数 |
-| `BATCH_OUTPUT_DIR` | `./eval` | 批量结果落盘目录 |
+| `BATCH_MAX_WORKERS` | `8` | 批量处理线程池上限 |
+| `BATCH_OUTPUT_DIR` | `<项目根目录>/eval` | 批量结果落盘目录 |
 | `REFUSAL_TEXT` | `"抱歉，我无法从提供的文档中找到答案。"` | 拒答固定文本（对齐赛题格式）|
 
 ---
@@ -276,7 +274,6 @@ curl http://localhost:8001/health
 | JSON 解析失败 | `json_parse_error` | 拒答，不输出不可信内容 |
 | answer 为空字符串 | `empty_answer` | 拒答 |
 | 引用 ID 全部非法 | `invalid_citation` | 拒答，禁止伪造引用 |
-| 语义验证不通过 | `semantic_mismatch` | 拒答，防止幻觉输出 |
 
 ---
 
@@ -288,12 +285,12 @@ curl http://localhost:8001/health
 POST /api/qa/batch
         │
         ▼
-ThreadPoolExecutor(max_workers=8)
+asyncio.Semaphore(4)          # 并发控制，避免网关限流
         │
-        ├── 线程 1: process_single(item_0)
-        ├── 线程 2: process_single(item_1)
+        ├── 任务 1: process_single(item_0)  [单条 120s 超时]
+        ├── 任务 2: process_single(item_1)
         ├── ...
-        └── 线程 n: process_single(item_n)
+        └── 任务 n: process_single(item_n)
                 │
                 ▼
         write_jsonl_line()
@@ -301,8 +298,31 @@ ThreadPoolExecutor(max_workers=8)
         全局文件写锁（threading.Lock per file）
                 │
                 ▼
-        ./eval/result_{first_id}.jsonl  ← JSONL 逐行追加
+        <BATCH_OUTPUT_DIR>/result_{first_id}.jsonl  ← JSONL 逐行追加
 ```
+
+**落盘格式（JSONL 每行）**：
+
+```json
+{
+  "id": "q001",
+  "domain": "react",
+  "question": "React 中 useEffect 的清理函数何时执行？",
+  "is_answerable": true,
+  "answer": "清理函数在组件卸载前以及下次 effect 执行前调用。",
+  "gold_sources": [
+    {
+      "doc_path": "docs/react/hooks-effect.md",
+      "anchor": "#cleaning-up-an-effect",
+      "evidence": "原文片段..."
+    }
+  ],
+  "answer_type": "concept",
+  "difficulty": "easy"
+}
+```
+
+> 无答模式下，`gold_sources` 为空，并附带 `trap_type` 和 `unanswerable_reason` 字段。
 
 **容错策略**：
 - 每条任务独立 `try/except` 包裹，**单条失败不影响整体**
@@ -327,7 +347,7 @@ openai>=1.30.0        # LLM 调用（支持任何 OpenAI 兼容接口）
 
 ## 注意事项
 
-1. **不使用外部知识**：Prompt 已明确要求 LLM 仅基于 Context 回答，代码层还通过引用校验和语义验证双重保障。
-2. **anchor 格式**：响应中 `anchor` 均以 `#` 开头（如 `#top`、`#hook-rules`），与 HTML 锚点格式一致。
+1. **不使用外部知识**：Prompt 已明确要求 LLM 仅基于 Context 回答，代码层通过引用校验保障。
+2. **anchor 格式**：响应中 `anchor` 均以 `#` 开头（如 `#top`、`#hook-rules`）。优先使用检索层提供的 `markdown_anchor`，其次从 `title_path` 自动推断。
 3. **评测提交**：批量接口生成的 JSONL 文件可直接用于评测提交，格式与赛题要求对齐。
 4. **更换 LLM**：只需修改 `.env` 中的 `LLM_API_BASE` 和 `LLM_MODEL`，无需改代码（任何 OpenAI 兼容接口均可）。

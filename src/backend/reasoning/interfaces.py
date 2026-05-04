@@ -1,6 +1,5 @@
 """
 Layer 3 接口数据结构定义
-严格对齐 requirment.md 的提交格式要求
 """
 from __future__ import annotations
 from typing import Optional
@@ -33,7 +32,6 @@ class QARequest(BaseModel):
 class BatchItem(BaseModel):
     """
     批量请求中的单条记录。
-    除 id/question 外，domain/answer_type/difficulty 由调用方传入，原样透传到输出。
     """
     id: str
     query: str = Field(..., alias="question")
