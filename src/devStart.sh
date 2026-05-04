@@ -21,6 +21,7 @@ PIP=`which pip`
 #本机环境测试
 PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 
+NGINX=`which nginx`
 
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）
 echo "🔍 获取本机 IP 地址..."
@@ -43,7 +44,7 @@ if pgrep -x "nginx" > /dev/null; then
     echo "   ✅ Nginx 已运行"
 else
     echo "   🔄 启动 Nginx..."
-    /usr/local/nginx/sbin/nginx -c "$current_path/nginx.conf"
+    $NGINX -c "$current_path/nginx.conf"
     sleep 1
     echo "   ✅ Nginx 已启动"
 fi

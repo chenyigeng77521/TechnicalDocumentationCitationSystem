@@ -25,6 +25,8 @@ echo '源代码:' $current_path
 
 bash "$current_path/buildAll.sh"
 
+NGINX=`which nginx`
+
 # 获取本机 IP 地址（优先获取无线网卡 en0 的 IP）
 echo "🔍 获取本机 IP 地址..."
 # 优先获取 en0（无线网卡）的 IP
@@ -46,7 +48,7 @@ if pgrep -x "nginx" > /dev/null; then
     echo "   ✅ Nginx 已运行"
 else
     echo "   🔄 启动 Nginx..."
-    /usr/local/nginx/sbin/nginx -c "$current_path/nginx.conf"
+    $NGINX -c "$current_path/nginx.conf"
     sleep 1
     echo "   ✅ Nginx 已启动"
 fi
