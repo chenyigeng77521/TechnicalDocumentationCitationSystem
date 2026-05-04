@@ -6,11 +6,11 @@ Layer 3 FastAPI 服务入口
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
@@ -261,10 +261,11 @@ def qa_single(request: QARequest) -> QAResponse:
 
 
 @app.post("/api/qa/batch", response_model=BatchQAResponse)
-def qa_batch(request: BatchQARequest) -> BatchQAResponse:
+async def qa_batch(request: BatchQARequest) -> BatchQAResponse:
     """
-    批量问答接口
-    - ThreadPoolExecutor(max_workers=8) 并发处理
+    批量问答接口（异步版）
+    - asyncio.Semaphore(4) 控制并发，避免网关限流
+    - 单条 120 秒超时，防止线程泄漏
     - 每条结果逐行写入 JSONL，文件写锁保证线程安全
     - 每条任务独立 try/except，单条失败不影响整体
 
@@ -286,26 +287,20 @@ def qa_batch(request: BatchQARequest) -> BatchQAResponse:
     open(output_file, "w", encoding="utf-8").close()
 
     total = len(request.items)
-    succeeded = 0
-    failed = 0
 
     logger.info("批量处理开始：共 %d 条，输出到 %s", total, output_file)
 
-    def _process_and_write(item: BatchItem) -> bool:
-        """处理单条并写入 JSONL，返回是否成功"""
+    def _process_and_write(item: BatchItem) -> tuple[str, bool]:
+        """处理单条并写入 JSONL，返回 (item_id, success)"""
         try:
             qa_resp, reasoning_result, used_chunks = process_single(item.id, item.query)
 
-            # ---- 构建 gold_sources（有答时从 used_chunks 取 evidence）----
+            # ---- 优化：用 dict 查找替代双重循环 ----
+            chunk_map = {(c.doc_path, c.anchor): c.content for c in used_chunks}
             gold_sources: list[GoldSource] = []
             if not qa_resp.is_refusal:
                 for c in qa_resp.citations:
-                    # 从已缓存的 used_chunks 中找对应 chunk，取 content 作为 evidence
-                    evidence = ""
-                    for chunk in used_chunks:
-                        if chunk.doc_path == c.doc_path and chunk.anchor == c.anchor:
-                            evidence = chunk.content
-                            break
+                    evidence = chunk_map.get((c.doc_path, c.anchor), "")
                     gold_sources.append(GoldSource(
                         doc_path=c.doc_path,
                         anchor=c.anchor,
@@ -331,7 +326,7 @@ def qa_batch(request: BatchQARequest) -> BatchQAResponse:
                 unanswerable_reason=reasoning_result.unanswerable_reason if qa_resp.is_refusal else None,
             )
             write_jsonl_line(output_file, record.model_dump(exclude_none=True))
-            return True
+            return item.id, True
 
         except Exception as e:
             logger.error("批量任务 [%s] 失败: %s", item.id, e, exc_info=True)
@@ -353,16 +348,31 @@ def qa_batch(request: BatchQARequest) -> BatchQAResponse:
                 write_jsonl_line(output_file, row)
             except Exception:
                 pass
-            return False
+            return item.id, False
 
-    # 多线程并发处理
-    with ThreadPoolExecutor(max_workers=BATCH_MAX_WORKERS) as executor:
-        futures = {executor.submit(_process_and_write, item): item for item in request.items}
-        for future in as_completed(futures):
-            if future.result():
-                succeeded += 1
-            else:
-                failed += 1
+    # ---- 异步执行批量，单条 120 秒超时，并发 4 ----
+    loop = asyncio.get_event_loop()
+    sem = asyncio.Semaphore(4)
+
+    async def _run_with_sem(item: BatchItem) -> tuple[str, bool]:
+        async with sem:
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, _process_and_write, item),
+                timeout=120.0,
+            )
+
+    tasks = [_run_with_sem(item) for item in request.items]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    succeeded = 0
+    failed = 0
+    for r in results:
+        if isinstance(r, Exception):
+            failed += 1
+        elif r[1]:
+            succeeded += 1
+        else:
+            failed += 1
 
     logger.info("批量处理完成：成功 %d，失败 %d，文件: %s", succeeded, failed, output_file)
 
