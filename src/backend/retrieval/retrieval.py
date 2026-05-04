@@ -60,7 +60,7 @@ EMBEDDING_DIMENSION_RETRIEVAL = int(os.getenv("EMBEDDING_DIMENSION_RETRIEVAL", "
 
 # 查询扩展配置
 QUERY_EXPANSION_ENABLED = os.getenv("QUERY_EXPANSION_ENABLED", "false").lower() == "true"
-QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "aliyun/qwen3.6-plus")
+QUERY_EXPANSION_MODEL = os.getenv("QUERY_EXPANSION_MODEL", "aliyun/deepseek-v3.2")
 QUERY_EXPANSION_NUM = min(int(os.getenv("QUERY_EXPANSION_NUM", "3")), 5)
 
 # retrieval API 配置（查询扩展用）
