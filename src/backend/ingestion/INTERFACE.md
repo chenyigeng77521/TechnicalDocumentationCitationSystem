@@ -508,10 +508,26 @@ def rrf(vector_results, text_results, k=60):
 
 ### 跟随 content 走（X1.5 路径）
 
-- `content` = `title_path + "\n\n" + raw_slice (max_chars=2000 居中截)`（仅 SECTION 路径加 title prefix；UNTITLED_SEG 路径不加）
+- `content` = `title_path + "\n\n" + raw_slice (max_chars=3500 居中截)`（仅 SECTION 路径加 title prefix；UNTITLED_SEG 路径不加）
 - `metadata.char_offset_start` = window 起点（**不是代表 chunk 的 offset**）
 - `metadata.char_offset_end` = window 终点
 - `metadata.anchor_id` = `f"{file_path}#{char_offset_start}"`，跟着 window 起点
+
+### Two-field 设计：`content` vs `chunk_content`
+
+| 字段 | 内容 | 适合谁用 |
+|---|---|---|
+| `content` | X1.5 expanded section + title prefix（≤ 3500 字）| LLM 上下文（reasoning Prompt 注入），保留 X0 → X1.5 已验证的 +13 题增益 |
+| `chunk_content` | 单个命中 chunk 原文（不扩展、不带 title）| reranker / cross-encoder 等"focused 评分"场景，避免被无关 section 上下文稀释 |
+
+**渐进切换路径**（推荐顺序）：
+1. 海军 reranker 当前用 `content`，先观察 baseline
+2. 离线对照实验：`reranker(query, content)` vs `reranker(query, chunk_content)` 看 max_score 改善
+3. 评估通过后再把 reranker 输入切到 `chunk_content`，LLM context 仍走 `content`
+4. 不切的下游不受影响（content 行为完全不变）
+
+LangChain Document 包装时（如 retrieval.py:261）会把 HTTP `content` 映射成 `page_content`；
+如要切到 chunk-only 评分，请显式读 `result["chunk_content"]` 后再构 Document。
 
 ### 新增（赛题输出用）
 

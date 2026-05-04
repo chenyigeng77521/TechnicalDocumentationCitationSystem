@@ -174,11 +174,19 @@ def _format_result_x15(
         metadata_x0: 由调用方用 _row_to_metadata(group_chunks[0]) 算好传入
 
     Returns:
-        result dict 含 chunk_id / content / score / metadata
+        result dict 含 chunk_id / content / chunk_content / score / metadata
+
+        - content:        X1.5 expanded section + title prefix（≤ max_chars）。
+                          为下游 LLM 提供完整上下文。X1.5 上线时已验证比 X0 +13 题。
+        - chunk_content:  原命中 chunk 的单条原文（不带 title prefix，不做 section 扩展）。
+                          Two-field 设计（spec 见 INTERFACE.md "X1.5 search 接口字段语义"）。
+                          供 reranker 等下游做"focused 评分"时使用，避免被无关 section
+                          上下文稀释。海军 team 可按需选用。
     """
     representative = group_chunks[0]
     file_path = representative["file_path"]
     is_section = bool(title_path)
+    chunk_content = representative.get("content", "")  # 单 chunk 原文，two-field 用
 
     try:
         if is_section:
@@ -201,10 +209,11 @@ def _format_result_x15(
         logger.warning(
             "x15 fallback for %s (title=%s): %s", file_path, title_path, e
         )
-        # 退回 X0 行为：单 chunk 原 content
+        # 退回 X0 行为：单 chunk 原 content（此时 content 与 chunk_content 一致）
         result = {
             "chunk_id": representative["chunk_id"],
-            "content": representative["content"],
+            "content": chunk_content,
+            "chunk_content": chunk_content,
             "score": representative.get("score", 0.0),
             "metadata": metadata_x0,
         }
@@ -221,6 +230,7 @@ def _format_result_x15(
     result = {
         "chunk_id": representative["chunk_id"],
         "content": content,
+        "chunk_content": chunk_content,
         "score": representative.get("score", 0.0),
         "metadata": metadata,
     }

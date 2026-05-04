@@ -60,6 +60,47 @@ def test_section_path_with_title_and_window(conn):
     assert len(result["content"]) >= len(chunk["content"])
 
 
+# 测什么行为：成功路径下同时返回 content（X1.5 expanded）+ chunk_content（单 chunk 原文）
+# 输入：真实 chunk + 它的 title_path
+# 期望：chunk_content 等于命中 chunk 的原文；content 是 X1.5 expanded 含 title prefix
+#       chunk_content ⊆ content（chunk 原文应被 section 包含）
+# 为什么必须测：two-field 设计核心契约——海军 reranker 用 chunk_content 评分
+def test_two_field_chunk_content_present(conn):
+    chunk = _real_section_chunk(conn)
+    metadata_x0 = _row_to_metadata(chunk)
+    result = _format_result_x15(conn, [chunk], chunk["title_path"], metadata_x0)
+    # chunk_content 必须存在
+    assert "chunk_content" in result
+    # 等于命中 chunk 的原文，不带 title prefix
+    assert result["chunk_content"] == chunk["content"]
+    # 不应含 title prefix（那是 content 的事）
+    assert not result["chunk_content"].startswith(chunk["title_path"])
+    # content 应该包含 chunk_content（除非 chunk 内容跨多 chunk 边界，正常情况是子串）
+    # 注意：raw_slice 是 file 字符切片，可能跟 chunk content 略有差异（CRLF 归一化等）
+    # 所以这里只断"长度上 chunk_content 不超过 content"
+    assert len(result["chunk_content"]) <= len(result["content"])
+
+
+# 测什么行为：fallback 路径下 content 和 chunk_content 都等于 chunk 原文
+# 输入：fake chunk 文件不存在 → 触发 fallback
+# 期望：content == chunk_content == chunk["content"]
+# 为什么必须测：fallback 不能漏字段，下游永远能拿到 chunk_content
+def test_two_field_chunk_content_in_fallback(conn):
+    fake_chunk = {
+        "chunk_id": "fake_id",
+        "file_path": "DOES_NOT_EXIST.md",
+        "title_path": "Some/Title",
+        "char_offset_start": 0, "char_offset_end": 100,
+        "score": 0.5,
+        "content": "fake original chunk content",
+        "chunk_index": 0,
+    }
+    result = _format_result_x15(conn, [fake_chunk], "Some/Title",
+                                {"file_path": "DOES_NOT_EXIST.md", "is_x15_truncated": False})
+    assert result["content"] == "fake original chunk content"
+    assert result["chunk_content"] == "fake original chunk content"
+
+
 # 测什么行为：UNTITLED 路径不加 title prefix（content 不含 title_path）
 # 输入：title_path=""
 # 期望：result content 不含 title_path（因为没有），但走 X1.5 化路径
