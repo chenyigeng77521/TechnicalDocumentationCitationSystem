@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 STORAGE_DIR = PROJECT_ROOT / "data"
-DEFAULT_MAX_CHARS = 2000
+DEFAULT_MAX_CHARS = 3500
 
 
 @functools.lru_cache(maxsize=200)

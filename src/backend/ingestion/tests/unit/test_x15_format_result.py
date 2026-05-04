@@ -130,20 +130,22 @@ def test_fallback_on_empty_slice(conn, monkeypatch):
 
 
 # 测什么行为：X1.5 路径下 metadata.is_x15_truncated 反映实际是否截断
-# 输入：长 section（已知 > 2000 字符）
+# 输入：长 section（已知 > DEFAULT_MAX_CHARS）
 # 期望：is_x15_truncated=True
 # 为什么必须测：metadata 字段语义对外 contract
 def test_metadata_is_x15_truncated_set(conn):
+    from backend.ingestion.api.x15 import DEFAULT_MAX_CHARS
+    threshold = DEFAULT_MAX_CHARS + 500  # 比 cap 大 500 字符确保会触发截断
     row = conn.execute("""
         SELECT file_path, title_path, MAX(char_offset_end)-MIN(char_offset_start) AS span
         FROM chunks
         WHERE title_path IS NOT NULL AND title_path != ''
         GROUP BY file_path, title_path
-        HAVING span > 2500
+        HAVING span > ?
         LIMIT 1
-    """).fetchone()
+    """, (threshold,)).fetchone()
     if row is None:
-        pytest.skip("no long section in DB")
+        pytest.skip(f"no section > {threshold} chars in DB")
     long_chunk = dict(conn.execute(
         "SELECT * FROM chunks WHERE file_path=? AND title_path=? LIMIT 1",
         (row["file_path"], row["title_path"])
