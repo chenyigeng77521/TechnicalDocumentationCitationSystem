@@ -82,9 +82,8 @@ if [ "$MODE" = "foreground" ]; then
 else
     # 后台模式
     echo "后台启动，日志写入: $SERVER_LOG"
-    echo "同时追加到共享日志: $BACKEND_LOG"
     nohup "$PYTHON_CMD" -m reasoning.main --port "$PORT" "${EXTRA_ARGS[@]}" \
-        >>"$BACKEND_LOG" 2>&1 &
+        >"$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     echo "$SERVER_PID" > "$PID_FILE"
     echo "PID: $SERVER_PID（已写入 $PID_FILE）"

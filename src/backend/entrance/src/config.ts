@@ -77,7 +77,7 @@ export const config = {
   get storage() {
     return {
       // 结果文件目录（可通过环境变量 RESULT_DIR 覆盖）
-      resultDir: process.env.RESULT_DIR || '../reasoning/eval',
+      resultDir: process.env.RESULT_DIR || '../../../eval',
     };
   },
 };

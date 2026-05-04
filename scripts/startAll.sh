@@ -14,7 +14,7 @@ PYTHON=`which python`
 PIP=`which pip`
 
 #本机环境测试
-#PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
+PYTHON='/Library/Frameworks/Python.framework/Versions/3.12/bin/python3'
 
 echo '项目目录:' $current_path
 
