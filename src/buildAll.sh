@@ -16,7 +16,7 @@ current_path=`dirname $(pwd)`
 SCRIPT_DIR=$current_path/src
 cd "$SCRIPT_DIR"
 
-echo "📁 项目根目录：current_path"
+echo "📁 项目根目录：" $current_path
 echo ""
 
 # 检查 Node.js 版本
