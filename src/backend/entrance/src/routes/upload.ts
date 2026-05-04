@@ -242,7 +242,7 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
         // 收集所有文件的相对路径
         const relPaths = completedFiles.map(uf => path.relative(dataRoot, uf.originalPath));
         const encodedPaths = relPaths.map(p => encodeURIComponent(p));
-        const indexUrl = `https://172.25.178.21:3003/index?add=${encodedPaths.join(',')}`;
+        const indexUrl = `https://localhost:3003/index?add=${encodedPaths.join(',')}`;
         logToBackend(`上传后批量请求索引服务: ${relPaths.join(',')} → ${indexUrl}`);
         console.log(`✅ [上传] 批量通知索引服务：${indexUrl}`);
 
@@ -412,7 +412,7 @@ router.delete('/delete', async (req: Request, res: Response) => {
     let deleteIndexResult: any = null;
     try {
       const encodedPath = encodeURIComponent(filePath);
-      const indexUrl = `http://172.25.178.21:3003/index?delete=${encodedPath}`;
+      const indexUrl = `http://localhost:3003/index?delete=${encodedPath}`;
       console.log(`✅ [上传] 通知索引服务删除：${indexUrl}`);
       logToBackend(`删除后请求索引服务: ${filePath} → ${indexUrl}`);
 
@@ -529,7 +529,7 @@ router.post('/modify-index', async (req: Request, res: Response) => {
     }
 
     const encodedPath = encodeURIComponent(filePath);
-    const indexUrl = `https://172.25.178.21:3003/index?modify=${encodedPath}`;
+    const indexUrl = `https://localhost:3003/index?modify=${encodedPath}`;
     logToBackend(`请求索引服务: ${filePath} → ${indexUrl}`);
     console.log(`✅ [上传] 通知索引服务：${indexUrl}`);
 

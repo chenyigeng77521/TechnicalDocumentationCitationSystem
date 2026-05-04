@@ -35,7 +35,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # NLU 流程配置
 CONTEXT_MEMORY_URL = os.getenv("CONTEXT_MEMORY_URL", "http://localhost:3006")
-RETRIEVAL_URL = os.getenv("RETRIEVAL_URL", "http://172.25.178.31:8001/api/qa")
+RETRIEVAL_URL = os.getenv("RETRIEVAL_URL", "http://localhost:8001/api/qa")
 HTTP_TIMEOUT = int(os.getenv("HTTP_TIMEOUT", "60"))
 
 # NLU 模型配置（实际使用时需要配置真实模型路径或 API）
