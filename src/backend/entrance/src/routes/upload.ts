@@ -338,4 +338,34 @@ router.get('/download/:filename', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * DELETE /api/upload/delete
+ * 删除 data/ 目录下的文件
+ */
+router.delete('/delete', (req: Request, res: Response) => {
+  try {
+    const { path: filePath } = req.body;
+    if (!filePath) {
+      return res.status(400).json({ success: false, message: '缺少 path 参数' });
+    }
+
+    const fullPath = path.resolve(dataRoot, filePath);
+    // 安全检查：确保文件在 dataRoot 内
+    if (!fullPath.startsWith(dataRoot)) {
+      return res.status(403).json({ success: false, message: '非法路径' });
+    }
+
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ success: false, message: '文件不存在' });
+    }
+
+    fs.unlinkSync(fullPath);
+    console.log(`✅ [上传] 删除文件：${filePath}`);
+    res.json({ success: true, message: '删除成功' });
+  } catch (error: any) {
+    console.error('✅ [上传] 删除失败：', error);
+    res.status(500).json({ success: false, message: `删除失败：${error.message}` });
+  }
+});
+
 export default router;

@@ -1102,12 +1102,32 @@ export default function Home() {
               </div>
             ) : (
               rawFiles.slice(0, 5).map((file, idx) => (
-                <div key={idx} className="mobile-panel-item">
+                <div key={idx} className="mobile-panel-item" style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
                   <span className="mobile-panel-icon">📄</span>
-                  <span className="mobile-panel-text" title={file.displayPath || file.name}>
-                    {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
+                  <span className="mobile-panel-text" title={file.displayPath || file.name} style={{ wordBreak: 'break-word', overflowWrap: 'break-word', lineHeight: '1.4' }}>
+                    {file.name}
                   </span>
-                  <span className="mobile-panel-meta">{(file.size / 1024).toFixed(1)}KB</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0, marginTop: '1px' }}>
+                    <span className="mobile-panel-meta">{(file.size / 1024).toFixed(1)}KB</span>
+                    <button
+                      onClick={() => window.open(buildApiUrl(file.downloadUrl), '_blank')}
+                      style={{ fontSize: '9px', color: '#4f6ef7', background: 'none', border: '1px solid #d0d5ff', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}>编辑</button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`确定删除 "${file.name}"？`)) return;
+                        try {
+                          const res = await fetch(buildApiUrl('/api/upload/delete'), {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: file.displayPath })
+                          });
+                          const data = await res.json();
+                          if (data.success) loadRawFiles(1);
+                          else alert('删除失败');
+                        } catch { alert('删除失败'); }
+                      }}
+                      style={{ fontSize: '9px', color: '#e74c3c', background: 'none', border: '1px solid #f5c6cb', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}>删除</button>
+                  </div>
                 </div>
               ))
             )}
@@ -1187,17 +1207,44 @@ export default function Home() {
                     </div>
                   ) : (
                     rawFiles.map((file, idx) => (
-                      <div key={idx} style={styles.kbPanelItem}>
-                        <span style={styles.kbPanelIcon}>📄</span>
-                        <a
-                          href={buildApiUrl(file.downloadUrl)}
-                          download={file.name}
-                          style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none'}}
-                          title={file.displayPath || file.name}
-                        >
-                          {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
-                        </a>
-                        <span style={styles.kbPanelMeta}>{(file.size / 1024).toFixed(1)}KB</span>
+                      <div key={idx} style={{...styles.kbPanelItem, flexDirection: 'column', alignItems: 'stretch', gap: '0'}}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                          <span style={styles.kbPanelIcon}>📄</span>
+                          <a
+                            href={buildApiUrl(file.downloadUrl)}
+                            download={file.name}
+                            style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none'}}
+                            title={file.displayPath || file.name}
+                          >
+                            {file.name}
+                          </a>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '15px', marginTop: '2px' }}>
+                          <span style={styles.kbPanelMeta}>{(file.size / 1024).toFixed(1)}KB</span>
+                          <button
+                            onClick={() => window.open(buildApiUrl(file.downloadUrl), '_blank')}
+                            style={{ fontSize: '9px', color: '#4f6ef7', background: 'none', border: '1px solid #d0d5ff', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}
+                            title="编辑">编辑</button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`确定要删除 "${file.name}" 吗？`)) return;
+                              try {
+                                const res = await fetch(buildApiUrl('/api/upload/delete'), {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ path: file.displayPath })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  loadRawFiles(rawPage);
+                                } else {
+                                  alert('删除失败：' + (data.message || '未知错误'));
+                                }
+                              } catch { alert('删除失败'); }
+                            }}
+                            style={{ fontSize: '9px', color: '#e74c3c', background: 'none', border: '1px solid #f5c6cb', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}
+                            title="删除">删除</button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -1716,9 +1763,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   kbPanelItem: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '4px',
-    padding: '4px 8px',
+    padding: '6px 8px',
     fontSize: '10px',
     color: 'var(--text-sub)',
     borderRadius: '4px',
@@ -1727,17 +1774,19 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   kbPanelIcon: {
     fontSize: '11px',
+    flexShrink: 0,
+    marginTop: '1px',
   },
   kbPanelText: {
     flex: 1,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    minWidth: 0,
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
+    lineHeight: '1.4',
   },
   kbPanelMeta: {
     fontSize: '9px',
     color: 'var(--text-sub)',
-    marginLeft: 'auto',
     flexShrink: 0,
   },
   sourcePanel: {
