@@ -15,17 +15,18 @@ def _conf_str(x):
 
 def _render_top6(s: dict) -> str:
     return f"""
-| 指标 | 值 |
-|---|---|
-| **总分** | {_pct(s['score'])} |
-| **答对率（作答题）** | {_pct(s['answer_acc'])} |
-| **拒答正确率** | {_pct(s['refuse_precision'])} |
-| **幻觉率 ⚠️** | {_pct(s['hallucination_rate'])} |
-| **误拒率** | {_pct(s['false_refuse_rate'])} |
-| **平均置信度** | {_conf_str(s['avg_confidence'])} |
-| Hit@5 严格 | {_pct(s['hit_rate_strict_at_5'])} |
-| Hit@5 宽松 | {_pct(s['hit_rate_loose_at_5'])} |
-| 引用精度（严格）| {_pct(s['citation_precision_strict'])} |
+| 指标 | 值 | 解释 |
+|---|---|---|
+| **总分** | {_pct(s['score'])} | (答对 + 拒答正确) / 总数 |
+| **答对率（作答题）** | {_pct(s['answer_acc'])} | 答对 / (答对+答错) |
+| **拒答 Recall（覆盖率）** | {_pct(s['refuse_recall'])} | 应拒题里拒了多少（高 = 不漏 trap）|
+| **拒答 Precision（精准率）** | {_pct(s['refuse_precision'])} | 拒答里真该拒的比例（高 = 不乱拒）|
+| **幻觉率 ⚠️** | {_pct(s['hallucination_rate'])} | 应拒题里模型瞎答的比例（= 1 - Recall）|
+| **误拒率** | {_pct(s['false_refuse_rate'])} | 应答题里模型拒了的比例 |
+| **平均置信度** | {_conf_str(s['avg_confidence'])} | 仅作答题 |
+| Hit@5 严格 | {_pct(s['hit_rate_strict_at_5'])} | (doc_path, anchor) 完全命中 |
+| Hit@5 宽松 | {_pct(s['hit_rate_loose_at_5'])} | 仅 doc_path 命中（anchor 错也算）|
+| 引用精度（严格）| {_pct(s['citation_precision_strict'])} | 模型 citations 严格命中比例 |
 """
 
 
@@ -49,8 +50,8 @@ def _render_group_table(group: dict, label: str) -> str:
     if not group:
         return f"\n（暂无 {label} 数据）\n"
     lines = [
-        f"\n| {label} | 题数 | 总分 | 答对率 | Hit@5严 | Hit@5宽 | 拒答正确率 | 幻觉率 |",
-        "|---|---|---|---|---|---|---|---|",
+        f"\n| {label} | 题数 | 总分 | 答对率 | Hit@5严 | Hit@5宽 | 拒答Recall | 拒答Precision | 误拒率 |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for key, agg in group.items():
         t = agg["totals"]
@@ -58,7 +59,8 @@ def _render_group_table(group: dict, label: str) -> str:
         lines.append(
             f"| {key} | {t['total']} | {_pct(s['score'])} | {_pct(s['answer_acc'])} | "
             f"{_pct(s['hit_rate_strict_at_5'])} | {_pct(s['hit_rate_loose_at_5'])} | "
-            f"{_pct(s['refuse_precision'])} | {_pct(s['hallucination_rate'])} |"
+            f"{_pct(s['refuse_recall'])} | {_pct(s['refuse_precision'])} | "
+            f"{_pct(s['false_refuse_rate'])} |"
         )
     return "\n".join(lines) + "\n"
 

@@ -43,7 +43,10 @@ def test_aggregate_basic():
     assert s["score"] == pytest.approx(0.4)
     # answer_acc = 1/(1+1) = 0.5
     assert s["answer_acc"] == pytest.approx(0.5)
-    # refuse_precision = 1/(1+1) = 0.5
+    # refuse_recall = refuse_correct / 应拒题 = 1/(1+1) = 0.5
+    assert s["refuse_recall"] == pytest.approx(0.5)
+    # refuse_precision = refuse_correct / 拒答总数 = 1/(1+1) = 0.5
+    # （= refuse_correct / (refuse_correct + refuse_false)）
     assert s["refuse_precision"] == pytest.approx(0.5)
     # hallucination = 1/(1+1) = 0.5
     assert s["hallucination_rate"] == pytest.approx(0.5)
@@ -63,20 +66,45 @@ def test_aggregate_empty():
     assert out["totals"]["total"] == 0
     assert out["summary"]["score"] is None
     assert out["summary"]["answer_acc"] is None
+    assert out["summary"]["refuse_recall"] is None
     assert out["summary"]["refuse_precision"] is None
     assert out["summary"]["avg_confidence"] is None
 
 
 def test_aggregate_no_unanswerable_returns_none():
-    """gold 全是可答题时，refuse_precision/hallucination_rate = None（不是 0）。
+    """gold 全是可答题时，refuse_recall/hallucination_rate = None（不是 0）。
 
-    Regression: 之前 React domain 没有 trap 题，refuse_precision 显示 "0.00%"，
-    误以为"拒答全错"，其实是"无可拒题"。
+    Regression: 之前 React domain 没有 trap 题，refuse_precision (旧字段) 显示 "0.00%"，
+    误以为"拒答全错"，其实是"无可拒题"。新版本拆成 recall/precision，
+    recall 分母是应拒题数，仍是 None。
     """
     per_q = [_q(f"q{i}", "answer_correct") for i in range(5)]
     out = aggregate_totals(per_q)
-    assert out["summary"]["refuse_precision"] is None
+    assert out["summary"]["refuse_recall"] is None
     assert out["summary"]["hallucination_rate"] is None
+    # 没有任何拒答（refuse_correct=0, refuse_false=0）→ refuse_precision 也是 None
+    assert out["summary"]["refuse_precision"] is None
+
+
+def test_refuse_precision_distinct_from_recall():
+    """关键回归：refuse_precision != refuse_recall 当模型有误拒时。
+
+    例：50 个 trap 全拒（recall=1.0），但同时还误拒了 50 个可答题
+    → precision = 50/(50+50) = 0.5（拒答里只有一半该拒）
+    """
+    per_q = []
+    # 50 应拒题，全拒对了
+    per_q += [_q(f"trap{i}", "refuse_correct") for i in range(50)]
+    # 50 可答题，全被误拒了
+    per_q += [_q(f"miss{i}", "refuse_false") for i in range(50)]
+    out = aggregate_totals(per_q)
+    s = out["summary"]
+    # recall：应拒题里拒了多少 = 50/50 = 100%
+    assert s["refuse_recall"] == pytest.approx(1.0)
+    # precision：拒了的题里真该拒的 = 50/(50+50) = 50%
+    assert s["refuse_precision"] == pytest.approx(0.5)
+    # 这两个差 50 个点，证明它们是独立指标
+    assert s["refuse_recall"] != s["refuse_precision"]
 
 
 def test_render_none_displays_as_dash():
@@ -96,8 +124,10 @@ def test_render_none_displays_as_dash():
         },
         "summary": {
             "score": 1.0, "answer_acc": 1.0,
-            "refuse_precision": None,  # 没有 trap 题
+            "refuse_recall": None,  # 没有 trap 题（应拒题为 0）
+            "refuse_precision": None,  # 没有任何拒答
             "hallucination_rate": None,
+            "false_refuse_rate": 0.0,
             "false_refuse_rate": 0.0,
             "avg_confidence": 0.9,
             "hit_rate_strict_at_5": 0.5, "hit_rate_loose_at_5": 1.0,
@@ -107,7 +137,9 @@ def test_render_none_displays_as_dash():
         "per_question": [], "bad_cases": {},
     }
     md = render_full(data)
-    assert "**拒答正确率** | —" in md
+    # 拒答 Recall + Precision 都应是 — （无 trap、无拒答）
+    assert "**拒答 Recall（覆盖率）** | —" in md
+    assert "**拒答 Precision（精准率）** | —" in md
     assert "**幻觉率 ⚠️** | —" in md
     # 真实的 0% 不应被替换
     assert "**误拒率** | 0.00%" in md

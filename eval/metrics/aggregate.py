@@ -41,8 +41,9 @@ def aggregate_totals(per_q: list[dict]) -> dict:
     judge_failed = totals.get("judge_failed", 0)
     total = totals["total"]
     answered_answerable = answer_correct + answer_wrong
-    unanswerable_total = refuse_correct + refuse_missed
-    answerable_total = answer_correct + answer_wrong + refuse_false
+    unanswerable_total = refuse_correct + refuse_missed  # 应拒题（gold trap）
+    answerable_total = answer_correct + answer_wrong + refuse_false  # 应答题
+    refused_total = refuse_correct + refuse_false  # 模型拒答的题数
 
     def _div(n, d):
         """Returns ratio or None when denominator is 0 (= N/A, not 0%)."""
@@ -61,7 +62,10 @@ def aggregate_totals(per_q: list[dict]) -> dict:
         "summary": {
             "score": _div(answer_correct + refuse_correct, total),
             "answer_acc": _div(answer_correct, answered_answerable),
-            "refuse_precision": _div(refuse_correct, unanswerable_total),
+            # 拒答 Recall：应拒题里成功拒答的比例（高 = 不漏 trap）
+            "refuse_recall": _div(refuse_correct, unanswerable_total),
+            # 拒答 Precision：拒答的题里真正该拒的比例（高 = 不乱拒）
+            "refuse_precision": _div(refuse_correct, refused_total),
             "hallucination_rate": _div(refuse_missed, unanswerable_total),
             "false_refuse_rate": _div(refuse_false, answerable_total),
             "avg_confidence": (

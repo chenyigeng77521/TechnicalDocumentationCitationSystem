@@ -33,7 +33,7 @@ LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "60"))
 
 # ==================== 批量处理配置 ====================
 
-BATCH_MAX_WORKERS: int = 8
+BATCH_MAX_WORKERS: int = int(os.getenv("BATCH_MAX_WORKERS", "8"))
 # 默认指向项目内 eval，基于本文件位置动态计算
 _BATCH_DEFAULT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),

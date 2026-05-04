@@ -4,5 +4,20 @@
 
 ▲ Next.js 16.2.4
 - Local:         http://localhost:3000
-- Network:       http://172.25.178.137:3000
-✓ Ready in 341ms
+- Network:       http://192.168.1.31:3000
+✓ Ready in 141ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/tuyh3/package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * /Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem/src/frontend/package-lock.json
+
+Failed to proxy http://localhost:3002/api/batch-test/upload Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}

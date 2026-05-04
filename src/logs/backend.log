@@ -1,8 +1,8 @@
 
-> knowledge-qa-system@1.0.0 dev
-> tsx src/server.ts
+> knowledge-qa-system@1.0.0 start
+> node dist/server.js
 
-📝 已加载环境变量：/Users/chenyigeng/WorkBuddy/data/TechnicalDocumentationCitationSystem/src/backend/entrance/.env
+📝 已加载环境变量：/Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem/src/backend/entrance/.env
 🔧 ENABLE_QUESTION_CLASSIFICATION: true
 🔧 Config loaded: firstlayer.enabled = true
 
@@ -21,7 +21,87 @@
    GET    /api/qa/stats         - 统计信息
    DELETE /api/qa/files/:name  - 删除文件
 
-[2026-05-03 03:16:58] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log
-[2026-05-03 03:18:49] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log
-[2026-05-03 03:23:19] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log
-[2026-05-03 03:23:21] [INFO] [frontend] [后台日志] 开始轮询: http://localhost/api/logs/read?file=backend.log
+📥 1.收到问题（流式）: 如何申请年假？, session_id: session_59cb89466342
+🔍 2.正在过滤问题：如何申请年假？...
+✅ 3.过滤完成：VALID (置信度：0.5)
+🔍 4.过滤结果：VALID (置信度：0.5)
+🔄 5.问题有效，开始 NLU 处理...
+🔍 6.NLU-指代判断：无指代词
+ℹ️ NLU-指代判断：无指代词
+✍️ NLU-查询改写：跳过
+✅ 7.NLU-完整性检查：通过
+🔄 8.NLU 处理完成：原始="如何申请年假？" → 处理后="如何申请年假？"
+🔄 9.调用分类服务...
+🔄 正在对问题分类：如何申请年假？...
+✅ 分类完成：PROC (置信度：0.9)
+📊 分类结果：PROC (置信度：0.9)
+🎯 检索策略：流程匹配 - 查找操作步骤、流程文档
+🔍 10.调用检索层：http://localhost:8001/api/qa
+✅ reasoning 返回：is_refusal=true, citations=0, confidence=0
+📚 reasoning 拒答或无引用：is_refusal=true
+⏭️  检索无结果，跳过上下文记录
+📤 [批量测试] 收到上传请求
+📥 [批量测试] 文件接收成功：Public_Test_Sample10.jsonl (1333 bytes)
+✅ [批量测试] 解析成功，问题数量：10
+🌐 [批量测试] 调用批量接口：http://localhost:8001/api/qa/batch
+📦 [批量测试] 发送数据（只展示前 200 个字符）：{"items":[{"id":"react_001","question":"React Compiler的增量采用是什么意思？"},{"id":"react_021","question":"为什么要在 Effect 中移除不必要的依赖？"},{"id":"react_041","question":"为什么示例中的计数器在快速按加减按钮时会暂停计时？"},{"id":"k8s_011","q...
+✅ [批量测试] 远程处理成功 {
+  status: 'success',
+  file_path: 'storage/result/result_react_001.jsonl',
+  total: 10,
+  succeeded: 10,
+  failed: 0
+}
+📥 1.收到问题（流式）: 发达啦放假啊浪费, session_id: session_59cb89466342
+🔍 2.正在过滤问题：发达啦放假啊浪费...
+✅ 3.过滤完成：VALID (置信度：0.5)
+🔍 4.过滤结果：VALID (置信度：0.5)
+🔄 5.问题有效，开始 NLU 处理...
+🔍 6.NLU-指代判断：无指代词
+ℹ️ NLU-指代判断：无指代词
+✍️ NLU-查询改写：跳过
+✅ 7.NLU-完整性检查：通过
+🔄 8.NLU 处理完成：原始="发达啦放假啊浪费" → 处理后="发达啦放假啊浪费"
+🔄 9.调用分类服务...
+🔄 正在对问题分类：发达啦放假啊浪费...
+✅ 分类完成：UNKNOWN (置信度：0.5)
+📊 分类结果：UNKNOWN (置信度：0.5)
+🎯 检索策略：通用匹配 - 使用默认检索策略
+🔍 10.调用检索层：http://localhost:8001/api/qa
+✅ reasoning 返回：is_refusal=true, citations=0, confidence=0
+📚 reasoning 拒答或无引用：is_refusal=true
+⏭️  检索无结果，跳过上下文记录
+📤 [批量测试] 收到上传请求
+📥 [批量测试] 文件接收成功：Public_Test_Input.jsonl (30317 bytes)
+✅ [批量测试] 解析成功，问题数量：200
+🌐 [批量测试] 调用批量接口：http://localhost:8001/api/qa/batch
+📦 [批量测试] 发送数据（只展示前 200 个字符）：{"items":[{"id":"react_001","question":"React Compiler的增量采用是什么意思？"},{"id":"react_002","question":"从大多数后端或 REST 风格 API 获取数据时，React 建议使用哪些库？"},{"id":"react_003","question":"一个按钮应该能在'On'和'Off'之间切换，但它总是显示...
+✅ [批量测试] 远程处理成功 {
+  status: 'success',
+  file_path: 'storage/result/result_react_001.jsonl',
+  total: 200,
+  succeeded: 200,
+  failed: 0
+}
+📥 1.收到问题（流式）: 在节点上检查 Pod 的内存 cgroups 时，如何确定 Pod 的标识符？, session_id: session_59cb89466342
+🔍 2.正在过滤问题：在节点上检查 Pod 的内存 cgroups 时，如何确定 Pod 的标识符？...
+✅ 3.过滤完成：VALID (置信度：0.5)
+🔍 4.过滤结果：VALID (置信度：0.5)
+🔄 5.问题有效，开始 NLU 处理...
+🔍 6.NLU-指代判断：无指代词
+ℹ️ NLU-指代判断：无指代词
+✍️ NLU-查询改写：跳过
+✅ 7.NLU-完整性检查：通过
+🔄 8.NLU 处理完成：原始="在节点上检查 Pod 的内存 cgroups 时，如何确定 Pod 的标识符？" → 处理后="在节点上检查 Pod 的内存 cgroups 时，如何确定 Pod 的标识符？"
+🔄 9.调用分类服务...
+🔄 正在对问题分类：在节点上检查 Pod 的内存 cgroups 时，如何确定 Pod 的标识符？...
+✅ 分类完成：PROC (置信度：0.7)
+📊 分类结果：PROC (置信度：0.7)
+🎯 检索策略：流程匹配 - 查找操作步骤、流程文档
+🔍 10.调用检索层：http://localhost:8001/api/qa
+✅ reasoning 返回：is_refusal=false, citations=1, confidence=0.9979
+📚 reasoning 成功，引用 1 个文档
+✅ 用户问题已记录到 context memory
+✅ 助手回答已记录到 context memory
+//localhost:3000/api/context/get-all-messages/session_59cb89466342
+[2026-05-04 04:55:59] [INFO] [frontend] [后台日志] 开始轮询: http://localhost:3000/api/logs/read?file=backend.log

@@ -26,7 +26,8 @@ def _full_data():
         },
         "summary": {
             "score": 0.8, "answer_acc": 0.75,
-            "refuse_precision": 1.0, "hallucination_rate": 0.0,
+            "refuse_recall": 1.0, "refuse_precision": 1.0,
+            "hallucination_rate": 0.0,
             "false_refuse_rate": 0.0, "avg_confidence": 0.85,
             "hit_rate_strict_at_5": 0.625, "hit_rate_loose_at_5": 0.875,
             "citation_precision_strict": 0.7,
@@ -36,8 +37,10 @@ def _full_data():
                 "totals": {"total": 4},
                 "summary": {
                     "score": 1.0, "answer_acc": 1.0,
-                    "refuse_precision": 0.0, "hallucination_rate": 0.0,
+                    "refuse_recall": 0.0, "refuse_precision": 0.0,
+                    "hallucination_rate": 0.0,
                     "hit_rate_strict_at_5": 0.75, "hit_rate_loose_at_5": 1.0,
+                    "false_refuse_rate": 0.0,
                 },
             },
         },
@@ -46,8 +49,10 @@ def _full_data():
                 "totals": {"total": 5},
                 "summary": {
                     "score": 0.8, "answer_acc": 1.0,
-                    "refuse_precision": 0.0, "hallucination_rate": 0.0,
+                    "refuse_recall": 0.0, "refuse_precision": 0.0,
+                    "hallucination_rate": 0.0,
                     "hit_rate_strict_at_5": 0.6, "hit_rate_loose_at_5": 1.0,
+                    "false_refuse_rate": 0.0,
                 },
             },
         },
@@ -126,7 +131,8 @@ def test_render_zero_total():
     }
     data["summary"] = {
         "score": 0.0, "answer_acc": 0.0,
-        "refuse_precision": 0.0, "hallucination_rate": 0.0,
+        "refuse_recall": 0.0, "refuse_precision": 0.0,
+        "hallucination_rate": 0.0,
         "false_refuse_rate": 0.0, "avg_confidence": 0.0,
         "hit_rate_strict_at_5": 0.0, "hit_rate_loose_at_5": 0.0,
         "citation_precision_strict": 0.0,
