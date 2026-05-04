@@ -23,11 +23,11 @@ PID_FILE="$LOG_DIR/server.pid"
 SERVER_LOG="$LOG_DIR/server.log"
 
 # ---- Python 解释器 ----
-# 默认按 python3.12 → python3 → python 顺序找（避免 macOS 老系统 `python` 是 Python 2.7 的坑）
-# - 本地 conda 用户：conda activate <env> 后 PATH 里的 python3 自动指向 env
-# - 生产部署：PATH 里就是系统 / venv 的 python3
-# - 显式覆盖：PYTHON_BIN=/path/to/python ./start.sh
-PYTHON_BIN="${PYTHON_BIN:-$(command -v python3.12 || command -v python3)}"
+# fallback 链：python → python3.12 → python3
+# python 优先：conda env 通常只把 'python' 加到 PATH 前面（python3/python3.12 仍指向系统/Homebrew）
+# Python 2 由后面的版本校验拦截，所以这里把 python 放最前面安全
+# 显式覆盖：PYTHON_BIN=/path/to/python ./start.sh
+PYTHON_BIN="${PYTHON_BIN:-$(command -v python || command -v python3.12 || command -v python3)}"
 
 # ---- 联调用：传文件接口（默认关闭，联调时设 true 启用）
 INGESTION_UPLOAD_ENABLED=${INGESTION_UPLOAD_ENABLED:-false}
