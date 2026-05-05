@@ -16,7 +16,7 @@ SCORE_THRESHOLD: float = 0.4
 SIMILARITY_THRESHOLD: float = 0.75
 
 # 上下文最大 token 数（粗估：1 token ≈ 1.5 字符）
-MAX_CONTEXT_TOKENS: int = 6000
+MAX_CONTEXT_TOKENS: int = 16000
 MAX_CONTEXT_CHARS: int = int(MAX_CONTEXT_TOKENS * 1.5)  # 9000 字符
 
 # ==================== LLM 配置 ====================

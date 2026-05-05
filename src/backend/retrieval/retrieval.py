@@ -12,7 +12,7 @@ from sentence_transformers import CrossEncoder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ------------------------------------------------------------------
-# 环境变量说明（请在 retrieval/.env.ignore 或系统环境中配置）
+# 环境变量说明（请在 retrieval/.env 或系统环境中配置）
 # ------------------------------------------------------------------
 # VECTOR_API_URL           向量库 API 地址，默认 https://equivalent-handling-heritage-hat.trycloudflare.com/
 # VECTOR_API_KEY           向量库 API 密钥（可选）
@@ -38,7 +38,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ADAPTIVE_TOPK_MIN        自适应 TopK 最小返回数量，默认 5
 # ADAPTIVE_TOPK_MAX        自适应 TopK 最大返回数量，默认 25
 # ------------------------------------------------------------------
-# 显式加载 retrieval 目录下的 .env.ignore，确保无论从哪里启动都能读取到配置
+# 显式加载 retrieval 目录下的 .env，确保无论从哪里启动都能读取到配置
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 # 向量库 API 配置
 VECTOR_API_URL = os.getenv("VECTOR_API_URL", "https://equivalent-handling-heritage-hat.trycloudflare.com/")
