@@ -241,19 +241,28 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
       try {
         // 收集所有文件的相对路径
         const relPaths = completedFiles.map(uf => path.relative(dataRoot, uf.originalPath));
-        const encodedPaths = relPaths.map(p => encodeURIComponent(p));
-        const indexUrl = `https://localhost:3003/index?add=${encodedPaths.join(',')}`;
-        logToBackend(`上传后批量请求索引服务: ${relPaths.join(',')} → ${indexUrl}`);
-        console.log(`✅ [上传] 批量通知索引服务：${indexUrl}`);
+        const indexUrl = `http://localhost:3003/index`;
+        logToBackend(`上传后批量请求索引服务: ${JSON.stringify(relPaths)} → POST ${indexUrl}`);
+        console.log(`✅ [上传] 批量通知索引服务：POST ${indexUrl}`);
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 60000);
-        const response = await fetch(indexUrl, { signal: controller.signal });
+        const response = await fetch(indexUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ add: relPaths }),
+          signal: controller.signal,
+        });
         clearTimeout(timeout);
-        const data = await response.json();
+        const data = response.ok ? await response.json() : null;
         logToBackend(`上传后批量索引服务响应: status=${response.status} data=${JSON.stringify(data)}`);
         console.log(`✅ [上传] 批量索引服务响应：${JSON.stringify(data)}`);
-        indexResult = { success: true, result: data };
+        const idxData: any = data;
+        if (response.ok && idxData?.status === 'indexed') {
+          indexResult = { success: true, result: data };
+        } else {
+          indexResult = { success: false, error: `状态异常: ${idxData?.status || '未知'}` };
+        }
       } catch (fetchError: any) {
         const errMsg = fetchError.message || '未知错误';
         logToBackend(`上传后批量索引服务请求失败: ${errMsg}`, 'ERROR');
@@ -405,31 +414,44 @@ router.delete('/delete', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: '文件不存在' });
     }
 
-    fs.unlinkSync(fullPath);
-    console.log(`✅ [上传] 删除文件：${filePath}`);
-
-    // 通知索引服务删除索引
+    // 第一步：先调用索引服务删除索引
     let deleteIndexResult: any = null;
     try {
       const encodedPath = encodeURIComponent(filePath);
       const indexUrl = `http://localhost:3003/index?delete=${encodedPath}`;
-      console.log(`✅ [上传] 通知索引服务删除：${indexUrl}`);
-      logToBackend(`删除后请求索引服务: ${filePath} → ${indexUrl}`);
+      console.log(`✅ [上传] 通知索引服务删除：POST ${indexUrl}`);
+      logToBackend(`删除后请求索引服务: ${filePath} → POST ${indexUrl}`);
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000);
-      const response = await fetch(indexUrl, { signal: controller.signal });
+      const response = await fetch(indexUrl, {
+        method: 'POST',
+        headers: { 'accept': 'application/json' },
+        signal: controller.signal,
+      });
       clearTimeout(timeout);
-      const data = await response.json();
-      logToBackend(`删除后索引服务响应: status=${response.status} data=${JSON.stringify(data)}`);
-      console.log(`✅ [上传] 索引服务删除响应：${JSON.stringify(data)}`);
-      deleteIndexResult = { success: true, result: data };
+      const data = response.ok ? await response.json() : null;
+      const delData: any = data;
+      logToBackend(`删除后索引服务响应: status=${response.status} data=${JSON.stringify(delData)}`);
+      console.log(`✅ [上传] 索引服务删除响应：${JSON.stringify(delData)}`);
+
+      if (!response.ok || delData?.status !== 'deleted') {
+        const errMsg = `索引服务返回 ${delData?.status || response.status}`;
+        logToBackend(`删除后索引服务失败: ${errMsg}`, 'ERROR');
+        return res.status(502).json({ success: false, message: '删除失败：索引服务错误', deleteIndexResult: { success: false, error: errMsg } });
+      }
+
+      deleteIndexResult = { success: true, result: delData };
     } catch (fetchError: any) {
       const errMsg = fetchError.message || '未知错误';
       logToBackend(`删除后索引服务请求失败: ${errMsg}`, 'ERROR');
       console.error('✅ [上传] 索引服务删除失败：', errMsg);
-      deleteIndexResult = { success: false, error: errMsg };
+      return res.status(502).json({ success: false, message: '删除失败：索引服务不可用', deleteIndexResult: { success: false, error: errMsg } });
     }
+
+    // 第二步：索引成功，再删除本地文件
+    fs.unlinkSync(fullPath);
+    console.log(`✅ [上传] 删除文件：${filePath}`);
 
     res.json({ success: true, message: '删除成功', deleteIndexResult });
   } catch (error: any) {
@@ -473,10 +495,10 @@ router.get('/read', (req: Request, res: Response) => {
 
 /**
  * POST /api/upload/save
- * 保存文件内容到 data/ 目录
+ * 保存文件内容到 data/ 目录，同时调用索引服务
  * 请求体：{ path: string, content: string }
  */
-router.post('/save', (req: Request, res: Response) => {
+router.post('/save', async (req: Request, res: Response) => {
   try {
     const { path: filePath, content } = req.body;
     if (!filePath || content === undefined) {
@@ -488,16 +510,61 @@ router.post('/save', (req: Request, res: Response) => {
       return res.status(403).json({ success: false, message: '非法路径' });
     }
 
+    // 备份当前文件内容
+    let backupContent = '';
+    if (fs.existsSync(fullPath)) {
+      backupContent = fs.readFileSync(fullPath, 'utf-8');
+    }
+
     // 确保父目录存在
     const dir = path.dirname(fullPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
+    // 写入新内容
     fs.writeFileSync(fullPath, content, 'utf-8');
     const stats = fs.statSync(fullPath);
     console.log(`✅ [上传] 保存文件：${filePath} (${content.length} 字节)`);
-    res.json({ success: true, size: stats.size, message: '保存成功' });
+
+    // 调用索引服务
+    try {
+      const encodedPath = encodeURIComponent(filePath);
+      const indexUrl = `http://localhost:3003/index?modify=${encodedPath}`;
+      logToBackend(`保存后请求索引服务: ${filePath} → POST ${indexUrl}`);
+      console.log(`✅ [上传] 通知索引服务：POST ${indexUrl}`);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const response = await fetch(indexUrl, {
+        method: 'POST',
+        headers: { 'accept': 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const data = await response.json();
+      const saveIdxData: any = data;
+      logToBackend(`保存后索引服务响应: status=${response.status} data=${JSON.stringify(saveIdxData)}`);
+      console.log(`✅ [上传] 索引服务响应：${JSON.stringify(saveIdxData)}`);
+
+      if (saveIdxData?.status === 'error') {
+        // 索引失败，回滚文件
+        logToBackend(`索引服务返回错误，正在回滚文件: ${filePath}`, 'ERROR');
+        fs.writeFileSync(fullPath, backupContent, 'utf-8');
+        console.log(`✅ [上传] 已回滚文件：${filePath}`);
+        return res.json({ success: false, message: '索引更新失败，文件已回滚', rollback: true });
+      }
+
+      // 全部成功
+      res.json({ success: true, size: stats.size, message: '保存成功，索引已更新' });
+    } catch (fetchError: any) {
+      // 索引服务请求失败，回滚文件
+      const errMsg = fetchError.message || '未知错误';
+      logToBackend(`保存后索引服务请求失败，正在回滚文件: ${errMsg}`, 'ERROR');
+      fs.writeFileSync(fullPath, backupContent, 'utf-8');
+      console.log(`✅ [上传] 已回滚文件：${filePath}`);
+      res.json({ success: false, message: `索引服务不可用，文件已回滚`, rollback: true });
+    }
   } catch (error: any) {
     console.error('✅ [上传] 保存文件失败：', error);
     res.status(500).json({ success: false, message: `保存文件失败：${error.message}` });
@@ -529,20 +596,30 @@ router.post('/modify-index', async (req: Request, res: Response) => {
     }
 
     const encodedPath = encodeURIComponent(filePath);
-    const indexUrl = `https://localhost:3003/index?modify=${encodedPath}`;
-    logToBackend(`请求索引服务: ${filePath} → ${indexUrl}`);
-    console.log(`✅ [上传] 通知索引服务：${indexUrl}`);
+    const indexUrl = `http://localhost:3003/index?modify=${encodedPath}`;
+    logToBackend(`请求索引服务: ${filePath} → POST ${indexUrl}`);
+    console.log(`✅ [上传] 通知索引服务：POST ${indexUrl}`);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
-      const response = await fetch(indexUrl, { signal: controller.signal });
+      const response = await fetch(indexUrl, {
+        method: 'POST',
+        headers: { 'accept': 'application/json' },
+        signal: controller.signal,
+      });
       clearTimeout(timeout);
       const data = await response.json();
-      logToBackend(`索引服务响应: status=${response.status} data=${JSON.stringify(data)}`);
-      console.log(`✅ [上传] 索引服务响应：${JSON.stringify(data)}`);
-      res.json({ success: true, indexResult: data, message: '索引更新已通知' });
+      const idxResp: any = data;
+      logToBackend(`索引服务响应: status=${response.status} data=${JSON.stringify(idxResp)}`);
+      console.log(`✅ [上传] 索引服务响应：${JSON.stringify(idxResp)}`);
+
+      if (idxResp?.status !== 'indexed') {
+        res.json({ success: false, message: '索引更新失败', indexResult: idxResp });
+      } else {
+        res.json({ success: true, indexResult: idxResp, message: '索引更新已通知' });
+      }
     } catch (fetchError: any) {
       clearTimeout(timeout);
       const errMsg = fetchError.message || '未知错误';

@@ -562,7 +562,7 @@ export default function Home() {
             indexMsg = ' | 索引：✅ 已创建';
           } else {
             console.error('❌ [上传] 索引服务调用失败:', data.indexResult.error);
-            indexMsg = ` | 索引：❌ ${data.indexResult.error}`;
+            indexMsg = ' ❌ 索引失败';
           }
         }
 
@@ -814,9 +814,8 @@ export default function Home() {
   };
 
   const suggestedQuestions = [
-    '公司差旅报销的标准是什么？',
-    '如何申请年假？',
-    '新员工入职需要准备哪些材料？',
+    'Trigger接口的基本思想是什么？',
+    'WebFlux 的 API 通常返回什么类型？',
     '产品发布流程是怎样的？'
   ];
 
@@ -1074,15 +1073,29 @@ export default function Home() {
                       onClick={async () => {
                         if (!confirm(`确定删除 "${file.name}"？`)) return;
                         try {
+                          setUploadMessage(`⏳ 正在删除 ${file.name}...`);
                           const res = await fetch(buildApiUrl('/api/upload/delete'), {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ path: file.displayPath })
                           });
                           const data = await res.json();
-                          if (data.success) loadRawFiles(1);
-                          else alert('删除失败');
-                        } catch { alert('删除失败'); }
+                          if (data.success) {
+                            let idxMsg = '';
+                            if (data.deleteIndexResult) {
+                              idxMsg = data.deleteIndexResult.success
+                                ? ' | 索引：✅ 已删除'
+                                : ` | 索引：❌ ${data.deleteIndexResult.error}`;
+                            }
+                            setUploadMessage(`✅ 删除成功${idxMsg}`);
+                            loadRawFiles(1);
+                          } else {
+                            setUploadMessage(`❌ 删除失败：${data.message || '未知错误'}`);
+                          }
+                        } catch {
+                          setUploadMessage('❌ 删除失败');
+                        }
+                        setTimeout(() => setUploadMessage(''), 5000);
                       }}
                       style={{ fontSize: '9px', color: '#e74c3c', background: 'none', border: '1px solid #f5c6cb', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}>删除</button>
                   </div>
@@ -1187,6 +1200,7 @@ export default function Home() {
                             onClick={async () => {
                               if (!confirm(`确定要删除 "${file.name}" 吗？`)) return;
                               try {
+                                setUploadMessage(`⏳ 正在删除 ${file.name}...`);
                                 const res = await fetch(buildApiUrl('/api/upload/delete'), {
                                   method: 'DELETE',
                                   headers: { 'Content-Type': 'application/json' },
@@ -1194,11 +1208,21 @@ export default function Home() {
                                 });
                                 const data = await res.json();
                                 if (data.success) {
+                                  let idxMsg = '';
+                                  if (data.deleteIndexResult) {
+                                    idxMsg = data.deleteIndexResult.success
+                                      ? ' | 索引：✅ 已删除'
+                                      : ` | 索引：❌ ${data.deleteIndexResult.error}`;
+                                  }
+                                  setUploadMessage(`✅ 删除成功${idxMsg}`);
                                   loadRawFiles(rawPage);
                                 } else {
-                                  alert('删除失败：' + (data.message || '未知错误'));
+                                  setUploadMessage(`❌ 删除失败：${data.message || '未知错误'}`);
                                 }
-                              } catch { alert('删除失败'); }
+                              } catch {
+                                setUploadMessage('❌ 删除失败');
+                              }
+                              setTimeout(() => setUploadMessage(''), 5000);
                             }}
                             style={{ fontSize: '9px', color: '#e74c3c', background: 'none', border: '1px solid #f5c6cb', borderRadius: '2px', cursor: 'pointer', padding: '0 2px', whiteSpace: 'nowrap', lineHeight: '1.3' }}
                             title="删除">删除</button>

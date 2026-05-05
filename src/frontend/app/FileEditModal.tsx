@@ -53,7 +53,7 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
       .finally(() => setLoading(false));
   }, [open, filePath]);
 
-  // 保存文件
+  // 保存文件（后端负责保存+索引+回滚）
   const handleSave = useCallback(async () => {
     if (!hasChanges) return;
     setSaving(true);
@@ -61,7 +61,6 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
     setSuccessMsg('正在保存文件...');
 
     try {
-      // 第一步：保存文件
       const res = await fetch(buildApiUrl('/api/upload/save'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,35 +69,10 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
       const data = await res.json();
       if (!data.success) {
         setSaving(false);
-        setError('文件保存失败：' + (data.message || '未知错误'));
+        setError('保存失败：' + (data.message || (data.rollback ? '文件已回滚' : '未知错误')));
         return;
       }
 
-      // 第二步：调用索引服务
-      setSuccessMsg('文件已保存，正在更新索引...');
-      const idxRes = await fetch(buildApiUrl('/api/upload/modify-index'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: filePath }),
-      });
-      const idxData = await idxRes.json();
-      if (!idxData.success) {
-        // 索引失败，回滚文件内容
-        setSuccessMsg('索引失败，正在回滚文件...');
-        try {
-          // 用 originalRef.current 中的原内容覆盖回去
-          await fetch(buildApiUrl('/api/upload/save'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: filePath, content: originalRef.current }),
-          });
-        } catch {}
-        setSaving(false);
-        setError('索引更新失败，文件已回滚：' + (idxData.message || '索引服务返回错误'));
-        return;
-      }
-
-      // 全部成功
       originalRef.current = content;
       setSuccessMsg('✅ 文件保存成功，索引已更新！');
       onSaveSuccess?.();
