@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 PID_FILE="$SCRIPT_DIR/.reasoning.pid"
-SERVER_LOG="$LOG_DIR/reasoning.log"
+SERVER_LOG="$SCRIPT_DIR/../../../src/logs/reasoning.log"
 BACKEND_LOG="$SCRIPT_DIR/../../../src/logs/backend.log"  # 共享日志
 
 # ---- 配置 ----
