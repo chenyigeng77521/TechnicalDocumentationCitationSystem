@@ -923,6 +923,13 @@ export default function Home() {
                   {msg.sources && msg.sources.length > 0 && (
                     <div style={styles.sources}>
                       {msg.sources.map((source, idx) => {
+                        if (source === '拒绝回答') {
+                          return (
+                            <span key={idx} style={{...styles.sourceTag, background: '#fff0f0', color: '#c0392b', fontWeight: 700, border: '1.5px solid #e74c3c', borderRadius: '6px', padding: '6px 14px', fontSize: '13px'}}>
+                              ❌ <b>拒绝回答</b>
+                            </span>
+                          );
+                        }
                         const parts = source.split('#');
                         const docPath = parts[0];
                         const anchor = parts.slice(1).join('#');

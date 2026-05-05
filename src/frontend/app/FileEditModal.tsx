@@ -53,14 +53,32 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
       .finally(() => setLoading(false));
   }, [open, filePath]);
 
-  // 保存文件（后端负责保存+索引+回滚）
+  // 保存文件（先调索引，成功后再保存文件）
   const handleSave = useCallback(async () => {
     if (!hasChanges) return;
     setSaving(true);
     setError('');
-    setSuccessMsg('正在保存文件...');
+    setSuccessMsg('正在更新索引...');
 
     try {
+      // 第一步：调用索引服务
+      const idxRes = await fetch(buildApiUrl('/api/upload/modify-index'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath }),
+      });
+      const idxData = await idxRes.json();
+
+      // 索引服务返回 status 为 indexed 才表示成功（根级或 results[0]）
+      const idxStatus = (idxData.indexResult?.status || idxData.indexResult?.results?.[0]?.status || '').toString();
+      if (!idxData.success || idxStatus !== 'indexed') {
+        setSaving(false);
+        setError('索引更新失败：' + (idxData.message || '索引服务返回错误'));
+        return;
+      }
+
+      // 第二步：索引成功，保存文件
+      setSuccessMsg('索引已更新，正在保存文件...');
       const res = await fetch(buildApiUrl('/api/upload/save'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,10 +87,11 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
       const data = await res.json();
       if (!data.success) {
         setSaving(false);
-        setError('保存失败：' + (data.message || (data.rollback ? '文件已回滚' : '未知错误')));
+        setError('文件保存失败：' + (data.message || '未知错误'));
         return;
       }
 
+      // 全部成功
       originalRef.current = content;
       setSuccessMsg('✅ 文件保存成功，索引已更新！');
       onSaveSuccess?.();
