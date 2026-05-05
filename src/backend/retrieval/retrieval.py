@@ -220,11 +220,9 @@ class VectorAPIClient:
         本地使用 bge-m3 计算 query embedding，调用向量库 /chunks/vector-search 接口。
         """
         # 1. 计算 embedding（bge-m3 + normalize）
-        try:
-            embedding = get_embedding_model().embed_query(query)
-        except Exception as e:
-            print(f"计算 embedding 失败: {e}")
-            return []
+
+        embedding = get_embedding_model().embed_query(query)
+
 
         # 校验维度（默认 1024，可通过 EMBEDDING_DIMENSION 环境变量调整）
         if len(embedding) != EMBEDDING_DIMENSION_RETRIEVAL:
@@ -537,12 +535,18 @@ class APIReranker:
             )
             response.raise_for_status()
             result = response.json()
+        except requests.exceptions.HTTPError as e:
+            err_msg = f"API 重排序失败({e.response.status_code}): {e}"
+            print(err_msg)
+            raise RuntimeError(f"API 重排序失败: {e}")
         except requests.exceptions.RequestException as e:
-            print(f"API 重排序请求失败: {e}")
-            return docs[:self.top_n]
+            err_msg = f"API 重排序网络异常: {e}"
+            print(err_msg)
+            raise RuntimeError(f"API 重排序失败: {e}")
         except Exception as e:
-            print(f"API 重排序解析失败: {e}")
-            return docs[:self.top_n]
+            err_msg = f"API 重排序解析异常: {e}"
+            print(err_msg)
+            raise RuntimeError(f"API 重排序失败: {e}")
 
         # 解析返回结果：标准 rerank API 返回 { "results": [{"index": 0, "relevance_score": 0.9, "text": "..."}, ...] }
         results = result.get("results", [])

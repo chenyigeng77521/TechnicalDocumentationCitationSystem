@@ -89,11 +89,8 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
         logger.warning("[retrieve] retrieval 模块加载失败: %s", e)
         return []
 
-    try:
-        docs = pipeline(query)
-    except Exception as e:
-        logger.error("[retrieve] 检索层调用失败: %s", e, exc_info=True)
-        return []
+
+    docs = pipeline(query)
 
     logger.info("[retrieve] 检索完成: raw_docs=%d", len(docs))
 
@@ -176,7 +173,28 @@ def process_single(item_id: str, query: str) -> tuple[QAResponse, ReasoningResul
 
     # Step 1：检索
     logger.info("[%s] Step1-检索开始...", item_id)
-    chunks = retrieve_chunks(query)
+    try:
+        chunks = retrieve_chunks(query)
+    except Exception as e:
+        logger.error("[retrieve] 检索异常 [%s]: %s", item_id, e, exc_info=True)
+        chunks = []
+        result = ReasoningResult(
+            answer=str(e),
+            citations=[],
+            is_refusal=True,
+            confidence=0.0,
+            max_score=0.0,
+            citation_ids=[],
+        )
+        qa_resp = QAResponse(
+            id=item_id,
+            answer=result.answer,
+            citations=[],
+            is_refusal=result.is_refusal,
+            confidence=result.confidence,
+        )
+        return qa_resp, result, chunks
+
     logger.info("[%s] Step1-检索结束: chunks=%d", item_id, len(chunks))
 
     # Step 2：推理
