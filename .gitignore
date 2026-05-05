@@ -34,11 +34,11 @@ src/.env.aigw
 src/.env.local
 src/backend/**/.env.local
 backend/**/.env.local
-# 但保留 .env.example / .env.aigw.example（团队共享模板）
+# 但保留 .env.ignore.example / .env.ignore.aigw.example（团队共享模板）
 !.env.example
 !**/.env.example
 !**/.env.aigw.example
-# 注：src/.env 是团队共享的非敏感配置（已在 git tracked），不 ignore
+# 注：src/.env.ignore 是团队共享的非敏感配置（已在 git tracked），不 ignore
 
 # 新结构：DB 和 raw 文件（迁到 src/）
 src/backend/storage/raw/*

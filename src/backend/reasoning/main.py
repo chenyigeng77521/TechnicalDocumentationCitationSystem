@@ -144,7 +144,7 @@ def retrieve_chunks(query: str) -> list[RetrievedChunk]:
 
         chunk = RetrievedChunk(
             chunk_id=meta.get("chunk_id", ""),
-            content=doc.page_content if hasattr(doc, "page_content") else "",
+            content=doc.metadata.get("content") or (doc.page_content if hasattr(doc, "page_content") else ""),
             doc_path=doc_path,
             anchor=anchor,
             score=score,
