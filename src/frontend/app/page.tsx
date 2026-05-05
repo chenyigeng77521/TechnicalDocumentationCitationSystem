@@ -43,9 +43,11 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string>('');
   const [showLogPanel, setShowLogPanel] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
+  const [logPaused, setLogPaused] = useState(false);
   const [logStream, setLogStream] = useState<EventSource | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const logTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const logPausedRef = useRef(false);
   // 批量测试相关状态
   const [isBatchUploading, setIsBatchUploading] = useState(false);
   const [batchUploadProgress, setBatchUploadProgress] = useState(0);
@@ -483,6 +485,7 @@ export default function Home() {
 
       // 每 2 秒轮询
       logTimerRef.current = setInterval(() => {
+        if (logPausedRef.current) return; // 暂停时不刷新
         fetch(url).then(r => r.json()).then(data => {
           if (data.success && Array.isArray(data.lines)) {
             setLogLines(data.lines);
@@ -1542,7 +1545,7 @@ export default function Home() {
         overflow: 'hidden',
       }} className="sidebar-mobile-left">
         <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text)', padding: '8px 50px', background: 'var(--surface)', borderBottom: '3px solid var(--border)', width: '100%', flexShrink: 0, borderRadius: 'var(--radius) var(--radius) 0 0' }}>
-          📋 后台日志
+          📋 后台日志{logPaused ? ' ⏸' : ''}
           <button onClick={handleLogToggle} style={{ float: 'right', border: 'none', background: 'transparent', color: 'var(--text-sub)', cursor: 'pointer', fontSize: '12px' }}>✕</button>
         </div>
         <div ref={logContainerRef} style={{
@@ -1556,7 +1559,11 @@ export default function Home() {
           lineHeight: '1.5',
           width: '100%',
           background: 'var(--surface)',
-        }}>
+        }}
+          onMouseEnter={() => { setLogPaused(true); logPausedRef.current = true; }}
+          onMouseLeave={() => { setLogPaused(false); logPausedRef.current = false; }}
+          onWheel={() => { setLogPaused(true); logPausedRef.current = true; }}
+        >
           {logLines.length === 0 ? (
             <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: '11px', color: 'var(--text-light)' }}>
               暂无日志
