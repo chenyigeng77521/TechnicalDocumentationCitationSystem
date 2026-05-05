@@ -180,7 +180,7 @@ def process_single(item_id: str, query: str) -> tuple[QAResponse, ReasoningResul
         logger.error("[retrieve] 检索异常 [%s]: %s", item_id, e, exc_info=True)
         chunks = []
         result = ReasoningResult(
-            answer=REFUSAL_TEXT  + str(e),
+            answer=REFUSAL_TEXT + "，" + str(e),
             citations=[],
             is_refusal=True,
             confidence=0.0,

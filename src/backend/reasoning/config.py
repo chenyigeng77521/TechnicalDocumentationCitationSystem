@@ -12,9 +12,6 @@ load_dotenv()
 # Reranker 最高分低于此值 → 直接拒答，不进 LLM
 SCORE_THRESHOLD: float = 0.4
 
-# 语义相似度验证阈值：answer 与 cited chunk 余弦相似度必须超过此值
-SIMILARITY_THRESHOLD: float = 0.75
-
 # 上下文最大 token 数（粗估：1 token ≈ 1.5 字符）
 MAX_CONTEXT_TOKENS: int = 16000
 MAX_CONTEXT_CHARS: int = int(MAX_CONTEXT_TOKENS * 1.5)  # 9000 字符
@@ -44,6 +41,26 @@ BATCH_OUTPUT_DIR: str = os.getenv("BATCH_OUTPUT_DIR", _BATCH_DEFAULT_DIR)
 # ==================== 拒答固定文本 ====================
 # 赛题要求统一格式，不得随意更改
 REFUSAL_TEXT: str = "抱歉，我无法从提供的文档中找到答案。"
+
+# ==================== 拒答原因生成 Prompt ====================
+# 用于 is_answerable 判定不可回答时，调用 LLM 生成自然语言拒答解释
+# 约束：严禁使用外部知识，只能基于 chunks 和 question 本身推断原因
+REFUSE_REASON_PROMPT: str = """你是一个严格的技术文档问答助手，仅能使用下方提供的 Context 作答。
+
+任务：解释为什么无法从 Context 中回答该问题。
+
+规则：
+1. 严禁使用任何外部知识，只能基于 Context 内容与问题本身进行分析。
+2. 直接说明原因，禁止使用"根据文档"、"根据上下文"等冗余引言。
+3. 输出一句简洁中文，80字以内，不加标点外的任何格式符号。
+4. 只输出原因本身，不要有任何前缀或后缀。
+
+Context（检索到的相关片段）：
+{context_snippets}
+
+问题：{question}
+
+拒答原因："""
 
 # ==================== Prompt 模板 ====================
 # 注意：所有逻辑控制在代码中完成，prompt 只传递规则

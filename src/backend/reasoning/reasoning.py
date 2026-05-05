@@ -20,9 +20,9 @@ from config import (
     LLM_TIMEOUT,
     MAX_CONTEXT_CHARS,
     PROMPT_TEMPLATE,
+    REFUSE_REASON_PROMPT,
     REFUSAL_TEXT,
     SCORE_THRESHOLD,
-    SIMILARITY_THRESHOLD,
 )
 from interfaces import Citation, GoldSource, ReasoningResult, RetrievedChunk
 
@@ -70,6 +70,40 @@ def is_answerable(chunks: list[RetrievedChunk]) -> tuple[bool, str, float]:
         return False, "score_below_threshold", max_score
 
     return True, "", max_score
+
+
+# ==================== Step 1.5：拒答原因生成 ====================
+
+def generate_refuse_reason(question: str, chunks: list[RetrievedChunk]) -> str:
+    """
+    当 is_answerable 判定不可回答时，调用 LLM 生成自然语言拒答原因。
+
+    - 仅截取每个 chunk 前 150 字符作为 context 摘要，控制 token 消耗
+    - LLM 失败时静默降级，返回空字符串（调用方使用机器码兜底）
+    - 严禁使用外部知识，prompt 中已作强约束
+
+    Returns:
+        自然语言拒答原因字符串，失败时返回空字符串
+    """
+    # 构造 context 摘要：每个 chunk 取前 150 字符，避免超 token
+    snippets: list[str] = []
+    for i, chunk in enumerate(chunks[:5], start=1):  # 最多取前 5 个 chunk
+        preview = chunk.content[:150].replace("\n", " ").strip()
+        snippets.append(f"[{i}] {preview}")
+    context_snippets = "\n".join(snippets) if snippets else "（无相关片段）"
+
+    prompt = REFUSE_REASON_PROMPT.format(
+        context_snippets=context_snippets,
+        question=question,
+    )
+
+    try:
+        raw = call_llm(prompt)
+        reason = raw.strip().splitlines()[0].strip()  # 只取第一行，防止多行输出
+        return reason if reason else ""
+    except Exception as e:
+        logger.warning("generate_refuse_reason 调用失败，降级为空: %s", e)
+        return ""
 
 
 # ==================== Step 2：Context 构建 ====================
@@ -226,11 +260,14 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     # ---------- Step 1：可回答性判定 ----------
     answerable, refuse_reason, max_score = is_answerable(chunks)
     if not answerable:
-        logger.info("拒答（%s），max_score=%.3f", refuse_reason, max_score)
+        # 调用 LLM 生成自然语言拒答原因，失败时降级为机器码
+        llm_refuse_reason = generate_refuse_reason(query, chunks)
+        final_refuse_reason = llm_refuse_reason or refuse_reason
+        logger.info("拒答（%s），max_score=%.3f，原因：%s", refuse_reason, max_score, final_refuse_reason)
         return ReasoningResult(
-            answer=REFUSAL_TEXT + " 分数小于" + SCORE_THRESHOLD +"检查不通过",
+            answer=REFUSAL_TEXT + "，" + final_refuse_reason,
             is_refusal=True,
-            refuse_reason=refuse_reason,
+            refuse_reason=final_refuse_reason,
             max_score=max_score,
             confidence=0.0,
         )
@@ -249,7 +286,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     except RuntimeError as e:
         logger.error("LLM 调用最终失败: %s", e)
         return ReasoningResult(
-            answer=REFUSAL_TEXT,
+            answer=REFUSAL_TEXT + "，" + "llm_error",
             is_refusal=True,
             refuse_reason="llm_error",
             max_score=max_score,
@@ -268,7 +305,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
             unanswerable_reason = parsed.get("unanswerable_reason") or None
         logger.info("LLM 主动拒答，trap_type=%s", trap_type)
         return ReasoningResult(
-            answer=REFUSAL_TEXT + unanswerable_reason,
+            answer=REFUSAL_TEXT + "，" + (unanswerable_reason or "llm_refuse"),
             is_refusal=True,
             refuse_reason="llm_refuse",
             max_score=max_score,
@@ -281,7 +318,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
         # JSON 解析失败 → 拒答
         logger.warning("JSON 解析失败 → 拒答")
         return ReasoningResult(
-            answer=REFUSAL_TEXT,
+            answer=REFUSAL_TEXT + "，" + "json_parse_error",
             is_refusal=True,
             refuse_reason="json_parse_error",
             max_score=max_score,
@@ -299,7 +336,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
 
     if not answer_text:
         return ReasoningResult(
-            answer=REFUSAL_TEXT,
+            answer=REFUSAL_TEXT + "，" + "empty_answer",
             is_refusal=True,
             refuse_reason="empty_answer",
             max_score=max_score,
@@ -313,7 +350,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     if citation_ids and not valid_citation_ids:
         logger.warning("引用全部非法 → 拒答")
         return ReasoningResult(
-            answer=REFUSAL_TEXT,
+            answer=REFUSAL_TEXT + "，" + "invalid_citation",
             is_refusal=True,
             refuse_reason="invalid_citation",
             max_score=max_score,

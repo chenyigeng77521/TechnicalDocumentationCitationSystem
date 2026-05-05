@@ -112,7 +112,7 @@ curl http://localhost:8001/health
 
 ## 核心 Pipeline
 
-`reasoning.py` 中的 `run_reasoning()` 函数实现完整的 4 步推理链：
+`reasoning.py` 中的 `run_reasoning()` 函数实现完整的 5 步推理链：
 
 ### Step 1 — 可回答性判定
 
@@ -122,7 +122,17 @@ curl http://localhost:8001/health
 | 最高分 < 0.4 | 拒答，`refuse_reason = "score_below_threshold"` |
 | 无 chunk 分数 > 0.5 | 拒答，`refuse_reason = "score_below_threshold"` |
 
-> **核心原则**：在进入 LLM 之前完成可回答性判定，低质检索直接拒答，不浪费 LLM 调用。
+> **核心原则**：在进入 LLM 之前完成可回答性判定，低质检索直接拒答，不浪费 LLM 调用。  
+> `is_answerable()` 为纯规则函数，无 IO，耗时 < 1ms，不调用 LLM。
+
+### Step 1.5 — 拒答原因生成
+
+当 Step 1 判定不可回答时，调用 `generate_refuse_reason(question, chunks)` 生成自然语言拒答原因：
+
+- 取前 **5 个 chunk**，每个截取前 **150 字符**作为 Context 摘要，控制 token 消耗
+- 使用 `REFUSE_REASON_PROMPT` 约束 LLM：**严禁使用外部知识**，输出简洁中文原因（≤ 20 字）
+- LLM 调用失败时**静默降级**，返回空字符串，调用方使用机器码（`score_below_threshold` 等）兜底
+- 生成结果填入 `ReasoningResult.refuse_reason`，`answer` 字段统一为 `REFUSAL_TEXT`
 
 ### Step 2 — Context 构建
 
@@ -248,8 +258,7 @@ curl http://localhost:8001/health
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | `SCORE_THRESHOLD` | `0.4` | Reranker 最高分低于此值直接拒答 |
-| `SIMILARITY_THRESHOLD` | `0.75` | 语义验证相似度阈值（当前未启用）|
-| `MAX_CONTEXT_TOKENS` | `6000` | 上下文最大 token 数（约 9000 字符）|
+| `MAX_CONTEXT_TOKENS` | `16000` | 上下文最大 token 数（约 9000 字符）|
 | `LLM_API_KEY` | `.env` 读取 | LLM API 密钥（必填）|
 | `LLM_API_BASE` | `https://aigw.asiainfo.com/v1` | 支持任何 OpenAI 兼容接口 |
 | `LLM_MODEL` | `aliyun/deepseek-v3.2` | 模型名称 |
@@ -258,6 +267,7 @@ curl http://localhost:8001/health
 | `BATCH_MAX_WORKERS` | `8` | 批量处理线程池上限 |
 | `BATCH_OUTPUT_DIR` | `<项目根目录>/eval` | 批量结果落盘目录 |
 | `REFUSAL_TEXT` | `"抱歉，我无法从提供的文档中找到答案。"` | 拒答固定文本（对齐赛题格式）|
+| `REFUSE_REASON_PROMPT` | 见 `config.py` | 拒答原因生成 Prompt，约束 LLM 仅基于 Context 推断原因 |
 
 ---
 
@@ -267,13 +277,15 @@ curl http://localhost:8001/health
 
 | 场景 | `refuse_reason` | 处理方式 |
 |------|----------------|---------|
-| 检索结果为空 | `empty_retrieval` | 直接拒答，不进 LLM |
-| 检索分数过低 | `score_below_threshold` | 直接拒答，不进 LLM |
+| 检索结果为空 | LLM 生成原因或 `empty_retrieval` | 直接拒答，不进 LLM（Step 1.5 生成原因）|
+| 检索分数过低 | LLM 生成原因或 `score_below_threshold` | 直接拒答，不进 LLM（Step 1.5 生成原因）|
 | LLM 调用失败 | `llm_error` | retry 1 次，仍失败则拒答 |
 | LLM 主动拒答 | `llm_refuse` | 透传拒答 |
 | JSON 解析失败 | `json_parse_error` | 拒答，不输出不可信内容 |
 | answer 为空字符串 | `empty_answer` | 拒答 |
 | 引用 ID 全部非法 | `invalid_citation` | 拒答，禁止伪造引用 |
+
+> **拒答原因说明**：`refuse_reason` 字段在 Step 1 拒答场景下优先返回 LLM 生成的自然语言解释（如"文档中未涉及该接口的参数说明"），LLM 调用失败时降级为机器码字符串。`answer` 字段统一固定为 `REFUSAL_TEXT`。
 
 ---
 
