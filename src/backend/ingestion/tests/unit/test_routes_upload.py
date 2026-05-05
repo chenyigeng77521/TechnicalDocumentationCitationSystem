@@ -204,8 +204,8 @@ def test_upload_with_index(client, tmp_path, monkeypatch):
     assert "indexed" in data
     assert len(data["indexed"]) == 1
     assert data["indexed"][0]["chunks"] == 7
-    # 上传文件落 storage/docs/<basename>，pipeline 入参带 docs/ 前缀
-    assert "docs/test.docx" in fake_calls
+    # 上传文件落 data/documents/<basename>，pipeline 入参带 documents/ 前缀
+    assert "documents/test.docx" in fake_calls
 
 
 def test_index_fail_upload_succeeds(client, tmp_path, monkeypatch):

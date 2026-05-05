@@ -49,12 +49,12 @@ async def e2e_client(tmp_path, monkeypatch, fixtures_dir):
 async def test_full_flow_add_then_search(e2e_client):
     resp = await e2e_client.post("/index?add=docs/test/sample.md")
     assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["status"] == "indexed"
-    assert body["chunk_count"] >= 1
+    item = resp.json()["results"][0]
+    assert item["status"] == "indexed"
+    assert item["chunk_count"] >= 1
 
     resp = await e2e_client.get("/stats")
-    assert resp.json()["chunks"] == body["chunk_count"]
+    assert resp.json()["chunks"] == item["chunk_count"]
 
     resp = await e2e_client.post(
         "/chunks/text-search",
@@ -70,7 +70,7 @@ async def test_full_flow_add_then_search(e2e_client):
 async def test_unchanged_skips(e2e_client):
     await e2e_client.post("/index?add=docs/test/sample.md")
     resp = await e2e_client.post("/index?modify=docs/test/sample.md")
-    assert resp.json()["status"] == "unchanged"
+    assert resp.json()["results"][0]["status"] == "unchanged"
 
 
 @pytest.mark.asyncio
@@ -78,5 +78,6 @@ async def test_delete_removes_chunks(e2e_client):
     await e2e_client.post("/index?add=docs/test/sample.md")
     resp = await e2e_client.post("/index?delete=docs/test/sample.md")
     assert resp.status_code == 200
+    assert resp.json()["results"][0]["status"] == "deleted"
     stats = (await e2e_client.get("/stats")).json()
     assert stats["chunks"] == 0
