@@ -319,9 +319,9 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
       }).filter((s: string) => s);
     }
 
-    // 如果拒绝回答或失败，返回预设消息
-    if (result.is_refusal || !answer) {
-      answer = '抱歉，我无法从提供的文档中找到答案。';
+    // 如果拒绝回答，在来源位置显示"拒绝回答"，但 answer 保持原值
+    if (result.is_refusal) {
+      sources = ['拒绝回答'];
     }
 
     // 发送完整答案事件（包含 sources）
