@@ -39,7 +39,8 @@ from interfaces import ReasoningResult  # 新增，用于 process_single 返回�
 # ==================== 日志 ====================
 logging.basicConfig(
     level=logging.INFO,
-    format="✅ [%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s ✅ [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("layer3.main")
 
@@ -179,7 +180,7 @@ def process_single(item_id: str, query: str) -> tuple[QAResponse, ReasoningResul
         logger.error("[retrieve] 检索异常 [%s]: %s", item_id, e, exc_info=True)
         chunks = []
         result = ReasoningResult(
-            answer=str(e),
+            answer="抱歉,我无法从提供的文档中找到答案: " + str(e),
             citations=[],
             is_refusal=True,
             confidence=0.0,

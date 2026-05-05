@@ -1,11 +1,14 @@
+import logging
 import os
 from typing import List
+
 import numpy as np
 import requests
 from dotenv import load_dotenv
-
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
+
+logger = logging.getLogger(__name__)
 
 # ==================== 配置 ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -100,7 +103,7 @@ class APIEmbeddingModel:
         self.api_key = api_key
         self.model = model
         self.session = requests.Session()
-        print(f"正在初始化 API Embedding 模型: {api_url} (model={model})")
+        logger.info("正在初始化 API Embedding 模型: %s (model=%s)", api_url, model)
 
     def _call_api(self, texts: List[str]) -> List[List[float]]:
         """调用外部 Embedding API"""
@@ -141,7 +144,7 @@ class APIEmbeddingModel:
         # 校验维度
         for idx, emb in enumerate(embeddings):
             if len(emb) != EMBEDDING_DIMENSION_RETRIEVAL:
-                print(f"警告: Embedding 维度异常: {len(emb)}, 期望 {EMBEDDING_DIMENSION_RETRIEVAL} (index={idx})")
+                logger.warning("Embedding 维度异常: %d, 期望 %d (index=%d)", len(emb), EMBEDDING_DIMENSION_RETRIEVAL, idx)
 
         return embeddings
 
@@ -226,7 +229,7 @@ class VectorAPIClient:
 
         # 校验维度（默认 1024，可通过 EMBEDDING_DIMENSION 环境变量调整）
         if len(embedding) != EMBEDDING_DIMENSION_RETRIEVAL:
-            print(f"Embedding 维度异常: {len(embedding)}, 期望 {EMBEDDING_DIMENSION_RETRIEVAL}")
+            logger.warning("Embedding 维度异常: %d, 期望 %d", len(embedding), EMBEDDING_DIMENSION_RETRIEVAL)
             return []
 
         # 2. 调用向量库 API
@@ -265,7 +268,7 @@ class VectorAPIClient:
             return documents
 
         except requests.exceptions.RequestException as e:
-            print(f"API 调用失败: {e}")
+            logger.error("API 调用失败: %s", e)
             return []
 
     def search_with_score(self, query: str, top_k: int = 20, filters: dict = None):
@@ -312,7 +315,7 @@ class VectorAPIClient:
             return documents
 
         except requests.exceptions.RequestException as e:
-            print(f"BM25 API 调用失败: {e}")
+            logger.error("BM25 API 调用失败: %s", e)
             return []
 
     def health_check(self) -> bool:
@@ -340,7 +343,7 @@ def get_api_client():
     if not _api_client_checked:
         _api_client_checked = True
         if not _api_client.health_check():
-            print(f"⚠️ 警告: 向量库 API 服务不可用: {VECTOR_API_URL}")
+            logger.warning("向量库 API 服务不可用: %s", VECTOR_API_URL)
     return _api_client
 
 
@@ -465,10 +468,10 @@ def _expand_rerank_context(docs: List[Document], window: int = RERANK_CONTEXT_WI
 # ==================== Reranker（本地 CrossEncoder）====================
 class Reranker:
     def __init__(self, model_name=RERANKER_MODEL, top_n=RERANK_TOP_N):
-        print(f"正在加载重排序模型: {model_name}...")
+        logger.info("正在加载重排序模型: %s...", model_name)
         self.model = CrossEncoder(model_name, tokenizer_kwargs={'truncation': True, 'padding': True})
         self.top_n = top_n
-        print("重排序模型加载完成")
+        logger.info("重排序模型加载完成")
 
     def rerank(self, query: str, docs: List[Document]):
         if not docs:
@@ -477,7 +480,7 @@ class Reranker:
         # 上下文扩展：用相邻 chunk 补全后打分
         expanded_texts = _expand_rerank_context(docs)
         if RERANK_CONTEXT_WINDOW > 0:
-            print(f"重排序上下文扩展: window={RERANK_CONTEXT_WINDOW}")
+            logger.info("重排序上下文扩展: window=%d", RERANK_CONTEXT_WINDOW)
 
         pairs = [[query, text] for text in expanded_texts]
         scores = self.model.predict(pairs,batch_size=8)
@@ -501,7 +504,7 @@ class APIReranker:
         self.model = model
         self.top_n = top_n
         self.session = requests.Session()
-        print(f"正在初始化 API 重排序器: {api_url} (model={model})")
+        logger.info("正在初始化 API 重排序器: %s (model=%s)", api_url, model)
 
     def rerank(self, query: str, docs: List[Document]):
         if not docs:
@@ -510,7 +513,7 @@ class APIReranker:
         # 上下文扩展：用相邻 chunk 补全后打分
         expanded_texts = _expand_rerank_context(docs)
         if RERANK_CONTEXT_WINDOW > 0:
-            print(f"重排序上下文扩展: window={RERANK_CONTEXT_WINDOW}")
+            logger.info("重排序上下文扩展: window=%d", RERANK_CONTEXT_WINDOW)
 
         payload = {
             "model": self.model,
@@ -537,21 +540,21 @@ class APIReranker:
             result = response.json()
         except requests.exceptions.HTTPError as e:
             err_msg = f"API 重排序失败({e.response.status_code}): {e}"
-            print(err_msg)
+            logger.error(err_msg)
             raise RuntimeError(f"API 重排序失败: {e}")
         except requests.exceptions.RequestException as e:
             err_msg = f"API 重排序网络异常: {e}"
-            print(err_msg)
+            logger.error(err_msg)
             raise RuntimeError(f"API 重排序失败: {e}")
         except Exception as e:
             err_msg = f"API 重排序解析异常: {e}"
-            print(err_msg)
+            logger.error(err_msg)
             raise RuntimeError(f"API 重排序失败: {e}")
 
         # 解析返回结果：标准 rerank API 返回 { "results": [{"index": 0, "relevance_score": 0.9, "text": "..."}, ...] }
         results = result.get("results", [])
         if not results:
-            print("API 重排序返回空结果，返回原始排序")
+            logger.warning("API 重排序返回空结果，返回原始排序")
             return docs[:self.top_n]
 
         # 按 relevance_score 降序排序
@@ -566,7 +569,7 @@ class APIReranker:
             docs[idx].metadata["reranker_score"] = float(score)
             reranked_docs.append(docs[idx])
 
-        print(f"API 重排序完成: {len(reranked_docs)} 篇文档")
+        logger.info("API 重排序完成: %d 篇文档", len(reranked_docs))
         return reranked_docs
 
 
@@ -635,7 +638,7 @@ def expand_query(query: str, num_variants: int = QUERY_EXPANSION_NUM) -> List[st
         return variants[:num_variants + 1]
 
     except Exception as e:
-        print(f"查询扩展失败，使用原查询: {e}")
+        logger.warning("查询扩展失败，使用原查询: %s", e)
         return [query]
 
 
@@ -652,7 +655,7 @@ def pipeline(query: str, top_k: int = 10, use_bm25: bool = True,
         use_rerank: 是否启用 CrossEncoder 重排序
         use_query_expansion: 是否启用查询扩展（会调用 retrieval 生成查询变体）
     """
-    print("原始查询:", query)
+    logger.info("原始查询: %s", query)
 
     client = get_api_client()
 
@@ -660,7 +663,7 @@ def pipeline(query: str, top_k: int = 10, use_bm25: bool = True,
     should_expand = use_query_expansion or QUERY_EXPANSION_ENABLED
     queries = expand_query(query) if should_expand else [query]
     if len(queries) > 1:
-        print(f"查询扩展: {len(queries)} 个变体 -> {queries}")
+        logger.info("查询扩展: %d 个变体 -> %s", len(queries), queries)
 
     all_vec_docs: List[Document] = []
     all_bm25_docs: List[Document] = []
@@ -674,13 +677,13 @@ def pipeline(query: str, top_k: int = 10, use_bm25: bool = True,
             bm25_docs = client.text_search(q, top_k=top_k)
             all_bm25_docs.extend(bm25_docs)
 
-    print(f"向量召回（含扩展）: {len(all_vec_docs)}")
+    logger.info("向量召回（含扩展）: %d", len(all_vec_docs))
 
     # 合并去重（查询扩展时即使只有向量检索也需要去重）
     docs = _merge_results(all_vec_docs, all_bm25_docs if use_bm25 else [])
     if use_bm25:
-        print(f"BM25 召回（含扩展）: {len(all_bm25_docs)}")
-    print(f"合并去重后: {len(docs)}")
+        logger.info("BM25 召回（含扩展）: %d", len(all_bm25_docs))
+    logger.info("合并去重后: %d", len(docs))
 
     if not docs:
         return []
@@ -700,11 +703,11 @@ def pipeline(query: str, top_k: int = 10, use_bm25: bool = True,
 # ==================== 初始化函数 ====================
 def init_retrieval_system():
     """初始化检索系统，返回可复用的组件"""
-    print("正在初始化检索系统...")
+    logger.info("正在初始化检索系统...")
 
     vectorstore = load_vectorstore()
 
-    print("检索系统初始化完成")
+    logger.info("检索系统初始化完成")
     return {
         'vectorstore': vectorstore,
         'client': get_api_client(),
