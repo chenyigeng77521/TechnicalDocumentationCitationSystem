@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import BATCH_MAX_WORKERS, BATCH_OUTPUT_DIR
+from config import BATCH_MAX_WORKERS, BATCH_OUTPUT_DIR, REFUSAL_TEXT
 from interfaces import (
     BatchItem,
     BatchOutputRecord,
@@ -180,7 +180,7 @@ def process_single(item_id: str, query: str) -> tuple[QAResponse, ReasoningResul
         logger.error("[retrieve] 检索异常 [%s]: %s", item_id, e, exc_info=True)
         chunks = []
         result = ReasoningResult(
-            answer="抱歉,我无法从提供的文档中找到答案: " + str(e),
+            answer=REFUSAL_TEXT + " , " + str(e),
             citations=[],
             is_refusal=True,
             confidence=0.0,
