@@ -2,7 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
+import { EditorView } from '@codemirror/view';
 import { loadLanguage } from './lib/langLoader';
+
+const purpleTheme = EditorView.theme({
+  '&.cm-focused .cm-selectionLayer .cm-selectionBackground': {
+    backgroundColor: '#7c3aed !important',
+  },
+  '& .cm-selectionLayer .cm-selectionBackground': {
+    backgroundColor: '#7c3aed33 !important',
+  },
+});
 
 interface FileEditModalProps {
   open: boolean;
@@ -257,6 +267,7 @@ export default function FileEditModal({ open, filePath, fileName, searchAnchor, 
               height="100%"
               theme="light"
               editable={!isReadOnly}
+              extensions={[purpleTheme]}
               onCreateEditor={(view) => { editorViewRef.current = view; }}
               basicSetup={{
                 lineNumbers: true,
