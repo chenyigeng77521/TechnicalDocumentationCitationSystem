@@ -2,7 +2,6 @@ import os
 from typing import List
 import numpy as np
 import requests
-from cffi.backend_ctypes import long
 from dotenv import load_dotenv
 
 from langchain_core.documents import Document
