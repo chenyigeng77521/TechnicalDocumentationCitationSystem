@@ -8,12 +8,13 @@ interface FileEditModalProps {
   open: boolean;
   filePath: string;
   fileName: string;
+  searchAnchor?: string;
   onClose: () => void;
   onSaveSuccess?: () => void;
   buildApiUrl: (path: string) => string;
 }
 
-export default function FileEditModal({ open, filePath, fileName, onClose, onSaveSuccess, buildApiUrl }: FileEditModalProps) {
+export default function FileEditModal({ open, filePath, fileName, searchAnchor, onClose, onSaveSuccess, buildApiUrl }: FileEditModalProps) {
   const [content, setContent] = useState('');
   const originalRef = useRef('');
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,51 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const hasChanges = content !== originalRef.current;
+  const editorViewRef = useRef<any>(null);
+  const [anchorSearched, setAnchorSearched] = useState(false);
+  const isReadOnly = !!searchAnchor;
+
+  // 搜索锚点并滚动到匹配行（居中 + 高亮）
+  const scrollToAnchor = useCallback((text: string, anchor: string) => {
+    if (!anchor || !editorViewRef.current) return;
+    const searchText = anchor.replace(/^#/, '').trim();
+    if (!searchText) return;
+    const lines = text.split('\n');
+    const lineIdx = lines.findIndex(line => line.includes(searchText));
+    if (lineIdx >= 0) {
+      const view = editorViewRef.current;
+      const pos = view.state.doc.line(lineIdx + 1);
+      // 选中并滚动到视图
+      view.dispatch({
+        selection: { anchor: pos.from, head: pos.to },
+        scrollIntoView: true,
+      });
+      // 延迟微调：把匹配行滚动到中间位置
+      setTimeout(() => {
+        try {
+          const lineBlock = view.lineBlockAt(pos.from);
+          const container = view.scrollDOM;
+          if (lineBlock && container) {
+            const targetTop = lineBlock.top - container.clientHeight / 2 + lineBlock.height;
+            container.scrollTop = targetTop;
+          }
+        } catch {}
+      }, 100);
+    }
+  }, []);
+
+  // 文件加载完成后搜索锚点
+  useEffect(() => {
+    if (!loading && content && searchAnchor && !anchorSearched) {
+      setAnchorSearched(true);
+      setTimeout(() => scrollToAnchor(content, searchAnchor), 300);
+    }
+  }, [loading, content, searchAnchor, anchorSearched, scrollToAnchor]);
+
+  // 重置锚点搜索状态
+  useEffect(() => {
+    setAnchorSearched(false);
+  }, [open, filePath]);
 
   // 读取文件（二进制文件不读取）
   useEffect(() => {
@@ -162,7 +208,7 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
           <div style={styles.actions}>
             {error && <span style={{ color: 'var(--text-sub, #6b7280)', fontSize: '12px', background: '#fff0f0', padding: '2px 8px', borderRadius: '4px' }}>{error}</span>}
             {successMsg && <span style={{ color: 'var(--text-sub, #6b7280)', fontSize: '12px', background: '#f0fff0', padding: '2px 8px', borderRadius: '4px' }}>{successMsg}</span>}
-            {!isBinaryFile && (
+            {!isBinaryFile && !isReadOnly && (
               <button
                 onClick={handleSave}
                 disabled={saving || loading || !hasChanges}
@@ -206,10 +252,12 @@ export default function FileEditModal({ open, filePath, fileName, onClose, onSav
           ) : (
             <CodeMirror
               value={content}
-              onChange={setContent}
+              onChange={isReadOnly ? undefined : setContent}
               lang={lang}
               height="100%"
               theme="light"
+              editable={!isReadOnly}
+              onCreateEditor={(view) => { editorViewRef.current = view; }}
               basicSetup={{
                 lineNumbers: true,
                 foldGutter: true,

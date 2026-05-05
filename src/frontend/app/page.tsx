@@ -56,7 +56,7 @@ export default function Home() {
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const [resultPage, setResultPage] = useState(1);
   const [resultTotalPages, setResultTotalPages] = useState(1);
-  const [editFile, setEditFile] = useState<{ path: string; name: string } | null>(null);
+  const [editFile, setEditFile] = useState<{ path: string; name: string; searchAnchor?: string } | null>(null);
   const batchFileInputRef = useRef<HTMLInputElement>(null);
   const resultFileInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -534,6 +534,12 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
+  // 打开文件并定位到锚点
+  const openFileWithAnchor = async (filePath: string, anchor: string) => {
+    const fileName = filePath.split('/').pop() || filePath;
+    setEditFile({ path: filePath, name: fileName, searchAnchor: anchor });
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -936,10 +942,17 @@ export default function Home() {
                         const parts = source.split('#');
                         const docPath = parts[0];
                         const anchor = parts.slice(1).join('#');
+                        if (anchor) {
+                          return (
+                            <span key={idx} style={styles.sourceTag}>
+                              📄 {docPath}
+                              <span onClick={() => openFileWithAnchor(docPath, anchor)} style={{ color: 'var(--primary)', textDecoration: 'underline', marginLeft: 6, cursor: 'pointer', fontWeight: 600 }}>📌 定位来源</span>
+                            </span>
+                          );
+                        }
                         return (
                           <span key={idx} style={styles.sourceTag}>
                             📄 {docPath}
-                            {anchor && <a href={anchor} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline', marginLeft: 4 }}>🔗 定位</a>}
                           </span>
                         );
                       })}
@@ -1125,15 +1138,19 @@ export default function Home() {
               <div className="mobile-panel-title">📚 引用来源 ({lastMsg.sources.length} 个)</div>
               {lastMsg.sources.slice(0, 5).map((source, idx) => {
                 const parts = source.split('#');
-                const docPath = parts[0];
-                const anchor = parts.slice(1).join('#');
+                const p = parts[0];
+                const a = parts.slice(1).join('#');
                 return (
-                  <div key={idx} className="mobile-panel-item">
-                    <span className="mobile-panel-icon">📄</span>
+                  <div key={idx} className="mobile-panel-item" style={{ cursor: 'pointer', color: 'var(--primary)' }}
+                    onClick={() => {
+                      const fn = p.split('/').pop() || p;
+                      setEditFile({ path: p, name: fn, searchAnchor: a });
+                    }}
+                  >
+                    <span className="mobile-panel-icon">🔗</span>
                     <span className="mobile-panel-text" title={source}>
-                      {docPath.length > 15 ? docPath.substring(0, 15) + '...' : docPath}
+                      {a || p}
                     </span>
-                    {anchor && <a href={anchor} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: 9, marginLeft: 2, flexShrink: 0 }}>🔗</a>}
                   </div>
                 );
               })}
@@ -1522,13 +1539,17 @@ export default function Home() {
             {messages.length > 0 && messages[messages.length - 1].sources ? (
               messages[messages.length - 1].sources?.map((source, idx) => {
                 const parts = source.split('#');
-                const docPath = parts[0];
-                const anchor = parts.slice(1).join('#');
+                const p = parts[0];
+                const a = parts.slice(1).join('#');
                 return (
-                  <div key={idx} style={styles.sourcePanelItem}>
-                    <span style={styles.sourcePanelIcon}>📄</span>
-                    <span style={styles.sourcePanelText}>{docPath}</span>
-                    {anchor && <a href={anchor} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline', fontSize: 11, marginLeft: 4, flexShrink: 0 }}>🔗 {anchor}</a>}
+                  <div key={idx} style={{...styles.sourcePanelItem, cursor: 'pointer', color: 'var(--primary)'}}
+                    onClick={() => {
+                      const fn = p.split('/').pop() || p;
+                      setEditFile({ path: p, name: fn, searchAnchor: a });
+                    }}
+                  >
+                    <span style={styles.sourcePanelIcon}>🔗</span>
+                    <span style={styles.sourcePanelText}>{a || p}</span>
                   </div>
                 );
               })
@@ -1594,6 +1615,7 @@ export default function Home() {
         open={!!editFile}
         filePath={editFile?.path || ''}
         fileName={editFile?.name || ''}
+        searchAnchor={editFile?.searchAnchor || ''}
         buildApiUrl={buildApiUrl}
         onClose={() => setEditFile(null)}
         onSaveSuccess={() => { loadRawFiles(rawPage); }}
