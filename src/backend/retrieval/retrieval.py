@@ -7,6 +7,7 @@ import requests
 from dotenv import load_dotenv
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
+import translators as ts
 
 logger = logging.getLogger(__name__)
 
@@ -664,7 +665,10 @@ def pipeline(query: str, top_k: int = 10, use_bm25: bool = True,
     queries = expand_query(query) if should_expand else [query]
     if len(queries) > 1:
         logger.info("查询扩展: %d 个变体 -> %s", len(queries), queries)
-
+    #增加英文处理
+    english_text = ts.translate_text(query, translator='bing', from_language='zh',
+                                        to_language='en')
+    queries.append(english_text)
     all_vec_docs: List[Document] = []
     all_bm25_docs: List[Document] = []
 
