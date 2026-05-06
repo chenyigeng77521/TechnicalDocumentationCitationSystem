@@ -665,10 +665,15 @@ def pipeline(query: str, top_k: int = 10, use_bm25: bool = True,
     queries = expand_query(query) if should_expand else [query]
     if len(queries) > 1:
         logger.info("查询扩展: %d 个变体 -> %s", len(queries), queries)
-    #增加英文处理
-    english_text = ts.translate_text(query, translator='bing', from_language='zh',
-                                        to_language='en')
-    queries.append(english_text)
+    #增加英文处理（异常时静默忽略，不影响主流程）
+    try:
+        english_text = ts.translate_text(query, translator='bing', from_language='zh',
+                                            to_language='en')
+        queries.append(english_text)
+        logger.info("查询扩展: 添加英文变体 -> %s", english_text)
+    except Exception:
+        logger.warning("英文翻译失败，跳过英文查询扩展", exc_info=True)
+
     all_vec_docs: List[Document] = []
     all_bm25_docs: List[Document] = []
 

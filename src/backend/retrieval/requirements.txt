@@ -6,3 +6,4 @@ langchain-huggingface==1.2.2
 langchain-community==0.4.1
 sentence-transformers==2.2.2
 openai==2.9.0
+translators==6.0.4
