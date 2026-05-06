@@ -303,7 +303,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
         if parsed:
             trap_type = parsed.get("trap_type") or None
             unanswerable_reason = parsed.get("unanswerable_reason") or None
-        logger.info("LLM 主动拒答，trap_type=%s", trap_type)
+        logger.info("LLM 主动拒答，trap_type=%s,unanswerable_reason=%s", trap_type,unanswerable_reason)
         return ReasoningResult(
             answer=REFUSAL_TEXT + "，" + (unanswerable_reason or "llm_refuse"),
             is_refusal=True,
