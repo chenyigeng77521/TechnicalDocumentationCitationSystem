@@ -473,6 +473,10 @@ router.get('/stats', (req: Request, res: Response) => {
         for (const entry of entries) {
           const fullPath = path.join(dir, entry.name);
           if (entry.isDirectory()) {
+            // 跳过 batchtest 目录
+            if (entry.name === 'batchtest') {
+              continue;
+            }
             walkAndCount(fullPath);
           } else if (entry.isFile()) {
             fileCount++;
