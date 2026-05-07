@@ -55,7 +55,7 @@ from backend.ingestion.common.errors import (
     IngestionError, ParseError, EmbeddingError, DBError,
     UnsupportedFormatError,
 )
-from backend.ingestion.db.connection import init_db, get_connection
+from backend.ingestion.db.connection import get_connection
 from backend.ingestion.db.documents_repo import count_documents
 from backend.ingestion.db.chunks_repo import count_chunks
 from backend.ingestion.sync.pipeline import (
@@ -157,7 +157,7 @@ async def post_index(
 
 @router.get("/stats")
 async def get_stats():
-    init_db(DB_PATH)
+    # init_db 已在 server.create_app() 启动时跑过；请求路径不再重复调用
     conn = get_connection(DB_PATH)
     try:
         size_mb = (DB_PATH.stat().st_size / 1024 / 1024) if DB_PATH.exists() else 0
@@ -172,7 +172,7 @@ async def get_stats():
 
 @router.get("/health")
 async def get_health():
-    init_db(DB_PATH)
+    # init_db 已在 server.create_app() 启动时跑过；请求路径不再重复调用
     return {
         "status": "ok",
         "db_writable": DB_PATH.exists(),

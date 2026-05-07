@@ -10,7 +10,10 @@ PORT = 3003
 
 
 def create_app() -> FastAPI:
-    # 启动时初始化 DB（建表 / 启用 WAL），避免请求时表不存在导致 500
+    # ⚠️ init_db 只在这里调用一次。
+    # routes_search / routes_index 等业务路由【不能】再调 init_db
+    # （会导致每请求 50-200ms 开销 + sqlite_master 锁竞争，云主机慢盘下 :3003 超时）。
+    # 启动时建表 / 启用 WAL / FTS 迁移，避免请求时表不存在导致 500。
     init_db(DEFAULT_DB_PATH)
 
     app = FastAPI(title="Ingestion Service", version="0.1.0")
