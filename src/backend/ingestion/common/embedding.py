@@ -23,7 +23,7 @@ EMBEDDING_DIM = 1024
 BATCH_SIZE = 8
 DEFAULT_BASE_URL = "https://aigw.asiainfo.com/v1"
 DEFAULT_MODEL = "10086/bge-m3"
-DEFAULT_TIMEOUT = 30.0
+DEFAULT_TIMEOUT = 120.0
 MAX_RETRIES = 2  # 失败重试 2 次（共 3 次尝试）
 
 
