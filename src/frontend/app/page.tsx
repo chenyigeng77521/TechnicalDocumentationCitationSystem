@@ -1361,10 +1361,10 @@ export default function Home() {
                         <a
                           href={buildApiUrl(file.downloadUrl)}
                           download={file.name}
-                          style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none'}}
-                          title="下载"
+                          style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none', wordBreak: 'break-all', whiteSpace: 'pre-wrap', fontSize: '14px'}}
+                          title={file.name}
                         >
-                          {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+                          {file.name}
                         </a>
                         <a
                           href={buildApiUrl(file.downloadUrl)}
