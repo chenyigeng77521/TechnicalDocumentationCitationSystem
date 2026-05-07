@@ -179,7 +179,7 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
     console.log(`✅ [批量测试] 解析成功，问题数量：${questions.length}`);
 
     // 构造远程请求 URL（可通过环境变量 BATCH_QUERY_URL 覆盖）
-    const remoteUrl = process.env.BATCH_QUERY_URL || 'http://172.25.178.26:8001';
+    const remoteUrl = process.env.BATCH_QUERY_URL || 'http://localhost:8001';
     const jsonlBody = buildJSONLBody(questions);
 
     console.log(`✅ [批量测试] 调用远程接口：${remoteUrl}`);
@@ -190,7 +190,7 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
       method: 'POST',
       headers: { 'Content-Type': 'application/jsonl+json' },
       body: jsonlBody,
-      signal: AbortSignal.timeout(10 * 60 * 1000),
+      signal: AbortSignal.timeout(30 * 60 * 1000),
     });
 
     // 删除临时上传文件
@@ -334,7 +334,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10 * 60 * 1000),
+      signal: AbortSignal.timeout(30 * 60 * 1000),
     });
 
     if (response.ok) {
