@@ -679,140 +679,66 @@ export default function Home() {
     setQuestion('');
     setCharCount(0);
     setIsLoading(true);
-    console.log('🚀 开始思考动画');
-
-    // 记录用户消息到 context memory（不再提前记录，等成功后再一起保存）
-    const userQuestion = q;
+    console.log('[ask] 开始发送问题...');
 
     try {
       // 创建 AbortController 用于停止请求
       abortControllerRef.current = new AbortController();
       const { signal } = abortControllerRef.current;
 
-      // 调用后端 API
+      // 调用后端 API（非流式，普通 HTTP）
       const response = await fetch(buildApiUrl('/api/qa/ask-stream'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         signal,
         body: JSON.stringify({ 
           question: q,
-          session_id: sessionId || undefined  // 传递 session_id
+          session_id: sessionId || undefined
         }),
       });
 
       if (!response.ok) throw new Error('API 请求失败');
 
-      // 处理流式响应
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let answer = '';
-      let sources: string[] = [];
-      let classification: any = null;
-      let isCompleteAnswer = false; // 标记是否收到完整答案（非流式）
+      // 直接解析完整 JSON 响应
+      const data = await response.json();
+      console.log('[ask] 收到完整响应:', data);
 
-      console.log('📡 开始接收响应...');
-
-      while (true) {
-        const { done, value } = await reader!.read();
-        if (done) {
-          console.log('✅ 响应结束');
-          break;
-        }
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              console.log('📨 收到事件:', data.type, data);
-              
-              // 处理不同类型的事件
-              if (data.type === 'start') {
-                console.log('🚀 开始处理:', data.message);
-              } else if (data.type === 'classification') {
-                classification = {
-                  category: data.category,
-                  confidence: data.confidence,
-                  description: data.description,
-                  searchStrategy: data.searchStrategy
-                };
-                console.log('📊 分类结果:', classification);
-              } else if (data.type === 'answer') {
-                // 检查是否是完整答案格式（包含 answer 和 sources 字段）
-                if (data.answer && Array.isArray(data.sources)) {
-                  // 完整答案格式，直接接收
-                  answer = data.answer;
-                  sources = data.sources;
-                  isCompleteAnswer = true;
-                  console.log('✅ 收到完整答案，来源数:', sources.length);
-                } else {
-                  // 流式答案格式，逐字接收
-                  answer += data.text;
-                }
-              } else if (data.type === 'sources') {
-                sources = data.sources;
-              } else if (data.type === 'end') {
-                console.log('🏁 问答完成:', data.classification);
-              } else if (data.type === 'error') {
-                const errorMsg = data.message || '发生错误';
-                const isLanguageHint = errorMsg.includes('中文') || errorMsg.includes('语言');
-                
-                console.error('❌ 发生错误:', data.message);
-                setIsLoading(false);
-                setMessages(prev => [...prev, { 
-                  role: 'bot', 
-                  text: isLanguageHint ? `💡 ${errorMsg}` : `❌ ${errorMsg}`,
-                  sources: []
-                }]);
-                return;
-              }
-            } catch (e) {
-              console.error('❌ JSON 解析错误:', e, '原始行:', line);
-            }
-          }
-        }
-      }
-
-      // 如果没有收到任何答案，显示错误
-      if (!answer && !classification) {
-        console.error('❌ 未收到任何有效响应');
+      if (!data.success) {
+        const errorMsg = data.message || '发生错误';
+        console.error('[ask] 请求失败:', errorMsg);
         setIsLoading(false);
         setMessages(prev => [...prev, { 
           role: 'bot', 
-          text: '❌ 抱歉，无法连接到服务，请稍后再试。',
+          text: errorMsg,
           sources: []
         }]);
         return;
       }
 
-      console.log('📝 最终答案:', answer);
-      console.log('📊 最终分类:', classification);
-      console.log('📚 最终来源:', sources);
+      const answer = data.answer || '';
+      const sources: string[] = (data.sources || []) as string[];
+      const classification = data.classification || null;
 
-      // 不显示分类信息
-      const categoryInfo = '';
-      
-      const finalAnswer = categoryInfo + answer;
-      
+      console.log('[ask] 答案:', answer.substring(0, 100));
+      console.log('[ask] 分类:', classification);
+      console.log('[ask] 来源数:', sources.length);
+
       // 提取唯一来源并去重
-      const uniqueSources = Array.from(new Set(sources.filter(s => s && s.trim())));
+      const uniqueSources: string[] = Array.from(new Set(sources.filter((s: string) => s && s.trim())));
       
       setMessages(prev => [...prev, { 
         role: 'bot', 
-        text: finalAnswer,
+        text: answer,
         sources: uniqueSources.length > 0 ? uniqueSources : undefined
       }]);
+
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log('⏹ 用户已停止请求');
+        console.log('[ask] 用户已停止请求  ');
         return;
       }
-      console.error('请求失败:', error);
+      console.error('[ask] 请求失败:', error);
+      setIsLoading(false);
       setMessages(prev => [...prev, { 
         role: 'bot', 
         text: '抱歉，暂时无法连接到知识库服务，请稍后再试。',

@@ -119,8 +119,8 @@ router.post('/ask', async (req: Request, res: Response) => {
 
 /**
  * POST /api/qa/ask-stream
- * 智能问答接口（流式版本）
- * 调用链条：Question Filter → Category Classifier
+ * 智能问答接口（非流式版本，普通 HTTP）
+ * 调用链条：Question Filter → NLU → Category Classifier → Reasoning
  */
 router.post('/ask-stream', async (req: Request, res: Response) => {
   const { question, session_id } = req.body;
@@ -132,66 +132,36 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
     });
   }
 
-  console.log(`✅ 收到问题: ${question}, session_id: ${session_id || 'none'}`);
-
-  // 设置 SSE 响应头
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
+  console.log(`✅ [ask] 收到问题: ${question}, session_id: ${session_id || 'none'}`);
 
   try {
-    // 发送开始事件
-    res.write(`data: ${JSON.stringify({
-      type: 'start',
-      message: '正在处理您的问题...'
-    })}\n\n`);
-
-    // 生成唯一 ID
     const qid = crypto.randomUUID();
 
-    // ========== ① Question Filter 问题过滤 ==========
-    console.log(`✅ 调用 Question Filter...`);
+    // ① Question Filter
+    console.log(`✅ [ask] 调用 Question Filter...`);
     const filterResult: FilterResult = await filterQuestion(question);
-    console.log(`✅ 过滤结果: ${filterResult.category} (置信度: ${filterResult.confidence})`);
+    console.log(`✅ [ask] 过滤结果: ${filterResult.category} (置信度: ${filterResult.confidence})`);
 
-    // 如果不是有效问题，直接返回过滤提示
     if (!needsClassification(filterResult.category)) {
       const responseMsg = getFilterResponse(filterResult.category);
-      console.log(`✅  问题被过滤: ${filterResult.category}`);
-      console.log('✅  过滤问题，跳过上下文记录');
-
-      res.write(`data: ${JSON.stringify({
-        type: 'answer',
-        answer: responseMsg || '抱歉，您的问题无法处理。',
-        sources: []
-      })}\n\n`);
-      res.write(`data: ${JSON.stringify({
-        type: 'end',
-        filter: filterResult.category,
-        sourcesCount: 0
-      })}\n\n`);
-      res.end();
-      return;
+      console.log(`✅ [ask] 问题被过滤: ${filterResult.category}`);
+      return res.json({
+        success: true,
+        question,
+        filter: { category: filterResult.category, confidence: filterResult.confidence, description: filterResult.description },
+        answer: responseMsg,
+        sources: [],
+        classification: null,
+      });
     }
 
-    // ========== ② NLU 处理（优先调用 NLU 管道服务，失败则使用本地规则） ==========
-    res.write(`data: ${JSON.stringify({
-      type: 'processing',
-      message: '正在进行 NLU 预处理...'
-    })}\n\n`);
-
+    // ② NLU 处理
+    console.log(`✅ [ask] 进行 NLU 预处理...`);
     let processedQuestion = question;
-    let pronounResolved = false;
-    let queryRewritten = false;
-    let completenessChecked = false;
-    let nluUsed = '本地规则';  // 记录使用了什么 NLU 方案
+    let nluUsed = '本地规则';
 
-    // 尝试调用 NLU 管道服务
-    const nluUrl = config.nlu.pipelineUrl;
-    console.log(`✅ NLU 尝试调用服务: ${nluUrl}`);
     try {
-      const nluResp = await fetch(nluUrl, {
+      const nluResp = await fetch(config.nlu.pipelineUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, session_id: session_id || null }),
@@ -201,28 +171,18 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
         const nluResult: any = await nluResp.json();
         if (nluResult.success && nluResult.processing_steps) {
           const steps = nluResult.processing_steps;
-          pronounResolved = steps.pronoun_resolved || false;
-          queryRewritten = steps.query_rewritten || false;
-          completenessChecked = steps.completeness_check?.passed !== false;
           processedQuestion = steps.resolved_question || question;
           nluUsed = 'NLU 管道服务';
-          console.log(`✅ NLU 服务返回: pronounResolved=${pronounResolved}, queryRewritten=${queryRewritten}, completeness=${completenessChecked}`);
         }
       }
     } catch (err: any) {
-      console.log(`✅ NLU 服务调用失败: ${err.message}，切换到本地规则`);
+      console.log(`✅ [ask] NLU 服务调用失败: ${err.message}，切换到本地规则`);
     }
 
-    // 如果 NLU 服务没有处理（未调用或失败），使用本地规则
     if (nluUsed === '本地规则') {
-      // 指代词检测
       const pronounPattern = /它|它们|这个|那个|这些|那些|此|该|其|上述|前述|他|她|他们|她们/g;
       const hasPronoun = pronounPattern.test(question);
-      console.log(`✅ 本地规则-指代检测: ${hasPronoun ? '有指代词' : '无指代词'}`);
-
-      // 有指代词且 session 有效时，加载上下文做指代替换
       if (hasPronoun && session_id && config.contextMemory.enabled) {
-        console.log(`✅ 本地规则-加载上下文: session_id=${session_id}`);
         try {
           const historyResp = await fetch(
             `${config.contextMemory.url}/api/context/get-latest-conversations/${session_id}?limit=5`,
@@ -231,67 +191,37 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
           if (historyResp.ok) {
             const historyData: any = await historyResp.json();
             if (historyData.success && historyData.conversations?.length > 0) {
-              console.log(`✅ 本地规则-上下文: 找到 ${historyData.conversations.length} 条历史`);
               for (const conv of historyData.conversations.reverse()) {
                 const userMsg = conv.user_message || '';
-                const entities = userMsg.match(/[\u4e00-\u9fff]{2,8}/g) || [];
+                const entities = userMsg.match(/[\u4e00-\u9fa5]{2,8}/g) || [];
                 if (entities.length > 0) {
                   processedQuestion = question.replace(pronounPattern, entities[0]);
-                  pronounResolved = true;
-                  console.log(`✅ 本地规则-指代替换: "${entities[0]}"`);
                   break;
                 }
               }
             }
           }
-        } catch (err: any) {
-          console.log(`✅ 本地规则-上下文加载失败: ${err.message}`);
-        }
+        } catch {}
       }
-      queryRewritten = processedQuestion !== question;
-      completenessChecked = true;  // 本地规则默认通过
     }
 
-    console.log(`✅ NLU (${nluUsed}): "${question}" → "${processedQuestion}"`);
+    console.log(`✅ [ask] NLU (${nluUsed}): "${question}" → "${processedQuestion}"`);
 
-    // ========== ③ Category Classifier 问题分类（使用处理后的问题） ==========
-    console.log(`✅ 调用 Category Classifier...`);
-    res.write(`data: ${JSON.stringify({
-      type: 'processing',
-      message: '正在进行问题分类...'
-    })}\n\n`);
-
+    // ③ Category Classifier
+    console.log(`✅ [ask] 调用 Category Classifier...`);
     const classification: ClassificationResult = await classifyQuestion(processedQuestion);
     if (!classification.success || classification.error) {
-      console.log(`✅ 分类失败: ${classification.error}`);
-      res.write(`data: ${JSON.stringify({
-        type: 'error',
+      console.log(`✅ [ask] 分类失败: ${classification.error}`);
+      return res.status(400).json({
+        success: false,
         message: classification.error || '问题分类失败'
-      })}\n\n`);
-      res.end();
-      return;
+      });
     }
-    console.log(`✅ 分类结果: ${classification.category} (置信度: ${classification.confidence})`);
+    console.log(`✅ [ask] 分类结果: ${classification.category}`);
 
-    // 发送分类事件
-    res.write(`data: ${JSON.stringify({
-      type: 'classification',
-      category: classification.category,
-      confidence: classification.confidence,
-      description: classification.description,
-      searchStrategy: getSearchStrategy(classification.category)
-    })}\n\n`);
-
-    // ========== ③ 调用推理层服务 ==========
+    // ④ 调用推理层
     const reasoningUrl = 'http://localhost:8001/api/qa';
-    console.log(`✅ [问答] 请求地址: ${reasoningUrl}`);
-    console.log(`✅ [问答] 请求参数: ${JSON.stringify({ id: qid, question: question.substring(0, 50), category: classification.category })}`);
-
-    res.write(`data: ${JSON.stringify({
-      type: 'processing',
-      message: '正在检索知识库...'
-    })}\n\n`);
-
+    console.log(`✅ [ask] 请求推理层: ${reasoningUrl}`);
     const response = await fetch(reasoningUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -299,92 +229,61 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
       signal: AbortSignal.timeout(120000),
     });
 
-    if (!response.ok) {
-      throw new Error(`推理层返回 ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`推理层返回 ${response.status}`);
 
     const result: any = await response.json();
-    console.log(`✅ [问答] 请求远程地址 http://localhost:8001/api/qa 返回结果: ${JSON.stringify(result)}`);
+    console.log(`✅ [ask] 推理层返回，answer长度: ${(result.answer || '').length}`);
 
-    // 解析引用来源
+    // 解析来源
     let answer = result.answer || '';
     let sources: string[] = [];
-
     if (result.citations && Array.isArray(result.citations) && result.citations.length > 0) {
       sources = result.citations.map((c: any) => {
-        if (c.anchor) {
-          return `${c.doc_path}#${c.anchor}`;
-        }
+        if (c.anchor) return `${c.doc_path}#${c.anchor}`;
         return c.doc_path || '';
       }).filter((s: string) => s);
     }
+    if (result.is_refusal) sources = ['拒绝回答'];
 
-    // 如果拒绝回答，在来源位置显示"拒绝回答"，但 answer 保持原值
-    if (result.is_refusal) {
-      sources = ['拒绝回答'];
-    }
-
-    // 发送完整答案事件（包含 sources）
-    res.write(`data: ${JSON.stringify({
-      type: 'answer',
-      answer: answer,
-      sources: sources
-    })}\n\n`);
-
-    // 发送来源事件
-    if (sources.length > 0) {
-      res.write(`data: ${JSON.stringify({
-        type: 'sources',
-        sources: sources
-      })}\n\n`);
-    }
-
-    // ========== ④ 记录到 context memory（仅记录正常回答的问题和答案） ==========
-    const shouldRecord = session_id && config.contextMemory.enabled && !result.is_refusal && result.answer;
-    if (shouldRecord) {
+    // ⑤ 记录 Context Memory
+    if (session_id && config.contextMemory.enabled && !result.is_refusal && result.answer) {
       try {
         await fetch(`${config.contextMemory.url}/api/context/add-user-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id, content: question })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id, content: question }),
         });
         await fetch(`${config.contextMemory.url}/api/context/add-assistant-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id, content: answer })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id, content: answer }),
         });
-        console.log('✅ 上下文已记录');
-      } catch (err) {
-        console.error('✅ 记录上下文失败:', err);
-      }
-    } else {
-      const skipReasons: string[] = [];
-      if (!session_id) skipReasons.push('无session');
-      else if (!config.contextMemory.enabled) skipReasons.push('contextMemory未启用');
-      else if (result.is_refusal) skipReasons.push('is_refusal=true');
-      else if (!result.answer) skipReasons.push('无有效答案');
-      console.log(`✅  跳过上下文记录（${skipReasons.join(', ') || '未知'}）`);
+        console.log('✅ [ask] 上下文已记录');
+      } catch (err) { console.error('✅ [ask] 记录上下文失败:', err); }
     }
 
-    // 发送结束事件
-    res.write(`data: ${JSON.stringify({
-      type: 'end',
-      filter: filterResult.category,
-      classification: classification.category,
-      sourcesCount: sources.length
-    })}\n\n`);
-
-    res.end();
+    // ⑥ 一次性返回
+    console.log(`✅ [ask] 返回完整结果`);
+    return res.json({
+      success: true,
+      question,
+      answer,
+      sources,
+      classification: {
+        category: classification.category,
+        confidence: classification.confidence,
+        description: classification.description,
+        searchStrategy: getSearchStrategy(classification.category),
+      },
+    });
 
   } catch (error: any) {
-    console.error('✅ 问答失败:', error);
-    res.write(`data: ${JSON.stringify({
-      type: 'error',
+    console.error('✅ [ask] 问答失败:', error);
+    return res.status(500).json({
+      success: false,
       message: error.message || '问答失败'
-    })}\n\n`);
-    res.end();
+    });
   }
 });
+
 /**
  * GET /api/qa/types
  * 获取问题分类类型列表
