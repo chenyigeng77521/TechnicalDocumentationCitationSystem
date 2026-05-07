@@ -53,7 +53,7 @@ export const config = {
     return {
       url: process.env.CONTEXT_MEMORY_URL || 'http://localhost:3006',
       enabled: process.env.ENABLE_CONTEXT_MEMORY !== 'false',  // 默认启用
-      timeout: parseInt(process.env.CONTEXT_MEMORY_TIMEOUT || '3000'),
+      timeout: parseInt(process.env.CONTEXT_MEMORY_TIMEOUT || '5000'),
     };
   },
   // 检索层配置（运行时读取）
