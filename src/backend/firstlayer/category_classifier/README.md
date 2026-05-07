@@ -1,170 +1,164 @@
-# FirstLayer 问题分类系统
+# Category Classifier - 问题分类服务
 
-## 概述
+> 项目：TechnicalDocumentationCitationSystem  
+> 路径：`src/backend/firstlayer/category_classifier`  
+> 端口：**3004**  
+> 职责：对用户问题进行五大类分类，是问答系统的**第一层过滤**
 
-第一层问题分类系统，使用 GLiClass base 模型对前台请求的问题进行智能分类。
+---
 
-## 五大问题分类
-
-| 分类代码 | 分类名称 | 描述 | 示例 |
-|---------|---------|------|------|
-| FACT | 事实型 | 询问具体事实、数据、定义、名称等 | "什么是人工智能？"、"公司成立于哪一年？" |
-| PROC | 过程型 | 询问步骤、流程、操作方法等 | "如何申请年假？"、"怎样安装软件？" |
-| EXPL | 解释型 | 询问原因、原理、机制等 | "为什么天空是蓝色的？"、"这是什么原理？" |
-| COMP | 比较型 | 询问对比、差异、区别、优劣等 | "A 和 B 有什么区别？"、"哪个更好？" |
-| META | 元认知型 | 询问学习方法、思考过程、自我反思等 | "怎么提高记忆力？"、"如何有效学习？" |
-| UNKNOWN | 未知类型 | 无法归类到上述任何一类 | - |
-
-## 快速开始
-
-### 1. 安装依赖
-
-```bash
-cd backend/firstlayer
-pip install -r requirements.txt
-```
-
-### 2. 启动服务
-
-```bash
-# 开发模式
-python category_classifier/app.py
-
-# 或使用 uvicorn
-uvicorn category_classifier.app:app --host 0.0.0.0 --port 3004 --reload
-
-# 或使用启动脚本
-cd category_classifier
-./start.sh
-```
-
-### 3. 访问 API 文档
+## 📁 目录结构
 
 ```
-http://localhost:3004/docs
+category_classifier/
+├── app.py                     # FastAPI 服务入口
+├── config.py                  # 配置文件
+├── classifier.py             # 分类器核心实现
+├── download_models.py        # 模型下载脚本
+├── test_nlu_models.py       # NLU 模型测试脚本
+├── pipeline/
+│   └── qa_pipeline.py       # 问答流水线
+├── nlu/
+│   └── pipeline.py          # NLU 处理流水线
+├── models/
+│   ├── base_model.py        # 基模型类
+│   ├── slim_plm.py          # SlimPLM 模型（查询改写）
+│   ├── rex_uninlu.py        # RexUniNLU 模型（指代消解）
+│   └── turn_sense.py        # TurnSense 模型（完整性检测）
+├── routes/
+│   ├── classify.py         # 分类 API
+│   ├── nlu.py              # NLU 处理 API
+│   ├── config.py           # 配置 API
+│   ├── upload.py           # 上传 API
+│   └── qa.py               # 问答 API
+├── services/
+│   ├── retrieval_client.py # 检索层客户端
+│   └── context_client.py    # 上下文记忆客户端
+└── data/
+    └── sample_questions.json  # 示例问题数据
 ```
 
-## API 接口
+---
 
-### 1. 问题分类
+## 🛠 技术栈
 
-**POST** `/api/classify`
+| 技术 | 说明 |
+|------|------|
+| FastAPI | Web 服务框架 |
+| PyTorch | 深度学习框架 |
+| Transformers | Hugging Face 模型库 |
+| GLiClass | 问题分类模型 |
 
-请求示例：
+---
+
+## 🔬 模型说明
+
+### GLiClass 分类模型
+对问题进行五大类分类：
+- **FACT**：事实型问题（如"什么是人工智能？"）
+- **PROC**：过程型问题（如"如何申请年假？"）
+- **EXPL**：解释型问题（如"为什么天空是蓝色的？"）
+- **COMP**：比较型问题（如"iPhone 和华为哪个好？"）
+- **META**：元认知型问题（如"你能做什么？"）
+- **UNKNOWN**：未知类型
+
+### RexUniNLU 模型
+指代消解模型，检测并替换指代词：
+- 指代词：它、它们、这个、那个、这些、那些等
+- 作用：在多轮对话中解析指代对象
+
+### SlimPLM-Query-Rewriting 模型
+查询改写模型，优化问题表达
+
+### TurnSense 模型
+问题完整性检测，判断问题是否完整可用
+
+---
+
+## 🌐 API 路由总览
+
+### `/api/classify` - 问题分类
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/` | 单条问题分类 |
+| GET | `/types` | 获取所有分类类型 |
+| POST | `/batch` | 批量分类 |
+
+**分类请求示例**：
 ```json
 {
     "question": "如何申请年假？"
 }
 ```
 
-响应示例：
+**分类响应示例**：
 ```json
 {
     "success": true,
     "question": "如何申请年假？",
     "category": "PROC",
-    "confidence": 0.9234,
-    "description": "过程型问题 - 询问步骤、流程、操作方法、怎么做等"
+    "confidence": 0.95,
+    "description": "过程型问题"
 }
 ```
 
-### 2. 获取所有分类类型
+---
 
-**GET** `/api/classify/types`
+### `/api/nlu` - NLU 处理
 
-响应示例：
-```json
-{
-    "success": true,
-    "types": {
-        "FACT": "事实型问题 - 询问具体事实、数据、定义、名称等",
-        "PROC": "过程型问题 - 询问步骤、流程、操作方法、怎么做等",
-        "EXPL": "解释型问题 - 询问原因、原理、机制、为什么等",
-        "COMP": "比较型问题 - 询问对比、差异、区别、哪个更好等",
-        "META": "元认知型问题 - 询问学习方法、思考过程、自我反思等"
-    }
-}
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/process` | 完整 NLU 处理流程 |
+| POST | `/classify-only` | 仅分类（不检索） |
+| GET | `/check-completeness` | 检查问题完整性 |
+| POST | `/rewrite-query` | 查询改写 |
+| POST | `/resolve-pronoun` | 指代消解 |
+| GET | `/test-retrieval` | 测试检索层连接 |
+
+**NLU 处理流程**：
+```
+1. 指代判断 → RexUniNLU 模型检测指代词
+2. 上下文加载 → 从上下文记忆服务加载历史会话
+3. 指代替换 → RexUniNLU 模型替换指代词
+4. 查询改写 → SlimPLM 模型优化问题
+5. 完整性检查 → 规则过滤 + TurnSense 模型
+6. 检索 → 调用检索层接口
+7. 记录上下文 → 保存到上下文记忆服务
 ```
 
-### 3. 批量分类
+---
 
-**POST** `/api/classify/batch`
+## 🚀 启动方式
 
-请求示例：
-```json
-[
-    {"question": "什么是人工智能？"},
-    {"question": "如何安装 Python？"},
-    {"question": "为什么天空是蓝色的？"}
-]
+```bash
+# 进入目录
+cd category_classifier
+
+# 启动服务
+python app.py
+
+# 或使用 uvicorn
+uvicorn app:app --host 0.0.0.0 --port 3004
 ```
 
-### 4. 健康检查
+---
 
-**GET** `/health`
+## ⚙️ 环境变量配置
 
-## 技术栈
+| 变量名 | 说明 |
+|--------|------|
+| `HOST` | 监听地址（默认 0.0.0.0） |
+| `PORT` | 监听端口（默认 3004） |
+| `MODEL_PATH` | 模型文件路径 |
+| `RETRIEVAL_URL` | 检索服务地址 |
+| `CONTEXT_MEMORY_URL` | 上下文记忆服务地址 |
 
-- **框架**: FastAPI
-- **模型**: GLiClass base (google/gliclass-base)
-- **深度学习**: PyTorch 2.1.2
-- **Python**: 3.9+
+---
 
-## 目录结构
+## 📊 下游服务依赖
 
-```
-category_classifier/
-├── app.py              # FastAPI 应用入口
-├── classifier.py       # GLiClass 分类器
-├── config.py           # 配置文件
-├── requirements.txt    # Python 依赖
-├── start.sh            # 启动脚本
-├── routes/
-│   ├── __init__.py
-│   └── classify.py     # 分类 API 路由
-├── data/              # 数据文件
-│   └── sample_questions.json
-├── .env               # 环境变量
-├── .env.example       # 环境变量示例
-├── README.md          # 说明文档
-├── FINE_TUNING_GUIDE.md  # 微调指南
-└── __pycache__/
-```
-
-## 环境变量
-
-| 变量名 | 默认值 | 说明 |
-|-------|--------|------|
-| FIRSTLAYER_HOST | 0.0.0.0 | 服务绑定地址 |
-| FIRSTLAYER_PORT | 3004 | 服务端口 |
-
-## 备用方案
-
-如果 GLiClass 模型无法加载，系统将自动切换到基于关键词的分类方法：
-
-- **FACT**: 包含"什么"、"哪个"、"谁"、"何时"、"何地"、"多少"等
-- **PROC**: 包含"如何"、"怎样"、"步骤"、"流程"、"方法"、"怎么"等
-- **EXPL**: 包含"为什么"、"什么原因"、"原理"、"机制"等
-- **COMP**: 包含"区别"、"差异"、"对比"、"比较"、"哪个更好"等
-- **META**: 包含"怎么学"、"如何学习"、"怎样提高"、"学习方法"等
-
-## 集成到主系统
-
-在主后端服务中集成分类功能：
-
-```python
-# 在主后端服务中调用分类 API
-import requests
-
-response = requests.post(
-    "http://localhost:3004/api/classify",
-    json={"question": "用户的问题"}
-)
-
-category = response.json()["category"]
-confidence = response.json()["confidence"]
-```
-
-## License
-
-MIT
+| 服务名 | 端口 | 说明 |
+|--------|------|------|
+| Retrieval Service | 8001 | 检索问答服务 |
+| Context Memory | 3006 | 上下文记忆服务 |
