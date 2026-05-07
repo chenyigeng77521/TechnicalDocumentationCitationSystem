@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from backend.ingestion.db.connection import get_connection
+from backend.ingestion.db.connection import init_db, get_connection
 from backend.ingestion.db.chunks_repo import (
     vector_search, text_search, get_chunk,
 )
@@ -90,8 +90,7 @@ def _format_result_legacy(row: dict, include_bm25: bool = False) -> dict:
 async def post_vector_search(req: VectorSearchRequest):
     if len(req.embedding) != 1024:
         raise HTTPException(400, "embedding must be 1024-dim")
-    # init_db 已在 server.create_app() 启动时跑过；请求路径不再重复调用，
-    # 避免每请求 50-200ms 开销 + sqlite_master 锁竞争（云主机慢盘下导致 :3003 timeout）
+    init_db(DB_PATH)
     conn = get_connection(DB_PATH)
     try:
         rows = vector_search(conn, req.embedding, top_k=req.top_k)
@@ -125,7 +124,7 @@ async def post_vector_search(req: VectorSearchRequest):
 
 @router.post("/chunks/text-search")
 async def post_text_search(req: TextSearchRequest):
-    # init_db 已在 server.create_app() 启动时跑过；请求路径不再重复调用
+    init_db(DB_PATH)
     conn = get_connection(DB_PATH)
     try:
         rows = text_search(conn, req.query, top_k=req.top_k)
@@ -157,7 +156,7 @@ async def post_text_search(req: TextSearchRequest):
 
 @router.get("/chunks/{chunk_id}")
 async def get_chunk_by_id(chunk_id: str):
-    # init_db 已在 server.create_app() 启动时跑过；请求路径不再重复调用
+    init_db(DB_PATH)
     conn = get_connection(DB_PATH)
     try:
         row = get_chunk(conn, chunk_id)
