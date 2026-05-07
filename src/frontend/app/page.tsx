@@ -853,8 +853,8 @@ export default function Home() {
         {/* Main card */}
         <div style={styles.card} className="card-mobile">
         {/* Result area */}
-        <div 
-          ref={resultRef} 
+        <div
+          ref={resultRef}
           style={{
             ...styles.resultArea,
             overflowY: messages.length > 0 ? 'auto' : 'hidden',
@@ -878,20 +878,20 @@ export default function Home() {
                       知识库助手
                     </span>
                   )}
-                  <div 
+                  <div
                     style={{...styles.bubbleText, ...(msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextBot)}}
                     dangerouslySetInnerHTML={{ __html: formatText(msg.text) }}
                   />
                   {msg.role === 'user' && (
                     <div style={{ display: 'flex', gap: '4px', marginTop: '6px', justifyContent: 'flex-end' }}>
-                      <button 
+                      <button
                         style={styles.copyBtn}
                         onClick={() => copyToClipboard(msg.text, true)}
                         title="复制问题"
                       >
                         📋 复制
                       </button>
-                      <button 
+                      <button
                         style={{
                           ...styles.copyBtn,
                           background: isFavorited(msg.text) ? '#e5e7eb' : 'transparent',
@@ -906,14 +906,14 @@ export default function Home() {
                   )}
                   {msg.role === 'bot' && (
                     <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
-                      <button 
+                      <button
                         style={{...styles.copyBtn, ...styles.copyBtnBot}}
                         onClick={() => copyToClipboard(msg.text, false)}
                         title="复制答案"
                       >
                         📋 复制
                       </button>
-                      <button 
+                      <button
                         style={{
                           ...styles.copyBtn,
                           ...styles.copyBtnBot,
@@ -1013,7 +1013,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <button 
+            <button
               style={{
                 ...styles.sendBtn,
                 transform: isLoading ? 'none' : undefined,
@@ -1050,7 +1050,7 @@ export default function Home() {
       <div className="sidebar-mobile" style={{ display: 'none' }}>
         {/* 按钮行：上传和知识库 */}
         <div className="mobile-btn-row">
-          <button 
+          <button
             style={styles.mobileBtn}
             onClick={handleUploadClick}
             disabled={isUploading}
@@ -1058,8 +1058,8 @@ export default function Home() {
             <span style={styles.mobileBtnIcon}>{isUploading ? '⏳' : '📁'}</span>
             <span style={styles.mobileBtnText}>{isUploading ? '上传中' : '上传'}</span>
           </button>
-          
-          <button 
+
+          <button
             style={styles.mobileBtn}
             onClick={handleKnowledgeBaseClick}
           >
@@ -1067,7 +1067,7 @@ export default function Home() {
             <span style={styles.mobileBtnText}>知识库</span>
           </button>
         </div>
-        
+
         {/* 知识库文档列表（展开时显示） */}
         {showKnowledgeBase && (
           <div className="mobile-info-panel">
@@ -1127,7 +1127,7 @@ export default function Home() {
             )}
           </div>
         )}
-        
+
         {/* 引用来源 */}
         {(() => {
           const lastMsg = messages[messages.length - 1];
@@ -1168,9 +1168,9 @@ export default function Home() {
       <div style={styles.sidebar} className="sidebar-mobile" ref={sidebarRef}>
         {/* 按钮行：上传按钮在左，知识库按钮和知识库列表在右 */}
         <div style={styles.btnRow}>
-          <button 
-            className="upload-btn" 
-            style={styles.uploadBtn} 
+          <button
+            className="upload-btn"
+            style={styles.uploadBtn}
             title="上传知识库文档"
             onClick={handleUploadClick}
             disabled={isUploading}
@@ -1178,18 +1178,18 @@ export default function Home() {
             <span style={styles.uploadIcon}>{isUploading ? '⏳' : '📁'}</span>
             <span style={styles.uploadText}>{isUploading ? '上传中...' : '上传文档'}</span>
           </button>
-          
+
           <div style={styles.btnGroup}>
-            <button 
-              className="upload-btn" 
-              style={styles.uploadBtn} 
+            <button
+              className="upload-btn"
+              style={styles.uploadBtn}
               title="管理知识库"
               onClick={handleKnowledgeBaseClick}
             >
               <span style={styles.uploadIcon}>⚙️</span>
               <span style={styles.uploadText}>知识库</span>
             </button>
-            
+
             {/* 知识库文档列表 - 显示在知识库按钮右侧 */}
             {showKnowledgeBase && (
               <div style={styles.knowledgeBasePanel}>
@@ -1261,7 +1261,7 @@ export default function Home() {
                 {/* 分页 */}
                 {rawTotal > 10 && (
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '6px 0' }}>
-                    <button 
+                    <button
                       style={styles.pageBtn}
                       onClick={() => handlePageChange(rawPage - 1)}
                       disabled={rawPage <= 1}
@@ -1271,7 +1271,7 @@ export default function Home() {
                     <span style={{ fontSize: '10px', color: 'var(--text-sub)' }}>
                       {rawPage}/{Math.ceil(rawTotal / 10)}
                     </span>
-                    <button 
+                    <button
                       style={styles.pageBtn}
                       onClick={() => handlePageChange(rawPage + 1)}
                       disabled={rawPage >= Math.ceil(rawTotal / 10)}
@@ -1284,7 +1284,7 @@ export default function Home() {
             )}
           </div>
         </div>
-        
+
         {/* 隐藏的文件输入 */}
         <input
           ref={fileInputRef}
@@ -1294,7 +1294,7 @@ export default function Home() {
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
-        
+
         {/* 隐藏的批量测试文件输入 */}
         <input
           ref={batchFileInputRef}
@@ -1303,7 +1303,7 @@ export default function Home() {
           onChange={handleBatchFileChange}
           style={{ display: 'none' }}
         />
-        
+
         {/* 上传状态提示 */}
         {uploadMessage && (
           <div style={styles.uploadStatus}>{uploadMessage}</div>
@@ -1316,9 +1316,9 @@ export default function Home() {
 
         {/* 批量测试按钮行 - 和上传文档、知识库按钮并排 */}
         <div style={styles.btnRow}>
-          <button 
-            className="upload-btn" 
-            style={styles.uploadBtn} 
+          <button
+            className="upload-btn"
+            style={styles.uploadBtn}
             title="批量测试"
             onClick={() => batchFileInputRef.current?.click()}
             disabled={isBatchUploading}
@@ -1326,11 +1326,11 @@ export default function Home() {
             <span style={styles.uploadIcon}>{isBatchUploading ? '⏳' : '🧪'}</span>
             <span style={styles.uploadText}>{isBatchUploading ? '处理中...' : '批量测试'}</span>
           </button>
-          
+
           <div style={styles.btnGroup}>
-            <button 
-              className="upload-btn" 
-              style={styles.uploadBtn} 
+            <button
+              className="upload-btn"
+              style={styles.uploadBtn}
               title="批量测试结果"
               onClick={handleResultListClick}
               disabled={isLoadingResults}
@@ -1338,7 +1338,7 @@ export default function Home() {
               <span style={styles.uploadIcon}>📥</span>
               <span style={styles.uploadText}>结果列表</span>
             </button>
-            
+
             {/* 结果文件列表 */}
             {showResults && (
               <div style={styles.knowledgeBasePanel}>
@@ -1406,16 +1406,16 @@ export default function Home() {
         {/* 历史会话 + 后台日志 */}
         <div style={styles.btnRow}>
           <div style={styles.btnGroup}>
-            <button 
-              className="upload-btn" 
-              style={styles.uploadBtn} 
+            <button
+              className="upload-btn"
+              style={styles.uploadBtn}
               title="历史会话"
               onClick={handleHistoryToggle}
             >
               <span style={styles.uploadIcon}>📋</span>
               <span style={styles.uploadText}>历史会话</span>
             </button>
-            
+
             {/* 历史会话列表 */}
             {showHistoryPanel && (
               <div style={styles.knowledgeBasePanel}>
@@ -1498,9 +1498,9 @@ export default function Home() {
               </div>
             )}
           </div>
-          <button 
-            className="upload-btn" 
-            style={styles.uploadBtn} 
+          <button
+            className="upload-btn"
+            style={styles.uploadBtn}
             title="后台日志"
             onClick={handleLogToggle}
           >
@@ -1525,7 +1525,7 @@ export default function Home() {
               <span style={styles.reqLabel}>文件格式：</span>
             </div>
             <div style={styles.formatTags}>
-              {['PDF', 'Word', 'Excel', 'PPT', 'TXT', 'MD', 'ADOC','文本类'].map(fmt => (
+              {['ADOC', 'MD', 'Excel', 'PPT', 'TXT','Word'].map(fmt => (
                 <span key={fmt} style={styles.formatTag}>{fmt}</span>
               ))}
             </div>
@@ -1533,8 +1533,8 @@ export default function Home() {
         </div>
 
         {/* 来源显示区域 - 手机端隐藏 */}
-        <div style={styles.sourcePanel} className="source-panel-mobile-hide">
-          <div style={styles.sourcePanelTitle}>📖 引用来源</div>
+        <div style={styles.sourcePanel2} className="source-panel-mobile-hide">
+          <div style={styles.sourcePanelTitle2}>📖 引用来源</div>
           <div style={styles.sourcePanelList}>
             {messages.length > 0 && messages[messages.length - 1].sources ? (
               messages[messages.length - 1].sources?.map((source, idx) => {
@@ -1574,7 +1574,7 @@ export default function Home() {
           overflowY: 'auto',
           padding: '3px 3px',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif',
-          fontSize: '10px',
+          fontSize: '11px',
           marginBottom:'10px',
           marginRight:'3px',
           lineHeight: '1.5',
@@ -1646,13 +1646,97 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     alignItems: 'center',
     flex: 1,
-    minWidth: 0,
-    maxWidth: '800px',
+    width: '60%',
+    maxWidth: '700px',
+    height: '90%',
+    maxHeight: '760px',
+    //maxHeight: 'min(100%, 800px)',
     paddingTop: '0px',
-    paddingBottom: '10px',
+    paddingBottom: '1px',
     paddingLeft: '3px',
     paddingRight: '3px',
+    overflow: 'auto',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '100%',
+    height:'100%',
+    maxHeight:'800px',
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
     overflow: 'hidden',
+    marginTop:'1px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  resultArea: {
+    padding: '24px 28px 20px',
+    minHeight: '260px',
+    maxHeight: '260px',
+    overflowY: 'auto',
+    scrollbarGutter: 'stable',
+    background: 'var(--surface-2)',
+    borderBottom: '1px solid var(--border)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    position: 'relative',
+  },
+  stats: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '20px',
+    marginTop: '3px',
+  },
+  statItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '12px',
+    color: 'var(--text-sub)',
+  },
+  statDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+  },
+  sidebar: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '20%',
+    maxWidth: '180px',
+    height: '77%',
+    maxHeight: '540px',
+    overflow: 'auto',
+    gap: '8px',
+    alignItems: 'center',
+    //background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
+    padding: '2px',
+    //paddingTop: '100px',   //← 删掉这个
+    marginTop: '100px',        //← 改成这个！整体下移，阴影也跟着走
+    //marginBottom:'254px',
+  },
+  sidebarLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '13%',
+    minWidth: '50px',
+    height: '71%',
+    maxHeight: '540px',
+    overflow: 'auto',
+    gap: '1px',
+    position: 'absolute',
+    right: '18px',
+    top: '118px',
+    marginBottom:'230px',
+    // height: 'calc(100% - 230px)',
+    zIndex: 10,
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
   },
   uploadBtn: {
     display: 'flex',
@@ -1677,43 +1761,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '11px',
     color: 'var(--text-sub)',
     textAlign: 'center',
-  },
-  sidebar: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '180px',
-    minWidth: '180px',
-    height: '556px',
-    maxHeight: '556px',
-    overflow: 'hidden',
-    gap: '8px',
-    alignItems: 'center',
-    background: 'var(--surface)',
-    borderRadius: 'var(--radius)',
-    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
-    padding: '2px',
-    // paddingTop: '100px',   ← 删掉这个
-    marginTop: '100px',        //← 改成这个！整体下移，阴影也跟着走
-    marginBottom:'64px',
-  },
-  sidebarLeft: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '190px',
-    minWidth: '190px',
-    height: '558px',
-    maxHeight: '558px',
-    overflow: 'hidden',
-    gap: '4px',
-    position: 'absolute',
-    right: '3px',
-    top: '118px',
-    marginBottom:'230px',
-    // height: 'calc(100% - 230px)',
-    zIndex: 10,
-    background: 'var(--surface)',
-    borderRadius: 'var(--radius)',
-    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
   },
   reqItem: {
     display: 'flex',
@@ -1826,11 +1873,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: 'var(--radius)',
     boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
     overflow: 'hidden',
+    flexShrink: 0,
     alignSelf: 'center',
   },
   sourcePanelTitle: {
     padding: '10px 12px',
     fontSize: '12px',
+    fontWeight: 600,
+    color: 'var(--text)',
+    borderBottom: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+  },
+  sourcePanel2: {
+    width: '160px',
+    maxHeight: '100%',
+    background: 'var(--surface)',
+    border: '1.5px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    boxShadow: '0 2px 12px rgba(79,110,247,0.08)',
+    overflowY: "auto",
+    flexGrow: 0,
+    alignSelf: 'center',
+  },
+  sourcePanelTitle2: {
+    padding: '10px 12px',
+    fontSize: '22px',
     fontWeight: 600,
     color: 'var(--text)',
     borderBottom: '1px solid var(--border)',
@@ -1998,32 +2065,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'var(--text-sub)',
     marginTop: '4px',
   },
-  card: {
-    width: '100%',
-    maxWidth: '780px',
-    height:'560px',
-    maxHeight:'560px',
-    background: 'var(--surface)',
-    borderRadius: 'var(--radius)',
-    boxShadow: '0 0 0 2px rgba(79,110,247,0.25), 0 0 0 4px rgba(124,58,237,0.15), var(--shadow-lg)',
-    overflow: 'hidden',
-    marginTop:'1px',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  resultArea: {
-    padding: '24px 28px 20px',
-    minHeight: '260px',
-    maxHeight: '260px',
-    overflowY: 'auto',
-    scrollbarGutter: 'stable',
-    background: 'var(--surface-2)',
-    borderBottom: '1px solid var(--border)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    position: 'relative',
-  },
+
   emptyState: {
     flex: 1,
     display: 'flex',
@@ -2226,12 +2268,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.15s',
   },
   inputArea: {
-    padding: '20px 24px 24px',
+    // overflowY: 'auto',
+    minHeight:'20%',
+    maxHeight:'190px',
+    padding: '10px 24px 24px',
     background: 'var(--surface-2)',
+
   },
   inputRow: {
     display: 'flex',
-    gap: '10px',
+    gap: '8px',
     alignItems: 'flex-end',
   },
   textareaWrap: {
@@ -2241,6 +2287,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     overflow: 'hidden',
     transition: 'border-color 0.2s, box-shadow 0.2s',
     background: 'var(--surface-2)',
+    flexShrink:"0",
   },
   textarea: {
     width: '100%',
@@ -2248,15 +2295,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     outline: 'none',
     background: 'transparent',
     resize: 'none',
-    padding: '14px 16px 4px',
+    padding: '14px 16px 1px',
     fontSize: '14px',
     color: 'var(--text)',
     fontFamily: 'inherit',
     lineHeight: 1.5,
-    minHeight: '70px',
-    maxHeight: '70px',
-    overflowY: 'auto',
-    height: 'auto',
+    minHeight: '100%',
+    maxHeight: '50px',
   },
   inputFooter: {
     display: 'flex',
@@ -2310,8 +2355,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   hint: {
     fontSize: '12px',
+    flexShrink:"0",
     color: 'var(--text-light)',
-    marginTop: '10px',
+    // marginTop: '30px',
+    marginBottom:"10px",
     textAlign: 'center',
   },
   kbd: {
@@ -2321,24 +2368,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '1px 5px',
     fontSize: '11px',
   },
-  stats: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '20px',
-    marginTop: '10px',
-  },
-  statItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '12px',
-    color: 'var(--text-sub)',
-  },
-  statDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-  },
+
   dotGreen: {
     background: '#10b981',
   },

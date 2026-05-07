@@ -265,7 +265,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
         final_refuse_reason = llm_refuse_reason or refuse_reason
         logger.info("拒答（%s），max_score=%.3f，原因：%s", refuse_reason, max_score, final_refuse_reason)
         return ReasoningResult(
-            answer=REFUSAL_TEXT + "，" + final_refuse_reason,
+            answer=REFUSAL_TEXT + final_refuse_reason,
             is_refusal=True,
             refuse_reason=final_refuse_reason,
             max_score=max_score,
@@ -286,7 +286,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     except RuntimeError as e:
         logger.error("LLM 调用最终失败: %s", e)
         return ReasoningResult(
-            answer=REFUSAL_TEXT + "，" + "llm_error",
+            answer=REFUSAL_TEXT + "llm_error",
             is_refusal=True,
             refuse_reason="llm_error",
             max_score=max_score,
@@ -303,9 +303,9 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
         if parsed:
             trap_type = parsed.get("trap_type") or None
             unanswerable_reason = parsed.get("unanswerable_reason") or None
-        logger.info("LLM 主动拒答，trap_type=%s", trap_type)
+        logger.info("LLM 主动拒答，trap_type=%s,unanswerable_reason=%s", trap_type,unanswerable_reason)
         return ReasoningResult(
-            answer=REFUSAL_TEXT + "，" + (unanswerable_reason or "llm_refuse"),
+            answer=REFUSAL_TEXT + (unanswerable_reason or "llm_refuse"),
             is_refusal=True,
             refuse_reason="llm_refuse",
             max_score=max_score,
@@ -318,7 +318,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
         # JSON 解析失败 → 拒答
         logger.warning("JSON 解析失败 → 拒答")
         return ReasoningResult(
-            answer=REFUSAL_TEXT + "，" + "json_parse_error",
+            answer=REFUSAL_TEXT + "json_parse_error",
             is_refusal=True,
             refuse_reason="json_parse_error",
             max_score=max_score,
@@ -336,7 +336,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
 
     if not answer_text:
         return ReasoningResult(
-            answer=REFUSAL_TEXT + "，" + "empty_answer",
+            answer=REFUSAL_TEXT + "empty_answer",
             is_refusal=True,
             refuse_reason="empty_answer",
             max_score=max_score,
@@ -350,7 +350,7 @@ def run_reasoning(query: str, chunks: list[RetrievedChunk]) -> ReasoningResult:
     if citation_ids and not valid_citation_ids:
         logger.warning("引用全部非法 → 拒答")
         return ReasoningResult(
-            answer=REFUSAL_TEXT + "，" + "invalid_citation",
+            answer=REFUSAL_TEXT + "invalid_citation",
             is_refusal=True,
             refuse_reason="invalid_citation",
             max_score=max_score,
