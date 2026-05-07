@@ -156,6 +156,7 @@ function buildJSONLBody(questions: Array<{ id: string; question: string }>): str
  */
 router.post('/upload', batchUpload.single('file'), async (req: Request, res: Response) => {
   let uploadedFilePath: string | null = null;
+  const startTime = Date.now();
 
   try {
     console.log('✅ [批量测试] 收到上传请求');
@@ -193,6 +194,31 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
       signal: AbortSignal.timeout(30 * 60 * 1000),
     });
 
+    // ========== 保存批量测试文件到 data/batchtest ==========
+    console.log(`🔍 [调试] process.cwd() = ${process.cwd()}`);
+    const resolvedPath = path.resolve(process.cwd(), '..', '..', 'data', 'batchtest');
+    console.log(`🔍 [调试] 目标路径 = ${resolvedPath}`);
+    const batchtestDir = path.join(process.cwd(), '..', '..', 'data', 'batchtest');
+    console.log(`🔍 [调试] uploadedFilePath = ${uploadedFilePath}`);
+    try {
+      fs.mkdirSync(batchtestDir, { recursive: true });
+      console.log(`✅ [批量测试] 目录已创建/存在：${batchtestDir}`);
+      const saveFileName = `${Date.now()}_${originalName}`;
+      const saveFilePath = path.join(batchtestDir, saveFileName);
+      console.log(`🔍 [调试] 准备保存文件到：${saveFilePath}`);
+      fs.copyFileSync(uploadedFilePath, saveFilePath);
+      console.log(`✅ [批量测试] 文件已保存：${saveFilePath}`);
+      // 验证文件是否真的写入了
+      if (fs.existsSync(saveFilePath)) {
+        console.log(`✅ [批量测试] 验证：文件确实存在！大小=${fs.statSync(saveFilePath).size} bytes`);
+      } else {
+        console.error(`❌ [批量测试] 验证失败：文件不存在！`);
+      }
+    } catch (err: any) {
+      console.error(`❌ [批量测试] 文件保存失败：${err.message}`);
+      console.error(`❌ [批量测试] 错误堆栈：${err.stack}`);
+    }
+
     // 删除临时上传文件
     try { fs.unlinkSync(uploadedFilePath); } catch {}
 
@@ -200,11 +226,13 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
       const result = await response.json();
       console.log(`✅ [批量测试] 远程处理成功`, result);
 
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       return res.json({
         success: true,
         message: '批量测试处理完成',
         questionCount: questions.length,
         result,
+        duration,
       });
     } else {
       const errorText = await response.text();
@@ -321,6 +349,23 @@ router.post('/submit', async (req: Request, res: Response) => {
     }
 
     console.log(`✅ [批量测试] 收到 ${items.length} 条测试数据，第一项：${items[0]?.question?.substring(0, 30)}`);
+
+    // ========== 保存批量测试文件到项目根目录 data/batchtest ==========
+    const batchtestDir = path.resolve(process.cwd(), '..', '..', '..', 'data', 'batchtest');
+    try {
+      if (!fs.existsSync(batchtestDir)) {
+        fs.mkdirSync(batchtestDir, { recursive: true });
+        console.log(`✅ [批量测试] 创建保存目录: ${batchtestDir}`);
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const saveFileName = `${timestamp}_batch_${items.length}.json`;
+      const saveFilePath = path.join(batchtestDir, saveFileName);
+      fs.writeFileSync(saveFilePath, JSON.stringify(items, null, 2), 'utf-8');
+      console.log(`✅ [批量测试] 文件已保存: ${saveFilePath} (${items.length} 条)`);
+    } catch (err: any) {
+      console.error(`❌ [批量测试] 保存文件失败: ${err.message}`);
+    }
+    // ========================================================
 
     // 构造请求体
     const body = { items };
