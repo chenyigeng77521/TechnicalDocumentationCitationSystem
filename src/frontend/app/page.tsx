@@ -364,16 +364,18 @@ export default function Home() {
         body: JSON.stringify({ items }),
       });
 
-      setBatchUploadProgress(100);
+      // setBatchUploadProgress(100);
       const data = await response.json();
 
       if (data.status === 'success' && data.succeeded > 0) {
-        const msg = `✅ 测试完成！共 ${data.total} 条，成功 ${data.succeeded} 条，失败 ${data.failed} 条`;
+        const duration = data.duration ? `，耗时 ${data.duration} 秒` : '';
+        const msg = `✅ 测试完成！共 ${data.total} 条，成功 ${data.succeeded} 条，失败 ${data.failed} 条${duration}`;
         setBatchUploadMessage(msg);
         console.log(`📋 [批量测试] ${msg}`);
         logToBackend(`[批量测试] 成功: total=${data.total}, succeeded=${data.succeeded}, failed=${data.failed}`);
       } else {
-        const msg = `❌ 测试失败：成功 ${data.succeeded || 0} 条，失败 ${data.failed || 0} 条`;
+        const duration = data.duration ? `，耗时 ${data.duration} 秒` : '';
+        const msg = `❌ 测试失败：成功 ${data.succeeded || 0} 条，失败 ${data.failed || 0} 条${duration}`;
         setBatchUploadMessage(msg);
         console.error('📋 [批量测试] 失败:', msg);
         logToBackend(`[批量测试] 失败: ${msg}`);
@@ -1359,10 +1361,10 @@ export default function Home() {
                         <a
                           href={buildApiUrl(file.downloadUrl)}
                           download={file.name}
-                          style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none'}}
-                          title="下载"
+                          style={{...styles.kbPanelText, color: 'var(--primary)', textDecoration: 'none', wordBreak: 'break-all', whiteSpace: 'pre-wrap', fontSize: '14px'}}
+                          title={file.name}
                         >
-                          {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+                          {file.name}
                         </a>
                         <a
                           href={buildApiUrl(file.downloadUrl)}
