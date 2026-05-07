@@ -13,9 +13,9 @@ class RetrievalClient:
     def __init__(self, base_url: str = None):
         from config import Config
         self.base_url = base_url or Config.RETRIEVAL_URL
-        self.timeout = 60.0  # 检索层设置 60s 超时
+        self.timeout = 120.0  # 检索层设置 60s 超时
 
-    async def query(self, query: str, timeout: int = 60, return_raw: bool = False) -> Dict[str, Any]:
+    async def query(self, query: str, timeout: int = 120, return_raw: bool = False) -> Dict[str, Any]:
         """
         调用检索层查询接口
         

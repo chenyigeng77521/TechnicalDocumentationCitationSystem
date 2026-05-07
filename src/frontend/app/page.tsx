@@ -934,8 +934,8 @@ export default function Home() {
                       {msg.sources.map((source, idx) => {
                         if (source === '拒绝回答') {
                           return (
-                            <span key={idx} style={{...styles.sourceTag, background: '#fff0f0', color: '#c0392b', fontWeight: 700, border: '1.5px solid #e74c3c', borderRadius: '6px', padding: '6px 14px', fontSize: '13px'}}>
-                              ❌ <b>拒绝回答</b>
+                            <span key={idx} style={{...styles.sourceTag, background: '#f5f3ff', color: 'var(--accent)', fontWeight: 600, border: '1.5px solid var(--accent)', borderRadius: '6px', padding: '6px 14px', fontSize: '13px'}}>
+                              ℹ️ <b>无答案</b>
                             </span>
                           );
                         }
@@ -1897,8 +1897,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sourcePanelTitle2: {
     padding: '10px 12px',
-    fontSize: '22px',
-    fontWeight: 600,
+    fontSize: '13px',
+    fontWeight: 800,
     color: 'var(--text)',
     borderBottom: '1px solid var(--border)',
     background: 'var(--surface-2)',
