@@ -101,13 +101,26 @@ echo "  Log dir      : $LOG_DIR"
 echo "  Mode         : $MODE"
 echo "──────────────────────────────────────────────"
 
+# uvicorn 并发配置（云主机批量测试踩坑后加，2026-05-08）：
+# - --workers 4：4 个独立 worker 进程，处理并发请求（默认 1 个会被慢请求阻塞）
+# - --timeout-keep-alive 60：避免 keep-alive 复用 stale socket → "Remote end closed connection"
+# - SQLite WAL 模式天然支持多 worker 并发读
+UVICORN_WORKERS="${UVICORN_WORKERS:-4}"
+UVICORN_KEEPALIVE="${UVICORN_KEEPALIVE:-60}"
+
 if [ "$MODE" = "foreground" ]; then
-    echo "前台启动（Ctrl+C 停止）..."
+    echo "前台启动（Ctrl+C 停止），workers=$UVICORN_WORKERS"
     echo
-    exec "$PYTHON_BIN" -m backend.ingestion.api.server
+    exec "$PYTHON_BIN" -m uvicorn backend.ingestion.api.server:app \
+        --host 0.0.0.0 --port "$PORT" \
+        --workers "$UVICORN_WORKERS" \
+        --timeout-keep-alive "$UVICORN_KEEPALIVE"
 else
-    echo "后台启动，日志写入: $SERVER_LOG"
-    nohup "$PYTHON_BIN" -m backend.ingestion.api.server \
+    echo "后台启动，workers=$UVICORN_WORKERS，日志写入: $SERVER_LOG"
+    nohup "$PYTHON_BIN" -m uvicorn backend.ingestion.api.server:app \
+        --host 0.0.0.0 --port "$PORT" \
+        --workers "$UVICORN_WORKERS" \
+        --timeout-keep-alive "$UVICORN_KEEPALIVE" \
         >"$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     echo "$SERVER_PID" > "$PID_FILE"
