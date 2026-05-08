@@ -8,6 +8,32 @@
 
 ## 1. 系统架构
 
+### 1.1 层级划分
+
+| 层 | 模块 | 职责 |
+|---|---|---|
+| **Layer 0** | entrance + firstlayer (question_filter / category_classifier / context_memory) | 网关 / 问题分类与过滤 / 上下文记忆 |
+| **Layer 1** | ingestion | 文档解析 / 切块 / 向量化 / 索引 / 检索接口 |
+| **Layer 2** | retrieval | 双路混合检索（向量 + BM25） / 查询扩展 / 重排序 |
+| **Layer 3** | reasoning | LLM 推理 / 引用合法性校验 / 拒答判定 |
+| **Layer 4** | frontend | WebUI 展示 / 文件管理 / 批量测试 |
+
+### 1.2 服务端口
+
+| 服务 | 端口 | 协议 |
+|---|---|---|
+| frontend (Next.js) | `3000` | HTTP |
+| entrance (Express) | `3002` | HTTP + SSE |
+| ingestion (FastAPI) | `3003` | HTTP |
+| category_classifier | `3004` | HTTP |
+| question_filter | `3005` | HTTP |
+| context_memory | `3006` | HTTP |
+| reasoning (FastAPI) | `8001` | HTTP |
+
+### 1.3 数据主流向
+
+下方架构图聚焦写入与问答主数据流（Layer 1 → 2 → 3）；Layer 0 与 Layer 4 的调用关系详见各模块章节。
+
 ```
 上传 / 文件系统
        │
@@ -23,26 +49,24 @@
 │             │                                    │
 │    ┌────────▼────────┐                           │
 │    │  文档解析        │  ← 全 Python              │
-│    │  parse_document │    PyMuPDF / python-docx  │
-│    └────────┬────────┘    / openpyxl             │
+│    │  parse_document │    9 种 parser            │
+│    └────────┬────────┘    扫描 PDF → PaddleOCR    │
 │             │                                    │
 │    ┌────────▼────────┐                           │
-│    │  Chunker         │  MVP: document 三级 fallback│
-│    │  (MVP)           │  code/structured_data → P1│
-│    └────────┬────────┘                           │
+│    │   Chunker        │  document 三级 fallback：   │
+│    │                  │  段落 → 句号 → 硬切          │
+│    └────────┬────────┘  (MAX_CHARS=1000, OVERLAP=200)│
 │             │                                    │
-│    MVP: 全删重写              P1: chunk-level diff │
+│    chunk_id = sha256(file_path|idx|content[:100])│
+│    内容变化 → 全删重写（按 file_hash 判断）          │
 │             │                                    │
-│    batch embed（concurrency=8，本地 bge-m3）       │
-│    （无 rate limit，MVP 固定并发）                  │
+│    batch embed（concurrency=8，bge-m3 + normalize）│
 │             │                                    │
 │    ┌────────▼────────────────────────────┐       │
 │    │         SQLite                       │       │
 │    │  chunks 表 + FTS5（BM25）+ 向量列     │       │
 │    │  documents 元数据表（index_version）  │       │
 │    └────────────────────────────────────┘       │
-│                                                  │
-│    WebSocket 进度推送（P1，MVP 同步等返回）          │
 └─────────────────────────────────────────────────┘
                          │
                          ▼
@@ -60,7 +84,7 @@
 │    Reranker 精排（bge-reranker-v2-m3）           │
 │    API / 本地 CrossEncoder 双模式                │
 │    Sigmoid 映射到 (0,1) + 相邻 chunk 上下文扩展   │
-│                         │            a         │
+│                         │                       │
 │    ┌────────────────────┴──────────────┐        │
 │    │     max_score < 0.4？             │        │
 │   YES                                NO         │
@@ -72,13 +96,46 @@
 ┌─────────────────────────────────────────────────┐
 │              推理与引用层（Layer 3）               │
 │                                                 │
-│         上下文注入 → LLM 推理 → 引用验证            │
-│                                                 │            
+│    可回答性判定（max_score < 0.4 / 空检索 → 拒答）   │
+│             │                                    │
+│    Context 构建（top_k chunks 拼装 + 引用 ID 注入）│
+│             │                                    │
+│    LLM 推理（OpenAI 兼容接口 → DeepSeek-V3）       │
+│             │                                    │
+│    引用合法性校验（拒绝幻觉编造 chunk_id）          │
+│             │                                    │
+│    输出：answer + citations + confidence          │
 └─────────────────────────────────────────────────┘
                          │
                          ▼
               返回响应 + WebUI 展示（Layer 4）
 ```
+
+### 1.4 Layer 0 — 网关与第一层智能服务
+
+architecturally 在主数据流之外，由 entrance 编排：
+
+| 微服务 | 端口 | 职责 |
+|---|---|---|
+| `entrance` | 3002 | HTTP / SSE 网关，接收前端请求并按问答 / 上传 / 批测分流 |
+| `question_filter` | 3005 | 无效问题过滤（短句 / 语气词 / 完整性检查），过滤后再进分类 |
+| `category_classifier` | 3004 | 问题分类 + NLU 指代消解 + 查询重写（chunk-relative → standalone）|
+| `context_memory` | 3006 | 多轮会话历史管理（session 维度），供查询重写引用上文 |
+
+问答调用链（SSE 流式）：
+
+```
+前端 → POST :3002/api/qa/ask-stream
+  → :3005 question_filter (filter)
+  → :3004 category_classifier (classify + rewrite)
+  → :3006 context_memory (write history)
+  → :8001 reasoning (RAG 推理)
+  → SSE 流式回写
+```
+
+### 1.5 Layer 4 — 前端
+
+Next.js 16 + React 19，端口 `:3000`。三个核心页面：智能问答页（SSE 流式输出 + 引用跳转）、文件管理页（上传 / 下载 / 在线编辑）、批量测试页。开发期通过 Next.js rewrites 代理到 `:3002`，生产环境走 `:80` Nginx。
 
 ---
 
@@ -105,10 +162,11 @@
 扩展名检测 → dispatcher.py → 对应 parser
   .md/.txt/.html  → markdown_parser / txt_parser / html_parser
   .pdf（文字）     → PyMuPDF
+  .pdf（扫描）     → PaddleOCR (PP-OCR-v5) 降级
   .docx           → python-docx
   .xlsx           → openpyxl
   .pptx           → python-pptx
-  .adoc           → adoc_parser（regex 手写）
+  .adoc           → adoc_parser（regex 手写，识别 [[xxx]] 显式锚点）
 ```
 
 #### 3.1.2 .adoc 锚点解析
@@ -125,7 +183,7 @@
 
 - 英文：`slugify("API Changes")` → `#api-changes`
 - 中文：原文保留 + 空格替换为 `-` → `#本地临时存储的配额`
-- 不拼音化 ,不 punycode ,不压缩空格
+- 不拼音化，不 punycode，不压缩空格
 
 #### 3.1.3 切分策略（三级 fallback）
 
@@ -140,7 +198,7 @@
   → 单句仍 > 1000 char → 硬切（is_truncated: true）
 
 OVERLAP = 200 char（相邻 chunk 拼接）
-质量过滤：< 30 char 丢弃
+质量过滤：< 50 char 丢弃（MIN_CHARS_QUALITY=50）
 ```
 
 ### 3.2 检索与拒答
@@ -177,12 +235,12 @@ OVERLAP = 200 char（相邻 chunk 拼接）
 
 #### 3.2.2 拒答机制
 
-| 阶段               | 触发条件                             | 动作               |
-| ---------------- | -------------------------------- | ---------------- |
-| **Step 1 规则**    | `max_score < 0.4` 或无 chunk > 0.5 | 拒答，不进 LLM        |
-| **Step 1.5 LLM** | 规则判定不可答                          | LLM 生成原因（≤ 80 字） |
-| **Step 3 LLM**   | `refuse: true` JSON              | 拒答 + trap_type   |
-| **Step 4 校验**    | citation_ids 全非法                 | 拒答               |
+| 阶段                | 触发条件                                          | 动作               |
+| ----------------- | --------------------------------------------- | ---------------- |
+| **Step 1 规则**     | `max_score < 0.4`，或所有 chunk 分数 < 0.5（覆盖度不足） | 拒答，不进 LLM        |
+| **Step 2 LLM 兜底** | 规则未触发但 LLM 判定不可答                              | LLM 生成原因（≤ 80 字） |
+| **Step 3 trap**   | LLM 输出 `refuse: true` JSON                     | 拒答 + trap_type   |
+| **Step 4 校验**     | citation_ids 全非法                              | 拒答               |
 
 **trap_type 枚举**（8 种）：
 
@@ -206,7 +264,7 @@ cross_domain / concept_confusion / procedure_step / non_existent_attribute
 路径 B：watchdog 监听 raw/ → debounce 1s → :3003/index
 
 同一文件 hash 没变 → 返回 unchanged
-hash 变了 → 删旧 chunks → 全量重写（MVP）
+hash 变了 → 删旧 chunks → 全量重写
                │
 启动时全扫 GC + 每小时孤儿清理
 ```
@@ -239,6 +297,31 @@ fallback：title_path 自动推断
 
 **anchor 格式**：`#章节标题`（中文原文 + 空格变 `-`）
 
+### 3.4 X1.5 — section 全量化
+
+**问题**：单 chunk 切太碎（≤1000 char），同一章节多个相邻 chunk 被分别命中时，LLM 拿到的上下文是若干断片，召回准但答不对。
+
+**方案**：检索阶段把同 `(file_path, title_path)` 内多个命中合并为 1 个 result，`content` 扩展为 `title_prefix + 居中截 max_chars=3500` 的整段：
+
+```
+原始命中（X0）                  X1.5 合并后
+chunk_A(score=0.82)  ──┐
+chunk_B(score=0.75)  ──┼─→  section_X(代表 chunk_A)
+chunk_C(score=0.68)  ──┘     content = "Section Title\n\n
+                                       <从 char_offset_start 居中截 3500 字>"
+                             metadata.markdown_anchor = "#section-id"
+                             metadata.is_x15_truncated = true/false
+```
+
+**效果**：实测 +13 题增益（baseline → X1.5），retrieval 端 `Reranker` 拿到更完整 section 后排序更准。
+
+**契约保留**：
+- `chunk_id` 仍是代表 chunk 的真主键（可 by-id 反查）
+- 同时返回 `chunk_content`（命中 chunk 原文）字段，给 reranker"focused 评分"用，避免被无关 section 上下文稀释
+- `markdown_anchor` 透传到 reasoning，赛题 citation 输出按这个字段（不是 char_offset 形式）
+
+**应急回滚**：env `INGESTION_X15_ENABLED=false` 重启 ingestion 服务，30 秒内回滚到 X0 行为。
+
 ---
 
 ## 4. 性能指标
@@ -258,7 +341,8 @@ fallback：title_path 自动推断
 | -------- | ---- | ----- | ------------- |
 | 简单事实题    | 2-3s | 5s    | 单轮检索 + LLM    |
 | 复杂综合题    | 5-8s | 15s   | 多 chunk + 长推理 |
-| 批量 100 题 | —    | 20min | 并发 4，LLM 限速   |
+
+**批量吞吐**：100 题 ≈ 20min（concurrency=4，受 LLM 限速制约）。
 
 ### 4.3 增量更新时延
 
@@ -277,7 +361,7 @@ fallback：title_path 自动推断
 | ①   | **.adoc regex 锚点解析**  | 针对 Spring `[[anchor]]` 显式锚点手写 regex，覆盖率 > 95%，避免通用解析器漏锚点     |
 | ②   | **X1.5 section 全量化**  | 同章节多个命中 chunk 合并为 1 个 section，+13 题实测增益，可一键回滚                |
 | ③   | **双路混合去重 + Reranker** | 向量 + BM25 按 chunk_id 去重，CrossEncoder Sigmoid 归一化，阈值 0.4 语义一致 |
-| ④   | **MVP 简化增量同步**        | HTTP 主动触发 + watchdog 兜底，hash 判 unchanged，全删重写保一致性            |
+| ④   | **双路径增量同步**            | HTTP 主动触发 + watchdog 目录监听兜底，hash 短路 unchanged，全删重写保一致性，5min SLA |
 
 **外部依赖（已声明）**：
 
@@ -291,12 +375,16 @@ fallback：title_path 自动推断
 
 ### 6.1 系统依赖
 
-| 依赖                 | 版本     | 来源          | 用途           |
-| ------------------ | ------ | ----------- | ------------ |
-| Python             | ≥ 3.10 | 系统          | 运行时          |
-| SQLite             | 3.x    | 系统          | 存储引擎         |
-| bge-m3             | latest | HuggingFace | 向量 embedding |
-| bge-reranker-v2-m3 | latest | HuggingFace | 重排序          |
+| 依赖                 | 版本                   | 来源          | 用途           |
+| ------------------ | -------------------- | ----------- | ------------ |
+| Python             | ≥ 3.12               | 系统          | 运行时          |
+| Node.js            | ≥ 20                 | 系统          | entrance / frontend |
+| SQLite             | 3.x（含 FTS5）          | 系统          | 存储引擎         |
+| bge-m3             | latest（~2 GB）         | HuggingFace | 向量 embedding（1024 维 / normalize=True） |
+| bge-reranker-v2-m3 | latest               | HuggingFace | CrossEncoder 重排序 |
+| paddleocr          | `>=3.5.0,<4.0.0`     | pip         | 扫描 PDF OCR 降级（PP-OCR-v5）|
+| paddlepaddle       | `>=3.3.1,<4.0.0`     | pip         | PaddleOCR 推理引擎（CPU；GPU 用 paddlepaddle-gpu）|
+| jieba              | ≥ 0.42.1             | pip         | FTS5 中文预分词 |
 
 ### 6.2 Python 包依赖
 
@@ -333,8 +421,9 @@ python -c "from sentence_transformers import CrossEncoder; \
 cp src/.env.example src/.env
 # 填入 LLM_API_KEY 等
 
-# 5. 启动服务
-bash src/devStart.sh
+# 5. 启动服务（项目根一键全栈，含 nginx + 7 个服务）
+bash scripts/startAll.sh
+# 停止：bash scripts/stopAll.sh
 
 # 6. 索引文档
 curl -X POST 'http://localhost:3003/index?add=docs/react/sample.md'
@@ -345,3 +434,17 @@ curl -X POST http://localhost:8001/api/qa \
   -H "Content-Type: application/json" \
   -d '{"id":"test","question":"useEffect 何时执行？"}'
 ```
+
+### 部署到无外网评委环境
+
+评委环境是 **x86 Linux + 无外网 + Docker 单机**。bge-m3（~2 GB，HuggingFace）和 PP-OCR-v5（~200 MB，百度 BOS）默认从公网拉取，**必须在镜像构建阶段预下载并打包进镜像**，否则首次启动直接崩。
+
+```dockerfile
+# 在 RUN pip install -r requirements.txt 之后追加
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
+RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('BAAI/bge-reranker-v2-m3')"
+RUN python -c "from paddleocr import PaddleOCR; PaddleOCR(use_textline_orientation=True, lang='ch')"
+# 模型现在缓存在 ~/.cache/huggingface/ 和 ~/.paddlex/，无网也能跑
+```
+
+GPU 部署：把 `paddlepaddle` 替换成 `paddlepaddle-gpu`（同版本范围），OCR 速度 ~10x；bge-m3 / reranker 通过 torch CUDA 自动启用 GPU。
