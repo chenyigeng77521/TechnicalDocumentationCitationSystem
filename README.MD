@@ -33,6 +33,18 @@ src/
 
 ## 架构概览
 
+### 层级划分
+
+| 层 | 模块 | 职责 |
+|---|---|---|
+| **Layer 0** | entrance + firstlayer (question_filter / category_classifier / context_memory) | 网关 / 问题分类与过滤 / 上下文记忆 |
+| **Layer 1** | ingestion | 文档解析 / 切块 / 向量化 / 索引 / 检索接口 |
+| **Layer 2** | retrieval | 双路混合检索（向量 + BM25） / 查询扩展 / 重排序 |
+| **Layer 3** | reasoning | LLM 推理 / 引用合法性校验 / 拒答判定 |
+| **Layer 4** | frontend | WebUI 展示 / 文件管理 / 批量测试 |
+
+下方架构图聚焦写入与问答主数据流（Layer 1 → 2 → 3）；Layer 0 与 Layer 4 的调用关系详见后续"请求流向说明"表。
+
 ```
 上传 / 文件系统
        │
@@ -52,22 +64,20 @@ src/
 │    └────────┬────────┘    / openpyxl             │
 │             │                                    │
 │    ┌────────▼────────┐                           │
-│    │  Chunker         │  MVP: document 三级 fallback│
-│    │  (MVP)           │  code/structured_data → P1│
-│    └────────┬────────┘                           │
+│    │   Chunker        │  document 三级 fallback：   │
+│    │                  │  段落 → 句号 → 硬切          │
+│    └────────┬────────┘  (MAX_CHARS=1000, OVERLAP=200)│
 │             │                                    │
-│    MVP: 全删重写              P1: chunk-level diff │
+│    chunk_id = sha256(file_path|idx|content[:100])│
+│    内容变化 → 全删重写（按 file_hash 判断）          │
 │             │                                    │
-│    batch embed（concurrency=8，本地 bge-m3）       │
-│    （无 rate limit，MVP 固定并发）                  │
+│    batch embed（concurrency=8，bge-m3 + normalize）│
 │             │                                    │
 │    ┌────────▼────────────────────────────┐       │
 │    │         SQLite                       │       │
 │    │  chunks 表 + FTS5（BM25）+ 向量列     │       │
 │    │  documents 元数据表（index_version）  │       │
 │    └────────────────────────────────────┘       │
-│                                                  │
-│    WebSocket 进度推送（P1，MVP 同步等返回）          │
 └─────────────────────────────────────────────────┘
                          │
                          ▼
@@ -85,7 +95,7 @@ src/
 │    Reranker 精排（bge-reranker-v2-m3）           │
 │    API / 本地 CrossEncoder 双模式                │
 │    Sigmoid 映射到 (0,1) + 相邻 chunk 上下文扩展   │
-│                         │            a         │
+│                         │                      │
 │    ┌────────────────────┴──────────────┐        │
 │    │     max_score < 0.4？             │        │
 │   YES                                NO         │
@@ -97,8 +107,15 @@ src/
 ┌─────────────────────────────────────────────────┐
 │              推理与引用层（Layer 3）               │
 │                                                 │
-│         上下文注入 → LLM 推理 → 引用验证            │
-│                                                 │            
+│    可回答性判定（max_score < 0.4 / 空检索 → 拒答）   │
+│             │                                    │
+│    Context 构建（top_k chunks 拼装 + 引用 ID 注入）│
+│             │                                    │
+│    LLM 推理（OpenAI 兼容接口 → DeepSeek-V3）       │
+│             │                                    │
+│    引用合法性校验（拒绝幻觉编造 chunk_id）          │
+│             │                                    │
+│    输出：answer + citations + confidence          │
 └─────────────────────────────────────────────────┘
                          │
                          ▼
@@ -143,25 +160,25 @@ src/
 ### backend/ingestion — 数据处理与索引层 (Layer 1)
 - **技术栈**：Python + FastAPI + SQLite(FTS5)
 - **端口**：`:3003`
-- **数据库**：`backend/storage/index/knowledge.db`（统一进 `backend/storage/`，跟 raw 平级）
+- **数据库**：`src/backend/database/knowledge.db`（SQLite + FTS5）
 - **监听目录**：`backend/storage/raw/`（与 entrance 共用，entrance 上传后调 `POST /index`）
 - **代码组织**：
   - `parser/` — 9 种格式解析器（md / txt / html / pdf / docx / xlsx / pptx / adoc / pdf扫描）
   - `chunker/` — 文本切块（三级 fallback：标题 → 段落 → 句子 → 硬切）
-  - `db/` — SQLite 读写（连接 `backend/storage/index/knowledge.db`）
+  - `db/` — SQLite 读写（连接 `src/backend/database/knowledge.db`）
   - `sync/` — 增量同步 + 5min SLA（pipeline / file_lock / watchdog / gc）
   - `api/` — FastAPI 路由（写入侧 + 检索侧）
   - `common/` — 共享工具（embedding / errors / logger）
 - **核心职责**：
   - 按扩展名分派解析器，扫描 PDF 降级 PaddleOCR
-  - 文本三级 fallback 切块（`MAX_CHARS=1000`，相邻块 `OVERLAP=200`，过滤 `< 30 char`）
+  - 文本三级 fallback 切块（`MAX_CHARS=1000`，相邻块 `OVERLAP=200`，过滤 `< 50 char`）
   - `bge-m3` 向量化写入（`normalize_embeddings=True`，懒加载，batch 8）
   - 对外暴露写入接口（`POST /index`、`DELETE /files`）与检索接口（`POST /chunks/vector-search`、`POST /chunks/text-search`、`GET /chunks/{id}`）
   - X1.5 section 合并策略（同章节命中内容聚合，可开关 `INGESTION_X15_ENABLED`）
-- **增量同步（MVP 简化版）**：
-  - 路径 A：entrance 上传后主动调 `POST /index`
+- **增量同步**：
+  - 路径 A：entrance 上传后主动调 `POST /index?add/modify/delete=<path>`
   - 路径 B：watchdog 监听 `raw/` 目录，debounce 1s 兜底
-  - hash 没变 → 返回 `unchanged`；hash 变了 → 删旧 chunks 全删重写（不做 chunk-level diff）
+  - 按 `file_hash` 判断：未变 → `unchanged`，变了 → 删旧 chunks 全量重写
   - 启动时全扫 GC + 每小时定时清理孤儿 chunks
 - **对外契约**：见 `backend/ingestion/INTERFACE.md`
 
@@ -249,15 +266,18 @@ cp src/.env.aigw.example src/.env.aigw
 ### 3. 启动服务
 
 ```bash
-# 方式一：开发一键启动（项目根目录执行）
-bash src/devStart.sh
+# 方式一：项目根一键全栈启动（推荐，含 nginx + 全部 7 个服务）
+bash scripts/startAll.sh
+bash scripts/stopAll.sh        # 停止全部
 
-# 方式二：手动逐个启动
-cd src/backend/ingestion && bash start.sh --bg
-cd src/backend/reasoning && python main.py
-cd src/backend/entrance && npm run dev
-cd src/frontend && npm run dev
+# 方式二：手动逐个启动（按依赖顺序）
+bash src/backend/ingestion/start.sh --bg     # Layer 1 数据层
+bash src/backend/reasoning/start.sh --bg     # Layer 3 推理
+cd src/backend/entrance && npm run dev       # 网关
+cd src/frontend && npm run dev               # 前端
 ```
+
+> `dev.sh`（项目根）和 `src/devStart.sh` 是历史脚本，仅启动部分服务，不带完整 RAG 链路，调试问答请用 `scripts/startAll.sh`。
 
 ### 4. 验证
 
