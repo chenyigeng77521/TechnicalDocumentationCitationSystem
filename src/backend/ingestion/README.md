@@ -98,7 +98,7 @@
 | 目录 | 干啥的 | 关键文件 |
 |---|---|---|
 | `api/` | FastAPI 路由 + uvicorn 入口 | `server.py`（端口 3003 入口）、`routes_index.py`（写入）、`routes_search.py`（检索）、`routes_upload.py`（联调用，开关控制）、`x15.py`（X1.5 section 合并） |
-| `parser/` | 9 种格式解析器 | `dispatcher.py`（按扩展名分派）、`*_parser.py`、`types.py`（`ParseResult` / `TitleNode` 数据结构） |
+| `parser/` | 9 种格式解析器 | `dispatcher.py`（按扩展名分派）、`markdown_parser.py`（含 K8s `{#xxx}` / React `{/*xxx*/}` trailing anchor）、`adoc_parser.py`（**regex 手写适配 `[[xxx]]` 显式锚点 + `=` 标题，不用 asciidoctor**）、其它 `*_parser.py`、`types.py`（`ParseResult` / `TitleNode` 数据结构） |
 | `chunker/` | 文本切块 | `document_splitter.py`（三级 fallback 主逻辑，`MAX_CHARS=1000`）、`quality_filter.py`（3 条过滤规则）、`overlap.py`、`types.py` |
 | `db/` | SQLite 操作 | `schema.sql`（documents + chunks + FTS5 三表）、`connection.py`（WAL）、`documents_repo.py`、`chunks_repo.py` |
 | `sync/` | 写入侧编排 | `pipeline.py`（`index_pipeline` 主函数）、`file_lock.py`（同文件并发锁）、`gc.py`（孤儿 chunk 回收）、`watchdog_runner.py`（路径 B 文件监听，预留） |
@@ -134,6 +134,21 @@
 - 应急回滚：env `INGESTION_X15_ENABLED=false` 重启
 - 详见 spec：[`docs/superpowers/specs/2026-04-30-x15-rigorous-design.md`](../../../docs/superpowers/specs/2026-04-30-x15-rigorous-design.md)
 
+### 为什么 .adoc 用 regex 手写而不是 asciidoctor
+- Spring 文档大量用 `[[xxx]]` 显式声明 anchor + `=` 系列标题，是 .adoc 子集
+- 用通用 markdown 解析跑 .adoc → 把 `==` 当成 H2 但漏掉前一行的 `[[anchor-id]]` → **anchor 全错**
+- asciidoctor / asciidoc3 库重 + 依赖 Ruby/JVM，无外网部署成本高
+- 我们手写 regex 只识别 `=` 标题 + `[[xxx]]` 锚点，覆盖赛题 Spring .adoc 的全部用法（高级语法 include / conditional / attributes 暂不支持，作普通正文）
+- React / K8s 走 `markdown_parser.py`（识别 trailing `{#xxx}` / `{/*xxx*/}`）
+
+### 增量索引必须支持 add / modify / delete（评分硬要求）
+- 评委评测时**当场**新增 / 修改 / 删除一篇文档，5 分钟内提问验证
+- **build-once 模式直接 0 分**——必须实现增量
+- 实现：`POST /index?add=<path>` / `?modify=<path>` / `?delete=<path>`，三选一互斥（详见 INTERFACE.md `/index`）
+- 单文件 SLA：典型 < 1 秒（模型已加载）；首次进程启动加载 SentenceTransformer 约 15 秒
+- 写入侧路径：`routes_index.py` → `sync/pipeline.py:index_pipeline()`，`file_hash` 自动判 indexed / replaced / unchanged
+- 路径 B（`sync/watchdog_runner.py` 监听 raw/ 目录）已实现但默认不启用，HTTP 增量是默认链路
+
 ---
 
 ## 5. 4 个 ID 一图说清
@@ -149,9 +164,20 @@ chunk_id         sha256(file_path | chunk_index | content[:100]) 的 hex
 anchor_id        docs/react/incremental-adoption.md#38
                  └─ {file_path}#{char_offset_start}，旧版前端跳转锚点
 
-markdown_anchor  #data-fetching   或   #top（无 heading 时）
+markdown_anchor  #data-fetching            (英文标题，slug)
+                 #本地临时存储的配额          (中文标题，原文保留)
+                 #top                       (无 heading 时)
                  └─ 章节级锚点，✨ 赛题判分按这个字段
                     Layer 2 必须把 metadata.markdown_anchor 透传到 reasoning
+
+                 ⚠️ 中文 anchor 编码规则（统一口径，跟赛题 gold anchor 对齐）：
+                    ✅ 原始中文保留（如 #本地临时存储的配额）
+                    ✅ 标题里有空格 → 转 -（如 "API 发起驱逐" → #api-发起驱逐）
+                    ✅ 全转小写（英文部分）
+                    ❌ 不拼音化（不要 #ben-di-lin-shi-cun-chu-de-pei-e）
+                    ❌ 不 punycode（不要 #xn--fiqu...）
+                    ❌ 不丢空格信息（"a b" 必须出 "a-b"，不能压成 "ab"）
+                    实现：parser/adoc_parser.py:_slugify() 的 regex `[^\w一-鿿-]+` 保留中文 Unicode
 ```
 
 写入侧三个全自动算；查询侧海军的 retrieval 透传整个 metadata，reasoning 层取 `markdown_anchor` 优先（详见 INTERFACE.md 末尾"Layer 2 映射建议"）。
