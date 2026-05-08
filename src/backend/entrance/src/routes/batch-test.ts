@@ -14,9 +14,16 @@ import { fileURLToPath } from 'url';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { config } from '../config.js';
+import { Agent, fetch } from 'undici';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// 推理层请求超时配置（headers + body 各 120 分钟）
+const longTimeoutDispatcher = new Agent({
+  headersTimeout: 120 * 60 * 1000,
+  bodyTimeout: 120 * 60 * 1000,
+});
 
 // 日志目录：项目根目录下的 logs/
 const LOGS_DIR = path.resolve(__dirname, '../../../../logs');
@@ -189,12 +196,13 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
     console.log(`✅ [批量测试] 调用远程接口：${remoteUrl}`);
     console.log(`📦 [批量测试] 发送数据（只展示前 200 个字符）：${jsonlBody.substring(0, 200)}...`);
 
-    // 同步调用远程批量接口（超时 10 分钟）
+    // 同步调用远程批量接口（超时 90 分钟，headers/body 超时 120 分钟）
     const response = await fetch(remoteUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/jsonl+json' },
       body: jsonlBody,
       signal: AbortSignal.timeout(90 * 60 * 1000),
+      dispatcher: longTimeoutDispatcher,
     });
 
     // ========== 保存批量测试文件到 data/batchtest ==========
@@ -383,6 +391,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(90 * 60 * 1000),
+      dispatcher: longTimeoutDispatcher,
     });
 
     if (response.ok) {
@@ -416,6 +425,11 @@ router.post('/submit', async (req: Request, res: Response) => {
       code: error.code,
       stack: error.stack?.substring(0, 500)
     });
+
+    // ✅ 将异常写入后台日志文件
+    const logMsg = `[${new Date().toISOString()}] ❌ [批量测试] 提交失败: ${error.name} - ${error.message}\n堆栈: ${error.stack}\n`;
+    fs.appendFileSync(path.join(LOGS_DIR, 'backend.log'), logMsg, 'utf-8');
+
     return res.json({ status: 'error', succeeded: 0, failed: 0, total: 0, message: `提交失败：${error.message}` });
   }
 });
