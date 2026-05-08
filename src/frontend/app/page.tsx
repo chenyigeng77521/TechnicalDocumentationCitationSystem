@@ -376,7 +376,11 @@ export default function Home() {
         logToBackend(`[批量测试] 成功: total=${data.total}, succeeded=${data.succeeded}, failed=${data.failed}`);
       } else {
         const duration = data.duration ? `，耗时 ${data.duration} 秒` : '';
-        const msg = `❌ 测试失败：成功 ${data.succeeded || 0} 条，失败 ${data.failed || 0} 条${duration}`;
+        const errorDetail = data.message ? `（${data.message}）` : '';
+        const timeoutHint = data.message?.includes('超时') || data.message?.includes('timeout') || data.message?.includes('Timeout')
+          ? '\n\n⏳ 注意：由于API超时，后台可能仍在处理中，请耐心等待约20分钟后查看结果文件。'
+          : '';
+        const msg = `❌ 测试失败：成功 ${data.succeeded || 0} 条，失败 ${data.failed || 0} 条${duration}${errorDetail}${timeoutHint}`;
         setBatchUploadMessage(msg);
         console.error('📋 [批量测试] 失败:', msg);
         logToBackend(`[批量测试] 失败: ${msg}`);
@@ -394,7 +398,7 @@ export default function Home() {
       // 5 秒后清除消息
       setTimeout(() => {
         setBatchUploadMessage('');
-      }, 5000);
+      }, 10000);
     }
   };
 

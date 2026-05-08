@@ -37,7 +37,7 @@ export const config = {
     return {
       url: process.env.FIRSTLAYER_URL || 'http://localhost:3004',
       enabled: process.env.ENABLE_QUESTION_CLASSIFICATION === 'true',
-      timeout: parseInt(process.env.CLASSIFY_TIMEOUT || '5000'),
+      timeout: parseInt(process.env.CLASSIFY_TIMEOUT || '60000'),
     };
   },
   // Question Filter 配置（运行时读取）
@@ -45,7 +45,7 @@ export const config = {
     return {
       url: process.env.QUESTION_FILTER_URL || 'http://localhost:3005',
       enabled: process.env.ENABLE_QUESTION_FILTER !== 'false',  // 默认启用
-      timeout: parseInt(process.env.FILTER_TIMEOUT || '5000'),
+      timeout: parseInt(process.env.FILTER_TIMEOUT || '60000'),
     };
   },
   // Context Memory 配置（运行时读取）
@@ -53,7 +53,7 @@ export const config = {
     return {
       url: process.env.CONTEXT_MEMORY_URL || 'http://localhost:3006',
       enabled: process.env.ENABLE_CONTEXT_MEMORY !== 'false',  // 默认启用
-      timeout: parseInt(process.env.CONTEXT_MEMORY_TIMEOUT || '5000'),
+      timeout: parseInt(process.env.CONTEXT_MEMORY_TIMEOUT || '60000'),
     };
   },
   // 检索层配置（运行时读取）
