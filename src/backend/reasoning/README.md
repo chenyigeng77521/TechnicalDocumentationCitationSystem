@@ -287,6 +287,23 @@ curl http://localhost:8001/health
 
 > **拒答原因说明**：`refuse_reason` 字段在 Step 1 拒答场景下优先返回 LLM 生成的自然语言解释（如"文档中未涉及该接口的参数说明"），LLM 调用失败时降级为机器码字符串。`answer` 字段统一固定为 `REFUSAL_TEXT`。
 
+### trap_type 枚举（8 种拒答类型）
+
+当 LLM 主动拒答（`refuse: true`）时，`debug_info.trap_type` 字段标识陷阱类型，用于评判系统抗诱导能力：
+
+| trap_type | 含义 | 示例 |
+|-----------|------|------|
+| `fake_api` | 问题提及的 API/方法在文档中不存在 | "请调用 `useLegacyAPI`" → 文档中无此 API |
+| `future_version` | 问题涉及文档中未涵盖的未来版本特性 | "v3.0 的 XXX 特性" → 文档仅覆盖 v2.x |
+| `overgeneralization` | 问题过度泛化，文档中只有更具体的子集 | "如何配置所有缓存" → 文档只有 Redis 缓存配置 |
+| `parameter_mismatch` | 参数名称或类型不匹配 | "timeout 参数" → 实际参数为 `timeout_ms` |
+| `cross_domain` | 问题跨域，如用 React 术语问 Vue 文档 | "React 的 useState" → 文档为 Vue |
+| `concept_confusion` | 概念混淆 | "useEffect 是生命周期方法" → Hooks 与 Class 生命周期不同 |
+| `procedure_step` | 缺少操作步骤的完整上下文 | 只问"第3步"，但文档未提供步骤列表 |
+| `non_existent_attribute` | 问题提及的属性/字段/选项在文档中不存在 | "useState 的 `async` 属性" → React 官方无此属性 |
+
+> 以上枚举与 `config.py` 中 `PROMPT_TEMPLATE` 的 trap_type 列表保持一致。
+
 ---
 
 ## 批量处理
