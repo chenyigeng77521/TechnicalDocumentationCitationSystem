@@ -246,7 +246,7 @@ router.post('/', upload.array('files', config.upload.maxFiles), async (req: Requ
         console.log(`✅ [上传] 批量通知索引服务：POST ${indexUrl}`);
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 60000);
+        const timeout = setTimeout(() => controller.abort(), 300000);
         const response = await fetch(indexUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -427,7 +427,7 @@ router.delete('/delete', async (req: Request, res: Response) => {
       logToBackend(`删除请求索引服务: ${filePath} → POST ${indexUrl}`);
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      const timeout = setTimeout(() => controller.abort(), 300000);
       const response = await fetch(indexUrl, {
         method: 'POST',
         headers: { 'accept': 'application/json' },
@@ -580,7 +580,7 @@ router.post('/modify-index', async (req: Request, res: Response) => {
     console.log(`✅ [上传] 通知索引服务：POST ${indexUrl}`);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    const timeout = setTimeout(() => controller.abort(), 300000);
 
     try {
       const response = await fetch(indexUrl, {

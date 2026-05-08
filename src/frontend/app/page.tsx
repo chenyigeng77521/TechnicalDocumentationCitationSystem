@@ -11,6 +11,7 @@ interface Message {
   role: 'user' | 'bot';
   text: string;
   sources?: string[];
+  is_refusal?: boolean;
 }
 
 export default function Home() {
@@ -608,6 +609,17 @@ export default function Home() {
       .replace(/\n/g, '<br>');
   };
 
+  // 格式化拒答文本：将开头的拒答文字渲染为紫色
+  const formatRefusalText = (text: string) => {
+    const refusalPrefix = '抱歉，我无法从提供的文档中找到答案。';
+    if (text.startsWith(refusalPrefix)) {
+      const rest = text.substring(refusalPrefix.length);
+      return `<span style="color: #7c3aed; font-weight: 600;">${refusalPrefix}</span>` +
+             formatText(rest);
+    }
+    return formatText(text);
+  };
+
   // 复制文本功能
   const copyToClipboard = async (text: string, isQuestion: boolean) => {
     try {
@@ -679,7 +691,9 @@ export default function Home() {
     setQuestion('');
     setCharCount(0);
     setIsLoading(true);
+    const startTime = Date.now();
     console.log('[ask] 开始发送问题...');
+    logToBackend(`[ask] 开始发送问题: ${q}`, 'INFO');
 
     try {
       // 创建 AbortController 用于停止请求
@@ -687,7 +701,14 @@ export default function Home() {
       const { signal } = abortControllerRef.current;
 
       // 调用后端 API（非流式，普通 HTTP）
-      const response = await fetch(buildApiUrl('/api/qa/ask-stream'), {
+      console.log('[ask] 正在请求后端 API: /api/qa/ask-stream');
+      logToBackend(`[ask] 正在请求后端 API: /api/qa/ask-stream`, 'INFO');
+      
+      const apiUrl = buildApiUrl('/api/qa/ask-stream');
+      console.log('[ask] 实际请求 URL:', apiUrl);
+      logToBackend(`[ask] 实际请求 URL: ${apiUrl}`, 'INFO');
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal,
@@ -696,16 +717,25 @@ export default function Home() {
           session_id: sessionId || undefined
         }),
       });
+      console.log(`[ask] 收到响应，状态码: ${response.status}, ok: ${response.ok}`);
+      logToBackend(`[ask] 收到响应，状态码: ${response.status}, ok: ${response.ok}`, 'INFO');
 
-      if (!response.ok) throw new Error('API 请求失败');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ask] HTTP 错误:', response.status, errorText);
+        logToBackend(`[ask] HTTP 错误: ${response.status} - ${errorText}`, 'ERROR');
+        throw new Error(`API 请求失败: ${response.status}`);
+      }
 
       // 直接解析完整 JSON 响应
       const data = await response.json();
       console.log('[ask] 收到完整响应:', data);
+      logToBackend(`[ask] 收到完整响应: ${JSON.stringify(data).substring(0, 500)}...`, 'INFO');
 
       if (!data.success) {
         const errorMsg = data.message || '发生错误';
         console.error('[ask] 请求失败:', errorMsg);
+        logToBackend(`[ask] 请求失败: ${errorMsg}`, 'ERROR');
         setIsLoading(false);
         setMessages(prev => [...prev, { 
           role: 'bot', 
@@ -718,10 +748,12 @@ export default function Home() {
       const answer = data.answer || '';
       const sources: string[] = (data.sources || []) as string[];
       const classification = data.classification || null;
+      const is_refusal = data.is_refusal || false;
 
       console.log('[ask] 答案:', answer.substring(0, 100));
       console.log('[ask] 分类:', classification);
       console.log('[ask] 来源数:', sources.length);
+      logToBackend(`[ask] 处理完成 - 答案长度: ${answer.length}, 分类: ${JSON.stringify(classification)}, 来源数: ${sources.length}`, 'INFO');
 
       // 提取唯一来源并去重
       const uniqueSources: string[] = Array.from(new Set(sources.filter((s: string) => s && s.trim())));
@@ -729,15 +761,25 @@ export default function Home() {
       setMessages(prev => [...prev, {
         role: 'bot', 
         text: answer,
-        sources: uniqueSources.length > 0 ? uniqueSources : undefined
+        sources: uniqueSources.length > 0 ? uniqueSources : undefined,
+        is_refusal
       }]);
 
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('[ask] 用户已停止请求  ');
+      const errorName = error.name || 'UnknownError';
+      const errorMessage = error.message || '未知错误';
+      const errorStack = error.stack || '';
+      console.error('[ask] 请求失败:', error);
+      console.error('[ask] 错误类型:', errorName);
+      console.error('[ask] 错误消息:', errorMessage);
+      console.error('[ask] 错误堆栈:', errorStack);
+      logToBackend(`[ask] 请求失败 - 错误类型: ${errorName}, 错误消息: ${errorMessage}, 堆栈: ${errorStack.substring(0, 500)}`, 'ERROR');
+      
+      if (errorName === 'AbortError') {
+        console.log('[ask] 用户已停止请求');
+        logToBackend(`[ask] 用户已停止请求`, 'INFO');
         return;
       }
-      console.error('[ask] 请求失败:', error);
       setIsLoading(false);
       setMessages(prev => [...prev, { 
         role: 'bot', 
@@ -808,7 +850,7 @@ export default function Home() {
                   )}
                   <div
                     style={{...styles.bubbleText, ...(msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextBot)}}
-                    dangerouslySetInnerHTML={{ __html: formatText(msg.text) }}
+                    dangerouslySetInnerHTML={{ __html: msg.is_refusal ? formatRefusalText(msg.text) : formatText(msg.text) }}
                   />
                   {msg.role === 'user' && (
                     <div style={{ display: 'flex', gap: '4px', marginTop: '6px', justifyContent: 'flex-end' }}>

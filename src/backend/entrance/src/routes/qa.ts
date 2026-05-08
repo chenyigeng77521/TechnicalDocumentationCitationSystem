@@ -278,6 +278,9 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('✅ [ask] 问答失败:', error);
+    console.error('✅ [ask] 错误类型:', error.name || 'UnknownError');
+    console.error('✅ [ask] 错误消息:', error.message || '未知错误');
+    console.error('✅ [ask] 错误堆栈:', error.stack || '');
     return res.status(500).json({
       success: false,
       message: error.message || '问答失败'
