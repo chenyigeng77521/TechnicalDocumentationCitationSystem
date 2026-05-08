@@ -77,7 +77,8 @@ echo ""
 echo "6️⃣ 停止 Reasoning 推理服务 (8001)..."
 REASON_PID=$(lsof -ti:8001 2>/dev/null)
 if [ -n "$REASON_PID" ]; then
-    bash "$SRC_ROOT/backend/reasoning/stop.sh" 2>/dev/null || kill -9 $REASON_PID 2>/dev/null
+    cd "$SRC_ROOT/backend/reasoning"
+    ./stop.sh
     sleep 1
     echo "   ✅ Reasoning 已停止"
 else

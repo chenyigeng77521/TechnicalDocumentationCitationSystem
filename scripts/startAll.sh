@@ -165,7 +165,8 @@ if [ -n "$REASON_CHECK" ]; then
     echo "   ✅ Reasoning 已运行 (8001)"
 else
     echo "   🔄 启动 Reasoning 服务..."
-    bash "$current_path/backend/reasoning/start.sh" --bg
+    cd "$current_path/backend/reasoning"
+    ./start.sh --bg
 fi
 
 # 检查并启动 Ingestion 数据层服务（Layer 1）
