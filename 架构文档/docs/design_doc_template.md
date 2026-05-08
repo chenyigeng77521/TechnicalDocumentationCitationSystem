@@ -300,15 +300,15 @@ fallback：title_path 自动推断
 
 ### 6.2 Python 包依赖
 
-| 类别             | 包名与版本                                                                                                                                                                                                                 | 来源   | 用途                    |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------- |
-| Web 框架         | fastapi≥0.111.0, uvicorn[standard]≥0.29.0, pydantic≥2.7.0, httpx≥0.27.0, requests==2.32.5                                                                                                                             | PyPI | HTTP 服务与数据校验          |
-| 文档解析           | pymupdf≥1.23.0, python-docx≥1.1.0, openpyxl≥3.1.0, python-pptx≥0.6.23, markdown≥3.5, beautifulsoup4≥4.12.0, markdownify≥0.11.6, chardet≥5.2.0, python-magic≥0.4.27, paddleocr≥3.5.0,<4.0.0, paddlepaddle≥3.3.1,<4.0.0 | PyPI | 多格式文档解析与 OCR          |
-| Embedding / ML | sentence-transformers≥2.7.0, torch≥2.2.0, numpy==1.26.4                                                                                                                                                               | PyPI | 向量嵌入与深度学习推理           |
-| LangChain 生态   | langchain-community==0.4.1, langchain-core==1.3.0, langchain-huggingface==1.2.2                                                                                                                                       | PyPI | LLM 应用框架组件            |
-| 大模型 API        | openai==2.9.0                                                                                                                                                                                                         | PyPI | OpenAI 兼容接口调用         |
-| 测试工具           | pytest≥8.0.0, pytest-asyncio≥0.23.0, pytest-benchmark≥4.0.0                                                                                                                                                           | PyPI | 单元测试与性能基准             |
-| 工具库            | aiofiles≥23.2.0, watchdog≥4.0.0, jieba≥0.42.1, python-dotenv==1.2.1, translators==6.0.4                                                                                                                               | PyPI | 异步 IO、文件监控、分词、环境变量、翻译 |
+| 类别             | 包名与版本                                                                                                                                                              | 来源   | 用途                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | --------------------- |
+| Web 框架         | fastapi≥0.111.0, uvicorn[standard]≥0.29.0, pydantic≥2.7.0, httpx≥0.27.0, requests==2.32.5                                                                          | PyPI | HTTP 服务与数据校验          |
+| 文档解析           | pymupdf≥1.23.0, python-docx≥1.1.0, openpyxl≥3.1.0, python-pptx≥0.6.23, markdown≥3.5, beautifulsoup4≥4.12.0, markdownify≥0.11.6, chardet≥5.2.0, python-magic≥0.4.27 | PyPI | 多格式文档解析               |
+| Embedding / ML | sentence-transformers≥2.7.0, torch≥2.2.0, numpy==1.26.4                                                                                                            | PyPI | 向量嵌入与深度学习推理           |
+| LangChain 生态   | langchain-community==0.4.1, langchain-core==1.3.0, langchain-huggingface==1.2.2                                                                                    | PyPI | LLM 应用框架组件            |
+| 大模型 API        | openai==2.9.0                                                                                                                                                      | PyPI | OpenAI 兼容接口调用         |
+| 测试工具           | pytest≥8.0.0, pytest-asyncio≥0.23.0, pytest-benchmark≥4.0.0                                                                                                        | PyPI | 单元测试与性能基准             |
+| 工具库            | aiofiles≥23.2.0, watchdog≥4.0.0, jieba≥0.42.1, python-dotenv==1.2.1, translators==6.0.4                                                                            | PyPI | 异步 IO、文件监控、分词、环境变量、翻译 |
 
 ### 6.3 复现步骤
 
