@@ -226,12 +226,13 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: qid, question: processedQuestion, category: classification.category }),
-      signal: AbortSignal.timeout(120000),
+      signal: AbortSignal.timeout(600000),
     });
 
     if (!response.ok) throw new Error(`推理层返回 ${response.status}`);
 
     const result: any = await response.json();
+    console.log(`✅ [ask] 推理层返回（8001原始数据）:`, JSON.stringify(result, null, 2));
     console.log(`✅ [ask] 推理层返回，answer长度: ${(result.answer || '').length}`);
 
     // 解析来源
@@ -277,6 +278,9 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('✅ [ask] 问答失败:', error);
+    console.error('✅ [ask] 错误类型:', error.name || 'UnknownError');
+    console.error('✅ [ask] 错误消息:', error.message || '未知错误');
+    console.error('✅ [ask] 错误堆栈:', error.stack || '');
     return res.status(500).json({
       success: false,
       message: error.message || '问答失败'

@@ -61,7 +61,7 @@ export const config = {
     return {
       url: process.env.RETRIEVAL_URL || 'http://localhost:8001/api/qa',
       enabled: !!process.env.RETRIEVAL_URL,  // 配置了 URL 就启用
-      timeout: parseInt(process.env.HTTP_TIMEOUT || '120000'),
+      timeout: parseInt(process.env.HTTP_TIMEOUT || '600000'),
       // 批量查询接口地址
       batchQueryUrl: process.env.BATCH_QUERY_URL || 'http://localhost:8001/api/qa/batch',
     };

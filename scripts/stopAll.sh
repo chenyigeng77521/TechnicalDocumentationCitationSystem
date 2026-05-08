@@ -8,6 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SRC_ROOT="$PROJECT_ROOT/src"
 
+echo $SRC_ROOT
+
 echo "========================================"
 echo "  知识问答系统停止脚本"
 echo "========================================"
@@ -100,9 +102,10 @@ fi
 # 停止 Nginx
 echo ""
 echo "8️⃣ 停止 Nginx..."
+NGINX=`which nginx`
 NGINX_PID=$(pgrep -x "nginx" 2>/dev/null)
 if [ -n "$NGINX_PID" ]; then
-    /usr/local/nginx/sbin/nginx -s stop 2>/dev/null
+    $NGINX -s stop 2>/dev/null
     sleep 1
     echo "   ✅ Nginx 已停止 (PID: $NGINX_PID)"
 else
