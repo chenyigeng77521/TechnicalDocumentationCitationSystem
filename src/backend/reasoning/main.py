@@ -291,6 +291,8 @@ async def qa_batch(request: BatchQARequest) -> BatchQAResponse:
     入参：{ "items": [{"id": "...", "question": "..."}] }
     出参：{ "status", "file_path", "total", "succeeded", "failed" }
     """
+    logger.info("[api/qa/batch] 收到批量请求: items=%s",
+               json.dumps([item.model_dump() for item in request.items], ensure_ascii=False))
     if not request.items:
         raise HTTPException(status_code=400, detail="items 不能为空")
 
