@@ -1,6 +1,6 @@
 # 技术文档智能问答与引用溯源系统 — 设计文档
 
-> **版本**：v1.0  
+> **版本**：v1.1  
 > **日期**：2026-05-08  
 > **队伍**：PAK智锚
 
@@ -10,27 +10,15 @@
 
 ### 1.1 层级划分
 
-| 层 | 模块 | 职责 |
-|---|---|---|
-| **Layer 0** | entrance + firstlayer (question_filter / category_classifier / context_memory) | 网关 / 问题分类与过滤 / 上下文记忆 |
-| **Layer 1** | ingestion | 文档解析 / 切块 / 向量化 / 索引 / 检索接口 |
-| **Layer 2** | retrieval | 双路混合检索（向量 + BM25） / 查询扩展 / 重排序 |
-| **Layer 3** | reasoning | LLM 推理 / 引用合法性校验 / 拒答判定 |
-| **Layer 4** | frontend | WebUI 展示 / 文件管理 / 批量测试 |
+| 层           | 模块                                                                             | 职责                             |
+| ----------- | ------------------------------------------------------------------------------ | ------------------------------ |
+| **Layer 0** | entrance + firstlayer (question_filter / category_classifier / context_memory) | 网关 / 问题分类与过滤 / 上下文记忆           |
+| **Layer 1** | ingestion                                                                      | 文档解析 / 切块 / 向量化 / 索引 / 检索接口    |
+| **Layer 2** | retrieval                                                                      | 双路混合检索（向量 + BM25） / 查询扩展 / 重排序 |
+| **Layer 3** | reasoning                                                                      | LLM 推理 / 引用合法性校验 / 拒答判定        |
+| **Layer 4** | frontend                                                                       | WebUI 展示 / 文件管理 / 批量测试         |
 
-### 1.2 服务端口
-
-| 服务 | 端口 | 协议 |
-|---|---|---|
-| frontend (Next.js) | `3000` | HTTP |
-| entrance (Express) | `3002` | HTTP + SSE |
-| ingestion (FastAPI) | `3003` | HTTP |
-| category_classifier | `3004` | HTTP |
-| question_filter | `3005` | HTTP |
-| context_memory | `3006` | HTTP |
-| reasoning (FastAPI) | `8001` | HTTP |
-
-### 1.3 数据主流向
+### 1.2 数据主流向
 
 下方架构图聚焦写入与问答主数据流（Layer 1 → 2 → 3）；Layer 0 与 Layer 4 的调用关系详见各模块章节。
 
@@ -111,31 +99,9 @@
               返回响应 + WebUI 展示（Layer 4）
 ```
 
-### 1.4 Layer 0 — 网关与第一层智能服务
+### 1.3 Layer 4 — 前端
 
-architecturally 在主数据流之外，由 entrance 编排：
-
-| 微服务 | 端口 | 职责 |
-|---|---|---|
-| `entrance` | 3002 | HTTP / SSE 网关，接收前端请求并按问答 / 上传 / 批测分流 |
-| `question_filter` | 3005 | 无效问题过滤（短句 / 语气词 / 完整性检查），过滤后再进分类 |
-| `category_classifier` | 3004 | 问题分类 + NLU 指代消解 + 查询重写（chunk-relative → standalone）|
-| `context_memory` | 3006 | 多轮会话历史管理（session 维度），供查询重写引用上文 |
-
-问答调用链（SSE 流式）：
-
-```
-前端 → POST :3002/api/qa/ask-stream
-  → :3005 question_filter (filter)
-  → :3004 category_classifier (classify + rewrite)
-  → :3006 context_memory (write history)
-  → :8001 reasoning (RAG 推理)
-  → SSE 流式回写
-```
-
-### 1.5 Layer 4 — 前端
-
-Next.js 16 + React 19，端口 `:3000`。三个核心页面：智能问答页（SSE 流式输出 + 引用跳转）、文件管理页（上传 / 下载 / 在线编辑）、批量测试页。开发期通过 Next.js rewrites 代理到 `:3002`，生产环境走 `:80` Nginx。
+Next.js 16 + React 19，端口 `:3000`。三个核心页面：智能问答页（引用跳转）、文件管理页（上传 / 下载 / 在线编辑）、批量测试页。开发期通过 Next.js rewrites 代理到 `:3002`，生产环境走 `:80` Nginx。
 
 ---
 
@@ -315,11 +281,6 @@ chunk_C(score=0.68)  ──┘     content = "Section Title\n\n
 
 **效果**：实测 +13 题增益（baseline → X1.5），retrieval 端 `Reranker` 拿到更完整 section 后排序更准。
 
-**契约保留**：
-- `chunk_id` 仍是代表 chunk 的真主键（可 by-id 反查）
-- 同时返回 `chunk_content`（命中 chunk 原文）字段，给 reranker"focused 评分"用，避免被无关 section 上下文稀释
-- `markdown_anchor` 透传到 reasoning，赛题 citation 输出按这个字段（不是 char_offset 形式）
-
 **应急回滚**：env `INGESTION_X15_ENABLED=false` 重启 ingestion 服务，30 秒内回滚到 X0 行为。
 
 ---
@@ -365,7 +326,7 @@ chunk_C(score=0.68)  ──┘     content = "Section Title\n\n
 
 **外部依赖（已声明）**：
 
-- LLM API：`https://aigw.asiainfo.com/v1`（OpenAI 兼容）
+- LLM API：OpenAI 兼容
 - 模型：`bge-m3`、`bge-reranker-v2-m3`（HuggingFace，本地推理）
 - 翻译：`translators`（Bing，异常静默忽略）
 
@@ -434,17 +395,3 @@ curl -X POST http://localhost:8001/api/qa \
   -H "Content-Type: application/json" \
   -d '{"id":"test","question":"useEffect 何时执行？"}'
 ```
-
-### 部署到无外网评委环境
-
-评委环境是 **x86 Linux + 无外网 + Docker 单机**。bge-m3（~2 GB，HuggingFace）和 PP-OCR-v5（~200 MB，百度 BOS）默认从公网拉取，**必须在镜像构建阶段预下载并打包进镜像**，否则首次启动直接崩。
-
-```dockerfile
-# 在 RUN pip install -r requirements.txt 之后追加
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
-RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('BAAI/bge-reranker-v2-m3')"
-RUN python -c "from paddleocr import PaddleOCR; PaddleOCR(use_textline_orientation=True, lang='ch')"
-# 模型现在缓存在 ~/.cache/huggingface/ 和 ~/.paddlex/，无网也能跑
-```
-
-GPU 部署：把 `paddlepaddle` 替换成 `paddlepaddle-gpu`（同版本范围），OCR 速度 ~10x；bge-m3 / reranker 通过 torch CUDA 自动启用 GPU。
