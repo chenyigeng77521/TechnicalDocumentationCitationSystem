@@ -267,6 +267,10 @@ cd src/frontend && npm run dev
 | ingestion | `http://localhost:3003/health` | `{"status":"ok","db_writable":true}` |
 | reasoning | `http://localhost:8001/health` | `{"status":"ok","service":"layer3-reasoning"}` |
 
+### 5. 内网访问入口
+```
+http://10.1.235.73
+```
 ---
 
 ## 构建与部署
