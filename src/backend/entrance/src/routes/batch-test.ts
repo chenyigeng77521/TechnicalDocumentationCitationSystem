@@ -18,6 +18,9 @@ import { config } from '../config.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 日志目录：项目根目录下的 logs/
+const LOGS_DIR = path.resolve(__dirname, '../../../../logs');
+
 const router = Router();
 
 // ========== 目录配置（从 config 读取，可环境变量覆盖）==========
@@ -191,7 +194,7 @@ router.post('/upload', batchUpload.single('file'), async (req: Request, res: Res
       method: 'POST',
       headers: { 'Content-Type': 'application/jsonl+json' },
       body: jsonlBody,
-      signal: AbortSignal.timeout(30 * 60 * 1000),
+      signal: AbortSignal.timeout(90 * 60 * 1000),
     });
 
     // ========== 保存批量测试文件到 data/batchtest ==========
@@ -379,11 +382,12 @@ router.post('/submit', async (req: Request, res: Response) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30 * 60 * 1000),
+      signal: AbortSignal.timeout(90 * 60 * 1000),
     });
 
     if (response.ok) {
       const result: any = await response.json();
+      console.log(`✅ [批量测试] 推理层原始返回:`, JSON.stringify(result, null, 2));
       const succeeded = result.succeeded || 0;
       const failed = result.failed || 0;
       const total = result.total || items.length;
@@ -397,11 +401,21 @@ router.post('/submit', async (req: Request, res: Response) => {
       });
     } else {
       const errorText = await response.text();
-      console.error(`✅ [批量测试] 推理层错误：${response.status} - ${errorText}`);
+      const errorMsg = `❌ [批量测试] 推理层错误：${response.status} - ${errorText}`;
+      fs.appendFileSync(path.join(LOGS_DIR, 'backend.log'), errorMsg, 'utf-8');
+      fs.appendFileSync(path.join(LOGS_DIR, 'backend.log'), errorText, 'utf-8');
+      console.error(errorMsg.trim());
+      console.error(`❌ [批量测试] 推理层原始响应体:`, errorText);
       return res.json({ status: 'error', succeeded: 0, failed: items.length, total: items.length, message: `推理层返回 ${response.status}` });
     }
   } catch (error: any) {
     console.error('✅ [批量测试] 提交失败：', error);
+    console.error('❌ [批量测试] 错误详情：', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      stack: error.stack?.substring(0, 500)
+    });
     return res.json({ status: 'error', succeeded: 0, failed: 0, total: 0, message: `提交失败：${error.message}` });
   }
 });

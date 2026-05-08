@@ -726,7 +726,7 @@ export default function Home() {
       // 提取唯一来源并去重
       const uniqueSources: string[] = Array.from(new Set(sources.filter((s: string) => s && s.trim())));
       
-      setMessages(prev => [...prev, { 
+      setMessages(prev => [...prev, {
         role: 'bot', 
         text: answer,
         sources: uniqueSources.length > 0 ? uniqueSources : undefined
@@ -741,7 +741,7 @@ export default function Home() {
       setIsLoading(false);
       setMessages(prev => [...prev, { 
         role: 'bot', 
-        text: '抱歉，暂时无法连接到知识库服务，请稍后再试。',
+        text: '抱歉，返回超时，请稍后再试。',
         sources: []
       }]);
     } finally {
@@ -862,7 +862,7 @@ export default function Home() {
                       {msg.sources.map((source, idx) => {
                         if (source === '拒绝回答') {
                           return (
-                            <span key={idx} style={{...styles.sourceTag, background: '#f5f3ff', color: 'var(--accent)', fontWeight: 600, border: '1.5px solid var(--accent)', borderRadius: '6px', padding: '6px 14px', fontSize: '13px'}}>
+                            <span key={idx} style={{...styles.sourceTag, background: '#dbeafe', color: '#2563eb', fontWeight: 600, border: '1.5px solid #2563eb', borderRadius: '6px', padding: '6px 14px', fontSize: '13px'}}>
                               ℹ️ <b>无答案</b>
                             </span>
                           );

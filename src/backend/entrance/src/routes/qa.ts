@@ -226,12 +226,13 @@ router.post('/ask-stream', async (req: Request, res: Response) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: qid, question: processedQuestion, category: classification.category }),
-      signal: AbortSignal.timeout(120000),
+      signal: AbortSignal.timeout(600000),
     });
 
     if (!response.ok) throw new Error(`推理层返回 ${response.status}`);
 
     const result: any = await response.json();
+    console.log(`✅ [ask] 推理层返回（8001原始数据）:`, JSON.stringify(result, null, 2));
     console.log(`✅ [ask] 推理层返回，answer长度: ${(result.answer || '').length}`);
 
     // 解析来源

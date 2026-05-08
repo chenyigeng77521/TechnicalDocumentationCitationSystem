@@ -38,10 +38,10 @@ const HOST = process.env.HOST||'0.0.0.0' ;
 
 // 请求超时配置（20分钟）
 app.use((req, res, next) => {
-  req.setTimeout(20 * 60 * 1000, () => {
+  req.setTimeout(90 * 60 * 1000, () => {
     console.error('❌ 请求超时（20分钟）');
   });
-  res.setTimeout(20 * 60 * 1000, () => {
+  res.setTimeout(90 * 60 * 1000, () => {
     console.error('❌ 响应超时（20分钟）');
   });
   next();
