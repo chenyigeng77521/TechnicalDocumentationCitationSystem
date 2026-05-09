@@ -1,16 +1,4 @@
-INFO:     Started server process [87192]
+INFO:     Started server process [71575]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:3006 (Press CTRL+C to quit)
-✅ Context Memory 服务启动（纯内存模式，最多保存30组问答）
-✅ 创建新 session: session_59cb89466342
-INFO:     127.0.0.1:59514 - "POST /api/context/create-session HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59557 - "POST /api/context/add-user-message HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59557 - "POST /api/context/add-assistant-message HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59802 - "GET /api/context/get-all-messages/session_59cb89466342 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49179 - "POST /api/context/add-user-message HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49179 - "POST /api/context/add-assistant-message HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59018 - "GET /api/context/get-all-messages/session_59cb89466342 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59018 - "GET /api/context/get-all-messages/session_59cb89466342 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59059 - "POST /api/context/add-user-message HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59061 - "POST /api/context/add-assistant-message HTTP/1.1" 200 OK

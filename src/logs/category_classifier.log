@@ -1,27 +1,13 @@
-/Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem/src/backend/firstlayer/category_classifier/app.py:65: DeprecationWarning: 
+[transformers] Disabling PyTorch because PyTorch >= 2.4 is required but found 2.2.2
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+/Users/chenyigeng/WorkBuddy/data/TechnicalDocumentationCitationSystem/src/backend/firstlayer/category_classifier/app.py:65: DeprecationWarning: 
         on_event is deprecated, use lifespan event handlers instead.
 
         Read more about it in the
         [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
         
   @app.on_event("startup")
-INFO:     Started server process [87097]
+INFO:     Started server process [71559]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:3004 (Press CTRL+C to quit)
-============================================================
-  category_classifier 问题分类服务启动中...
-============================================================
-✅ 规则分类器已初始化
-🤖 模型：google/flan-t5-base
-🔄 正在加载 GLiClass 模型 (FLAN-T5 Base)...
-📂 模型路径：/Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem/src/backend/firstlayer/firstlayer_modules/flan-t5-base
-⚠️  ML 模型加载失败：Incorrect path_or_model_id: '/Users/tuyh3/Desktop/Asiainfo/chenyigeng77521/TechnicalDocumentationCitationSystem/src/backend/firstlayer/firstlayer_modules/flan-t5-base'. Please provide either the path to a local folder or the repo_id of a model on the Hub.，将使用规则匹配
-============================================================
-  ✅ 服务启动完成!
-  🌐 访问地址：http://0.0.0.0:3004
-  📚 API 文档：http://0.0.0.0:3004/docs
-============================================================
-INFO:     127.0.0.1:59523 - "POST /api/classify HTTP/1.1" 200 OK
-INFO:     127.0.0.1:65518 - "POST /api/classify HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58961 - "POST /api/classify HTTP/1.1" 200 OK
